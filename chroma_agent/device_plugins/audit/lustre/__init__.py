@@ -6,15 +6,15 @@
 
 import re
 import os
-from chroma_agent.audit import BaseAudit
-from chroma_agent.audit.mixins import FileSystemMixin
+from chroma_agent.device_plugins.audit import BaseAudit
+from chroma_agent.device_plugins.audit.mixins import FileSystemMixin
 
 
 def local_audit_classes(fscontext=None):
-    import chroma_agent.audit.lustre
+    import chroma_agent.device_plugins.audit.lustre
     return [cls for cls in
-                [getattr(chroma_agent.audit.lustre, name) for name in
-                    dir(chroma_agent.audit.lustre) if name.endswith('Audit')]
+                [getattr(chroma_agent.device_plugins.audit.lustre, name) for name in
+                    dir(chroma_agent.device_plugins.audit.lustre) if name.endswith('Audit')]
             if hasattr(cls, 'is_available') and cls.is_available(fscontext)]
 
 

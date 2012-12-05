@@ -4,7 +4,7 @@
 # ========================================================
 
 
-from chroma_agent.fscontext import FileSystemContext
+from chroma_agent.device_plugins.audit.fscontext import FileSystemContext
 
 
 class FileSystemMixin(object):

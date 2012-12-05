@@ -6,8 +6,8 @@
 
 import re
 import socket
-from chroma_agent.audit import BaseAudit
-from chroma_agent.audit.mixins import FileSystemMixin
+from chroma_agent.device_plugins.audit import BaseAudit
+from chroma_agent.device_plugins.audit.mixins import FileSystemMixin
 
 
 class NodeAudit(BaseAudit, FileSystemMixin):

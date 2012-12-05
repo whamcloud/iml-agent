@@ -4,9 +4,9 @@
 # ========================================================
 
 
-import chroma_agent.audit
-from chroma_agent.audit import BaseAudit
-from chroma_agent.audit.mixins import FileSystemMixin
+import chroma_agent.device_plugins.audit
+from chroma_agent.device_plugins.audit import BaseAudit
+from chroma_agent.device_plugins.audit.mixins import FileSystemMixin
 
 
 class LocalAudit(BaseAudit, FileSystemMixin):
@@ -18,7 +18,7 @@ class LocalAudit(BaseAudit, FileSystemMixin):
     # FIXME: This probably ought to be a memoized property, but I'm lazy.
     def audit_classes(self):
         if not hasattr(self, 'audit_classes_list'):
-            self.audit_classes_list = chroma_agent.audit.local_audit_classes(self.fscontext)
+            self.audit_classes_list = chroma_agent.device_plugins.audit.local_audit_classes(self.fscontext)
         return self.audit_classes_list
 
     # Flagrantly "borrowed" from:
