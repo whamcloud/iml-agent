@@ -3,6 +3,9 @@ dist/
 chroma_agent/.dev_config_store/
 *.pyc
 deps
+rpm_deps
+scm_version.py.tmp
 chroma_agent/scm_version.py
 chroma_agent.egg-info/
+_topdir/
 tags
