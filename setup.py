@@ -11,7 +11,7 @@ from chroma_agent import package_version
 excludes = ["*tests*"]
 
 setup(
-    name = 'chroma-agent',
+    name = 'iml-agent',
     version = package_version(),
     author = "Intel Corporation",
     author_email = "hpdd-info@intel.com",

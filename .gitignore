@@ -1,5 +1,8 @@
 MANIFEST
-chroma-agent.spec
-setup.py
 dist/
-.dev_config_store/
+chroma_agent/.dev_config_store/
+*.pyc
+deps
+chroma_agent/scm_version.py
+chroma_agent.egg-info/
+tags
