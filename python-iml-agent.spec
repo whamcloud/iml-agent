@@ -1,16 +1,19 @@
-%{!?name: %define name chroma-agent}
-%{?!version: %define version %(%{__python} -c "from chroma_agent import version; sys.stdout.write(version())")}
-%{?!package_release: %define package_release 1}
-%{?!python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; import sys; sys.stdout.write(get_python_lib())")}
+%global pypi_name iml-agent
+%{!?name: %global name python-%{pypi_name}}
+%{?!version: %global version 4.0.0.0}
+%{?!package_release: %global package_release 1}
+%{?!python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; import sys; sys.stdout.write(get_python_lib())")}
 
-Summary: Chroma Agent
+%{?dist_version: %global source https://github.com/intel-hpdd/iml-agent/archive/%{dist_version}.tar.gz}
+%{?dist_version: %global archive_version %{dist_version}}
+%{?!dist_version: %global source https://pypi.python.org/packages/source/i/iml-agent/iml-agent-%{version}.tar.gz}
+%{?!dist_version: %global archive_version %{version}}
+
+Summary: IML Agent
 Name: %{name}
 Version: %{version}
 Release: %{package_release}%{?dist}
-Source0: %{name}-%{version}.tar.gz
-Source1: chroma-agent-init.sh
-Source2: lustre-modules-init.sh
-Source3: logrotate.cfg
+Source0: %{source}
 License: Proprietary
 Group: Development/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
@@ -19,6 +22,8 @@ BuildArch: noarch
 Vendor: Intel Corporation <hpdd-info@intel.com>
 Url: http://lustre.intel.com/
 BuildRequires: python-setuptools
+Obsoletes: chroma-agent
+Provides: chroma-agent
 Requires: ntp
 Requires: python-argparse
 Requires: python-daemon
@@ -47,6 +52,8 @@ This is the Intel Manager for Lustre monitoring and adminstration agent
 Summary: Management functionality layer.
 Group: System/Utility
 Conflicts: sysklogd
+Obsoletes: chroma-agent-management
+Provides: chroma-agent-management
 
 Requires: %{name} = %{version}-%{release}
 Requires: pcs
@@ -84,7 +91,7 @@ Requires: %{name} = %{version}-%{release}
 This package contains the .py files stripped out of the production build.
 
 %prep
-%setup -n %{name}-%{version}
+%setup -n %{pypi_name}-%{archive_version}
 
 %build
 %{__python} setup.py build
@@ -96,9 +103,9 @@ mkdir -p $RPM_BUILD_ROOT/usr/sbin/
 mv $RPM_BUILD_ROOT/usr/{,s}bin/fence_chroma
 mv $RPM_BUILD_ROOT/usr/{,s}bin/chroma-copytool-monitor
 mkdir -p $RPM_BUILD_ROOT/etc/{init,logrotate}.d/
-cp %{SOURCE1} $RPM_BUILD_ROOT/etc/init.d/chroma-agent
-cp %{SOURCE2} $RPM_BUILD_ROOT/etc/init.d/lustre-modules
-install -m 644 %{SOURCE3} $RPM_BUILD_ROOT/etc/logrotate.d/chroma-agent
+cp chroma-agent-init.sh $RPM_BUILD_ROOT/etc/init.d/chroma-agent
+cp lustre-modules-init.sh $RPM_BUILD_ROOT/etc/init.d/lustre-modules
+install -m 644 logrotate.cfg $RPM_BUILD_ROOT/etc/logrotate.d/chroma-agent
 
 touch management.files
 cat <<EndOfList>>management.files
@@ -149,8 +156,14 @@ grubby --set-default=/boot/vmlinuz-$MOST_RECENT_KERNEL_VERSION
 %attr(0755,root,root)/etc/init.d/chroma-agent
 %attr(0755,root,root)/etc/init.d/lustre-modules
 %{_bindir}/chroma-agent*
-%{python_sitelib}/chroma_agent-*.egg-info/*
+%{python_sitelib}/%(a=%{pypi_name}; echo ${a//-/_})-*.egg-info/*
 %attr(0644,root,root)/etc/logrotate.d/chroma-agent
 
 %files -f management.files management
 %defattr(-,root,root)
+
+%changelog
+* Fri Dec  1 2017 Brian J. Murrell <brian.murrell@intel.com> - 4.0.0.0-1
+- Initial module
+  * split out from the intel-manager-for-lustre project
+

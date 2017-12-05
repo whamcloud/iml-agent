@@ -91,7 +91,7 @@ sslclientcert = {2}
 
     def test_install_packages(self):
         self.add_commands(CommandCaptureCommand(('dnf', 'clean', 'all', '--enablerepo=*')),
-                          CommandCaptureCommand(('dnf', 'repoquery', '--requires', '--enablerepo=myrepo', 'foo', 'bar'),
+                          CommandCaptureCommand(('dnf', 'repoquery', '--latest-limit', '1', '--requires', '--enablerepo=myrepo', 'foo', 'bar'),
                                                 stdout="""/usr/bin/python
 python >= 2.4
 python(abi) = 2.6
@@ -118,7 +118,7 @@ jasper-libs.x86_64                                                              
 
     def test_install_packages_hyd_4050_grubby(self):
         self.add_commands(CommandCaptureCommand(('dnf', 'clean', 'all', '--enablerepo=*')),
-                          CommandCaptureCommand(('dnf', 'repoquery', '--requires', '--enablerepo=myrepo', 'foo'), stdout="""/usr/bin/python
+                          CommandCaptureCommand(('dnf', 'repoquery', '--latest-limit', '1', '--requires', '--enablerepo=myrepo', 'foo'), stdout="""/usr/bin/python
 python >= 2.4
 python(abi) = 2.6
 yum >= 3.2.29
@@ -141,7 +141,7 @@ lustre-backend-fs
 
     def test_install_packages_4050_initramfs(self):
         self.add_commands(CommandCaptureCommand(('dnf', 'clean', 'all', '--enablerepo=*')),
-                          CommandCaptureCommand(('dnf', 'repoquery', '--requires', '--enablerepo=myrepo', 'foo'), stdout="""/usr/bin/python
+                          CommandCaptureCommand(('dnf', 'repoquery', '--latest-limit', '1', '--requires', '--enablerepo=myrepo', 'foo'), stdout="""/usr/bin/python
 python >= 2.4
 python(abi) = 2.6
 yum >= 3.2.29
@@ -166,13 +166,13 @@ lustre-backend-fs
         config.update('settings', 'profile', {'managed': False})
 
         # Go from managed = False to managed = True
-        self.add_command(('dnf', 'install', '--allowerasing', '-y', '--exclude', 'kernel-debug', '--enablerepo=iml-agent', 'chroma-agent-management'))
+        self.add_command(('dnf', 'install', '--allowerasing', '-y', '--exclude', 'kernel-debug', 'chroma-agent-management'))
         self.assertEqual(agent_updates.update_profile({'managed': True}), agent_result_ok)
         self.assertRanAllCommandsInOrder()
 
         # Go from managed = True to managed = False
         self.reset_command_capture()
-        self.add_command(('dnf', 'remove', '-y', '--enablerepo=iml-agent', 'chroma-agent-management'))
+        self.add_command(('dnf', 'remove', '-y', 'chroma-agent-management'))
         self.assertEqual(agent_updates.update_profile({'managed': False}), agent_result_ok)
         self.assertRanAllCommandsInOrder()
 
@@ -183,11 +183,11 @@ lustre-backend-fs
 
     def test_set_profile_fail(self):
         # Three times because yum will try three times.
-        self.add_commands(CommandCaptureCommand(('dnf', 'install', '--allowerasing', '-y', '--exclude', 'kernel-debug', '--enablerepo=iml-agent', 'chroma-agent-management'), rc=1, stdout="Bad command stdout", stderr="Bad command stderr"),
+        self.add_commands(CommandCaptureCommand(('dnf', 'install', '--allowerasing', '-y', '--exclude', 'kernel-debug', 'chroma-agent-management'), rc=1, stdout="Bad command stdout", stderr="Bad command stderr"),
                           CommandCaptureCommand(('dnf', 'clean', 'metadata')),
-                          CommandCaptureCommand(('dnf', 'install', '--allowerasing', '-y', '--exclude', 'kernel-debug', '--enablerepo=iml-agent', 'chroma-agent-management'), rc=1, stdout="Bad command stdout", stderr="Bad command stderr"),
+                          CommandCaptureCommand(('dnf', 'install', '--allowerasing', '-y', '--exclude', 'kernel-debug', 'chroma-agent-management'), rc=1, stdout="Bad command stdout", stderr="Bad command stderr"),
                           CommandCaptureCommand(('dnf', 'clean', 'metadata')),
-                          CommandCaptureCommand(('dnf', 'install', '--allowerasing', '-y', '--exclude', 'kernel-debug', '--enablerepo=iml-agent', 'chroma-agent-management'), rc=1, stdout="Bad command stdout", stderr="Bad command stderr"),
+                          CommandCaptureCommand(('dnf', 'install', '--allowerasing', '-y', '--exclude', 'kernel-debug', 'chroma-agent-management'), rc=1, stdout="Bad command stdout", stderr="Bad command stderr"),
                           CommandCaptureCommand(('dnf', 'clean', 'metadata')))
 
         config.update('settings', 'profile', {'managed': False})
