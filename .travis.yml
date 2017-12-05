@@ -1,0 +1,15 @@
+language: python
+python: '2.7'
+script: nosetests
+addons:
+  apt:
+    packages:
+    - libpcap0.8-dev
+deploy:
+  provider: pypi
+  skip_upload_docs: true
+  user: iml
+  password:
+    secure: QznryPOPomArAOyHl0qTC8JBR7qAmp81SAD6jnUwYzd1JO5lk7nIw25PMA2sU24uaTSEKp37Dx+qLeYIECz/HATFP0FlXDwgfDHgLinasz0+xaKlbhzhuWkAQwHe3Jc8pjdl7npm1Kh1xJU0Rsiwm2bnhfqGT3czsvOZoVoRdOKB0oW8sex6u3evXOa9NoFLX8WUkUIEUntT3HgOrxygY9pPAyu8qo0wluL4YRDY8nYaaeTOX8hPfa883ctYiMiiGxyvqGnfE264h4JlX7OYoBr5rF0ZS0wcqekLjnLLQwh+sEsdP9PNIlh+I4Hfkku6errhbD96w2YW6WySGcngiRSal7cHOa/lOAWm74M3nMoFLl7zFuX5BkVwSoRcyjibJogXyiladEs20eVmLcKcAHfj1OA//pQwvbNow3xcUci1mjmgV/v7VmfK1bPo9cziK6SNE1k96FI92BlqpuxrhQEy+hprq/SOGB8QJ6jo5/lvXwPFrsn4DHxUlGQPFk1hCo7TPRq+a//uVRuLmz4eXvDVrEoB+MR4oo9ltPpnXI7ylVnmavGR/vgw7y23tTucGkPHlFK9ubqv2cydTqxyJfkF00iDlr1ZNWjt1LUBWCdlgyor9AM4KqiVamc3jDaHj4z//l65JNEwxPOJ18tmCX5n29cY3ibLLO5kfFkVVVI=
+  on:
+    tags: true
