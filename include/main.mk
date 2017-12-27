@@ -114,14 +114,14 @@ dist/$(NAME)-$(PACKAGE_VERSION).tar.gz: Makefile
 	rm -rf _topdir
 	echo "jenkins_fold:end:Make Agent Tarball"
 
-dist: dist/python-$(NAME)-$(PACKAGE_VERSION).tar.gz
+dist: dist/$(NAME)-$(PACKAGE_VERSION).tar.gz
 
 _topdir/SOURCES/%: %
 	mkdir -p _topdir/SOURCES
 	cp $< $@
 
 ifneq ($(DIST_VERSION),$(PACKAGE_VERSION))
-$(RPM_SOURCES): dist/python-$(NAME)-$(PACKAGE_VERSION).tar.gz
+$(RPM_SOURCES): dist/$(NAME)-$(PACKAGE_VERSION).tar.gz
 # this builds the RPM from the Source(s) specified in
 # the specfile.  i don't think this is what we want here.
 # here, we want to build an rpm from the source tree
