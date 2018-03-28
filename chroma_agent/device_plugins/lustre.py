@@ -92,6 +92,7 @@ def scan_packages():
 
     # For all packages named in the repos, get installed version if it is installed
     # =============================================================================
+    updates_available = []
     ts = rpm_lib.TransactionSet()
     for repo_name, packages in repo_packages.items():
         for package_name, package_data in packages.items():
@@ -103,6 +104,26 @@ def scan_packages():
                     release=h['release'],
                     arch=h['arch']
                 ))
+                installed = package_data['installed'][0]
+                for available in package_data['available']:
+                    if rpm_lib.labelCompare((available.epoch,
+                                             available.version,
+                                             available.release),
+                                            (installed.epoch,
+                                             installed.version,
+                                             installed.release)) > 0:
+                        updates_available.append("%s:%s-%s-%s-%s" % 
+                                                 (repo_name,
+                                                  package_name,
+                                                  available.version,
+                                                  available.release,
+                                                  available.arch))
+                        break
+
+    # log available updates for updates notification debugging
+    if updates_available:
+        console_log.info("scan_packages: updates available: %s" %
+                         updates_available)
 
     return repo_packages
 

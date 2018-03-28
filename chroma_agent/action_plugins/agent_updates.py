@@ -80,7 +80,7 @@ def update_profile(profile):
             action = 'remove'
 
         try:
-            yum_util(action, enablerepo=["iml-agent"], packages=['chroma-agent-management'])
+            yum_util(action, packages=['python2-iml-agent-management'])
         except AgentShell.CommandExecutionError as cee:
             return agent_error("Unable to set profile because yum returned %s" % cee.result.stdout)
 

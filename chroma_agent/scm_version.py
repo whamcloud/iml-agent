@@ -1,0 +1,4 @@
+VERSION = "4.0.5.0-2-g4158fcd"
+PACKAGE_VERSION = "4.0.5.0"
+BUILD = ""
+IS_RELEASE = False
