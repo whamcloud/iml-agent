@@ -1,4 +1,5 @@
 MANIFEST
+python-iml-agent.spec
 dist/
 chroma_agent/.dev_config_store/
 *.pyc
