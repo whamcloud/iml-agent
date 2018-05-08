@@ -30,10 +30,10 @@ try:
     __build__ = BUILD
     __is_release__ = IS_RELEASE
 except ImportError:
-    # These are defaults, should loosely track latest dev tag, won't
-    # work with packaging but will allow non-packaged installs to work
-    # OK.
-    __version__ = '1.99.0.0-dev'
+    from pkginfo import UnpackedSDist
+
+    pkg = UnpackedSDist('.')
+    __version__ = pkg.version
     __package_version__ = __version__
     __build__ = 1
     __is_release__ = False

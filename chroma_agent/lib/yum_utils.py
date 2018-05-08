@@ -32,23 +32,29 @@ def yum_util(action, packages=[], fromrepo=None, enablerepo=None, narrow_updates
         repo_arg.extend(['--upgrades'])
 
     if action == 'clean':
-        cmd = ['dnf', 'clean', 'all'] + (repo_arg if repo_arg else ["--enablerepo=*"])
+        cmd = ['dnf', 'clean', 'all'] + (repo_arg if repo_arg
+                                         else ["--enablerepo=*"])
     elif action == 'install':
-        cmd = ['dnf', 'install', '--allowerasing', '-y', '--exclude', 'kernel-debug'] + \
-               repo_arg + list(packages)
+        cmd = ['dnf', 'install', '--allowerasing', '-y', '--exclude',
+               'kernel-debug'] + repo_arg + list(packages)
     elif action == 'remove':
         cmd = ['dnf', 'remove', '-y'] + repo_arg + list(packages)
     elif action == 'update':
-        cmd = ['dnf', 'update', '--allowerasing', '-y', '--exclude', 'kernel-debug'] + \
-               repo_arg + list(packages)
+        cmd = ['dnf', 'update', '--allowerasing', '-y', '--exclude',
+               'kernel-debug'] + repo_arg + list(packages)
     elif action == 'requires':
-        cmd = ['dnf', 'repoquery', '--requires'] + repo_arg + list(packages)
+        cmd = ['dnf', 'repoquery', '--latest-limit', '1', '--requires'] + \
+               repo_arg + list(packages)
     elif action == 'query':
-        cmd = ['dnf', 'repoquery', '--available'] + repo_arg + list(packages)
+        cmd = ['dnf', 'repoquery', '--latest-limit', '1', '--available'] + \
+               repo_arg + list(packages)
     elif action == 'repoquery':
-        cmd = ['dnf', 'repoquery', '--available'] + repo_arg + ['--queryformat=%{EPOCH} %{NAME} %{VERSION} %{RELEASE} %{ARCH}']
+        cmd = ['dnf', 'repoquery', '--available'] + repo_arg + \
+               ['--queryformat=%{EPOCH} %{NAME} ' \
+                              '%{VERSION} %{RELEASE} %{ARCH}']
     elif action == 'check-update':
-        cmd = ['dnf', 'repoquery', '--queryformat=%{name} %{version}-%{release}.'
+        cmd = ['dnf', 'repoquery',
+               '--queryformat=%{name} %{version}-%{release}.'
                '%{arch} %{repoid}', '--upgrades'] + repo_arg + \
             list(packages)
     else:
@@ -91,8 +97,9 @@ def yum_check_update(repos):
         elements = line.split()
 
         # Valid lines have 3 elements with the third entry being one of the repos anything else should be ignored but logged
-        if len(elements) == 3 and (elements[2] in repos):
-            packages.append(elements[0])
+        if len(elements) == 3:
+            if not repos or elements[2] in repos:
+                packages.append(elements[0])
         else:
             daemon_log.warning("dnf check-update found unknown response of: %s\nIn: %s\nLooking at: repos %s" % (line, yum_response, repos))
 

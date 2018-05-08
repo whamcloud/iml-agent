@@ -1,4 +1,9 @@
 MANIFEST
-setup.py
 dist/
-.dev_config_store/
+chroma_agent/.dev_config_store/
+*.pyc
+deps
+rpm_deps
+chroma_agent.egg-info/
+_topdir/
+tags
