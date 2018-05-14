@@ -32,7 +32,13 @@ else
   OWNER_PROJECT = $(COPR_OWNER)/$(COPR_PROJECT)
 endif
 
-ifeq ($(shell grep -q ^%patch $(RPM_SPEC); echo $${PIPESTATUS[0]}),0)
+ifeq ($(shell if grep -q ^%patch $(RPM_SPEC) ||   \
+                 [ "$$(grep ^Source $(RPM_SPEC) | \
+                       wc -l)" -gt 1 ]; then      \
+                  echo SRPM;                      \
+              else                                \
+                  echo SPEC;                      \
+             fi),SRPM)
   PREREQ += $(TARGET_SRPM)
 else
   ifeq ($(UNPUBLISHED),true)

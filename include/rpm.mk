@@ -1,8 +1,10 @@
 VERSION := $(shell repoquery --disablerepo=\* --enablerepo=$(REPO) -q --qf "%{version}" $(NAME) | sed -e 's/.el7//g')
 RELEASE := $(shell repoquery --disablerepo=\* --enablerepo=$(REPO) -q --qf "%{release}" $(NAME) | sed -e 's/.el7//g')
 
-PACKAGE_VERSION := $(VERSION)
-PACKAGE_RELEASE := $(RELEASE).01
+PACKAGE_VERSION ?= $(VERSION)
+PACKAGE_RELEASE ?= $(RELEASE).01
+
+TARGET_RPMS = $(NAME)-$(PACKAGE_VERSION)-$(PACKAGE_RELEASE)$(RPM_DIST).noarch.rpm
 
 include include/rpm-common.mk
 include include/copr.mk
