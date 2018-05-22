@@ -22,7 +22,7 @@ jobs:
     script:
     - ./include/travis/run_in_centos7_docker.sh include/travis/mock_build_test.sh
   - stage: deploy-pypi
-    if: branch =~ ^v\d+\.\d+\.\d+-1.*$
+    if: branch =~ ^v\d+\.\d+\.\d+$
     env: Type='PyPi deploy'
     script: skip
     deploy:
@@ -35,7 +35,7 @@ jobs:
         distributions: sdist bdist_wheel
     skip_upload_docs: true
   - stage: deploy-copr
-    if: branch =~ ^v\d+\.\d+\.\d+-.+$
+    if: branch =~ ^v\d+\.\d+\.\d+$
     env: Type='Copr deploy'
     script: skip
     before_deploy:
