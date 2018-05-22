@@ -22,11 +22,10 @@ URL:            https://pypi.python.org/pypi/%{pypi_name}
 Source0:        %{source}
 Source1:        %{unit_name}
 Source2:        50-chroma-agent.preset
-Source3:        lustre-modules-init.sh
-Source4:        logrotate.cfg
-Source5:        iml-storage-server.target
-Source6:        10-device-scanner.target.conf
-Source7:        10-device-scanner.socket.conf
+Source3:        logrotate.cfg
+Source4:        iml-storage-server.target
+Source5:        10-device-scanner.target.conf
+Source6:        10-device-scanner.socket.conf
 Group:          Development/Libraries
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Prefix:         %{_prefix}
@@ -111,15 +110,14 @@ mv $RPM_BUILD_ROOT/usr/{,s}bin/chroma-copytool-monitor
 mkdir -p %{buildroot}%{_unitdir}/
 mkdir -p %{buildroot}%{_presetdir}
 cp %{unit_name} %{buildroot}%{_unitdir}/
-cp 50-chroma-agent.preset %{buildroot}%{_presetdir}/
+cp %{SOURCE2} %{buildroot}%{_presetdir}/
 mkdir -p $RPM_BUILD_ROOT/etc/{init,logrotate}.d/
-cp lustre-modules-init.sh $RPM_BUILD_ROOT/etc/init.d/lustre-modules
-install -m 644 logrotate.cfg $RPM_BUILD_ROOT/etc/logrotate.d/chroma-agent
-cp %{SOURCE5} %{buildroot}/usr/lib/systemd/system/iml-storage-server.target
-mkdir -p %{buildroot}/etc/systemd/system/device-scanner.target.d/
-cp %{SOURCE6} %{buildroot}/etc/systemd/system/device-scanner.target.d/10-device-scanner.target.conf
-mkdir -p %{buildroot}/etc/systemd/system/device-scanner.socket.d/
-cp %{SOURCE7} %{buildroot}/etc/systemd/system/device-scanner.socket.d/10-device-scanner.socket.conf
+install -m 644 %{SOURCE3} $RPM_BUILD_ROOT/etc/logrotate.d/chroma-agent
+cp %{SOURCE4} %{buildroot}%{_unitdir}/iml-storage-server.target
+mkdir -p %{buildroot}%{_unitdir}/device-scanner.target.d/
+cp %{SOURCE5} %{buildroot}%{_unitdir}/device-scanner.target.d/10-device-scanner.target.conf
+mkdir -p %{buildroot}%{_unitdir}/device-scanner.socket.d/
+cp %{SOURCE6} %{buildroot}%{_unitdir}/device-scanner.socket.d/10-device-scanner.socket.conf
 
 touch management.files
 cat <<EndOfList>>management.files
@@ -182,10 +180,9 @@ grubby --set-default=/boot/vmlinuz-$MOST_RECENT_KERNEL_VERSION
 %defattr(-,root,root)
 %attr(0644,root,root)%{_unitdir}/%{unit_name}
 %attr(0644,root,root)%{_presetdir}/50-chroma-agent.preset
-%attr(0644,root,root)/usr/lib/systemd/system/iml-storage-server.target
-%attr(0644,root,root)/etc/systemd/system/device-scanner.target.d/10-device-scanner.target.conf
-%attr(0644,root,root)/etc/systemd/system/device-scanner.socket.d/10-device-scanner.socket.conf
-%attr(0755,root,root)/etc/init.d/lustre-modules
+%attr(0644,root,root)%{_unitdir}/iml-storage-server.target
+%attr(0644,root,root)%{_unitdir}/device-scanner.target.d/10-device-scanner.target.conf
+%attr(0644,root,root)%{_unitdir}/device-scanner.socket.d/10-device-scanner.socket.conf
 %{_bindir}/chroma-agent*
 %{python_sitelib}/%(a=%{pypi_name}; echo ${a//-/_})-*.egg-info/*
 %attr(0644,root,root)/etc/logrotate.d/chroma-agent
