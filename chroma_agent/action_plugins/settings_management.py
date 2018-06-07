@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Intel Corporation. All rights reserved.
+# Copyright (c) 2018 Intel Corporation. All rights reserved.
 # Use of this source code is governed by a MIT-style
 # license that can be found in the LICENSE file.
 
@@ -7,6 +7,7 @@ import os
 import re
 import json
 
+from chroma_agent.conf import set_server_url, ENV_PATH
 from chroma_agent import config
 from chroma_agent.config_store import ConfigKeyExistsError
 
@@ -20,14 +21,6 @@ def set_profile(profile_json):
         config.update('settings', 'profile', profile)
 
 
-def set_server_url(url):
-    server_conf = dict(url = url)
-    try:
-        config.set('settings', 'server', server_conf)
-    except ConfigKeyExistsError:
-        config.update('settings', 'server', server_conf)
-
-
 def set_agent_config(key, val):
     agent_settings = config.get('settings', 'agent')
     agent_settings[key] = val
@@ -36,6 +29,11 @@ def set_agent_config(key, val):
 
 def get_agent_config(key):
     return config.get('settings', 'agent')[key]
+
+
+def migrate_file(old_path, new_path):
+    if os.path.exists(old_path):
+        os.rename(old_path, new_path)
 
 
 def reset_agent_config():
@@ -48,8 +46,22 @@ def _convert_agentstore_config():
     if os.path.exists(server_conf_path):
         with open(server_conf_path) as f:
             old_server_conf = json.load(f)
-        config.set('settings', 'server', old_server_conf)
+        set_server_url(old_server_conf.get('url'))
         os.unlink(server_conf_path)
+    else:
+        try:
+            url = config.get('settings', 'server').get('url')
+            set_server_url(url)
+
+            config.delete('settings', 'server')
+        except (KeyError, TypeError):
+            pass
+
+    crypto_files = map(
+        lambda x: (os.path.join(config.path, x), os.path.join(ENV_PATH, x)),
+        ['authority.crt', 'private.pem', 'self.crt'])
+
+    map(lambda x: migrate_file(*x), crypto_files)
 
     uuid_re = re.compile(r'[0-9a-f]{8}\-[0-9a-f]{4}\-[0-9a-f]{4}\-[0-9a-f]{4}\-[0-9a-f]{12}')
     for entry in os.listdir(config.path):
@@ -71,4 +83,7 @@ def convert_agent_config():
     _convert_agentstore_config()
 
 
-ACTIONS = [set_server_url, set_agent_config, set_profile, get_agent_config, reset_agent_config, convert_agent_config]
+ACTIONS = [
+    set_server_url, set_agent_config, set_profile, get_agent_config,
+    reset_agent_config, convert_agent_config
+]

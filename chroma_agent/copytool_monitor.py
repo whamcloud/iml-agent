@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2017 Intel Corporation. All rights reserved.
+# Copyright (c) 2018 Intel Corporation. All rights reserved.
 # Use of this source code is governed by a MIT-style
 # license that can be found in the LICENSE file.
 
@@ -16,6 +16,7 @@ import json
 from argparse import ArgumentParser, ArgumentError, Action
 
 from chroma_agent import config
+from chroma_agent.conf import ENV_PATH
 from chroma_agent.crypto import Crypto
 from chroma_agent.log import copytool_log, copytool_log_setup, increase_loglevel, decrease_loglevel
 from chroma_agent.utils import lsof
@@ -257,11 +258,14 @@ class Copytool(object):
         return os.path.join(fifo_dir, "%s-events" % self)
 
     def as_dict(self):
-        return dict(id = self.id, index=self.index, bin_path=self.bin_path,
-                    archive_number=self.archive_number,
-                    filesystem=self.filesystem,
-                    mountpoint=self.mountpoint,
-                    hsm_arguments=self.hsm_arguments)
+        return dict(
+            id=self.id,
+            index=self.index,
+            bin_path=self.bin_path,
+            archive_number=self.archive_number,
+            filesystem=self.filesystem,
+            mountpoint=self.mountpoint,
+            hsm_arguments=self.hsm_arguments)
 
 
 class GetCopytoolAction(Action):
@@ -281,12 +285,12 @@ def main():
     copytool_log_setup()
 
     try:
-        manager_url = config.get('settings', 'server')['url'] + "copytool_event/"
+        manager_url = os.environ["IML_MANAGER_URL"] + "agent/copytool_event/"
     except KeyError:
         copytool_log.error("No configuration found (must be configured before starting a copytool monitor)")
         sys.exit(1)
 
-    client = CryptoClient(manager_url, Crypto(config.path))
+    client = CryptoClient(manager_url, Crypto(ENV_PATH))
     monitor = CopytoolMonitor(client, args.copytool)
 
     def teardown_callback(*args, **kwargs):
@@ -300,7 +304,7 @@ def main():
     try:
         monitor.start()
         while not monitor.stopping.is_set():
-            monitor.stopping.wait(timeout = 10)
+            monitor.stopping.wait(timeout=10)
 
         monitor.join()
     except Exception as e:

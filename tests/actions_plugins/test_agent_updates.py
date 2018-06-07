@@ -35,9 +35,9 @@ baseurl=http://www.test.com/test.repo
 enabled=1
 gpgcheck=0
 sslverify = 1
-sslcacert = /var/lib/chroma/authority.crt
-sslclientkey = /var/lib/chroma/private.pem
-sslclientcert = /var/lib/chroma/self.crt
+sslcacert = /etc/iml/authority.crt
+sslclientkey = /etc/iml/private.pem
+sslclientcert = /etc/iml/self.crt
 """
         provided_content = """
 [Intel-Lustre-Manager]

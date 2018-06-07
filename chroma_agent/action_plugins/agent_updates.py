@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Intel Corporation. All rights reserved.
+# Copyright (c) 2018 Intel Corporation. All rights reserved.
 # Use of this source code is governed by a MIT-style
 # license that can be found in the LICENSE file.
 
@@ -13,6 +13,7 @@ from chroma_agent.device_plugins.action_runner import CallbackAfterResponse
 from chroma_agent.device_plugins import lustre
 from chroma_agent.log import daemon_log
 from chroma_agent import config
+from chroma_agent.conf import ENV_PATH
 from chroma_agent.crypto import Crypto
 from chroma_agent.lib.yum_utils import yum_util, yum_check_update
 from iml_common.lib.agent_rpc import agent_result, agent_error, agent_result_ok
@@ -21,7 +22,7 @@ REPO_PATH = '/etc/yum.repos.d'
 
 
 def configure_repo(filename, file_contents):
-    crypto = Crypto(config.path)
+    crypto = Crypto(ENV_PATH)
     full_filename = os.path.join(REPO_PATH, filename)
     temp_full_filename = full_filename + '.tmp'
 
