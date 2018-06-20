@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Intel Corporation. All rights reserved.
+# Copyright (c) 2018 Intel Corporation. All rights reserved.
 # Use of this source code is governed by a MIT-style
 # license that can be found in the LICENSE file.
 
@@ -11,6 +11,7 @@ it from manager)
 import os
 
 from chroma_agent import config
+from chroma_agent import conf
 from chroma_agent.agent_client import AgentClient, HttpError
 from chroma_agent.agent_daemon import ServerProperties
 from chroma_agent.crypto import Crypto
@@ -19,7 +20,6 @@ from chroma_agent.log import console_log
 from chroma_agent.plugin_manager import ActionPluginManager, DevicePluginManager
 from iml_common.lib.service_control import ServiceControl
 from iml_common.lib.agent_rpc import agent_ok_or_error
-
 
 agent_service = ServiceControl.create('chroma-agent')
 
@@ -50,7 +50,7 @@ def _disable_service():
 
 
 def deregister_server():
-    config.delete('settings', 'server')
+    conf.remove_server_url()
 
     def disable_and_kill():
         console_log.info("Disabling chroma-agent service")
@@ -62,12 +62,12 @@ def deregister_server():
     raise CallbackAfterResponse(None, disable_and_kill)
 
 
-def register_server(url, ca, secret, address =None):
+def register_server(url, ca, secret, address=None):
     if _service_is_running() is True:
         console_log.warning("chroma-agent service was running before registration, stopping.")
         agent_service.stop()
 
-    crypto = Crypto(config.path)
+    crypto = Crypto(conf.ENV_PATH)
     # Call delete in case we are over-writing a previous configuration that wasn't removed properly
     crypto.delete()
     crypto.install_authority(ca)
@@ -81,7 +81,7 @@ def register_server(url, ca, secret, address =None):
     registration_result = agent_client.register(address)
     crypto.install_certificate(registration_result['certificate'])
 
-    config.set('settings', 'server', {'url': url})
+    conf.set_server_url(url)
 
     console_log.info("Enabling chroma-agent service")
     agent_service.enable()
@@ -98,8 +98,8 @@ def reregister_server(url, address):
         console_log.warning("chroma-agent service was running before registration, stopping.")
         agent_service.stop()
 
-    config.set('settings', 'server', {'url': url})
-    crypto = Crypto(config.path)
+    conf.set_server_url(url)
+    crypto = Crypto(conf.ENV_PATH)
     agent_client = AgentClient(url + 'reregister/', ActionPluginManager(), DevicePluginManager(), ServerProperties(),
                                crypto)
     data = {'address': address, 'fqdn': agent_client._fqdn}

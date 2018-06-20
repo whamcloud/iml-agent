@@ -227,11 +227,17 @@ class AgentStoreConversionTests(unittest.TestCase):
     def setUp(self):
         super(AgentStoreConversionTests, self).setUp()
 
+        self.env_path_patch = patch(
+            'chroma_agent.conf.ENV_PATH',
+            new=tempfile.mkdtemp())
+        self.env_path = self.env_path_patch.start()
         self.config = ConfigStore(tempfile.mkdtemp())
 
     def tearDown(self):
         super(AgentStoreConversionTests, self).tearDown()
 
+        self.env_path_patch.stop()
+        shutil.rmtree(self.env_path)
         shutil.rmtree(self.config.path)
 
     def _create_agentstore_config(self):
@@ -255,15 +261,19 @@ class AgentStoreConversionTests(unittest.TestCase):
             self.old_target_configs[uuid_str] = target_config
 
     def test_agentstore_conversion(self):
-        with patch('chroma_agent.action_plugins.settings_management.config', new = self.config):
+        with patch(
+                'chroma_agent.action_plugins.settings_management.config',
+                new=self.config):
             self._create_agentstore_config()
 
             from chroma_agent.action_plugins.settings_management import _convert_agentstore_config
             _convert_agentstore_config()
 
-            self.assertDictEqual(self.config.get('settings', 'server'),
-                                 self.old_server_conf)
+            with open(os.path.join(self.env_path, 'manager-url.conf'),
+                      'r') as f:
+                self.assertEqual(f.read(), "IML_MANAGER_URL={}\n".format(
+                    self.old_server_conf.get('url')))
 
             for uuid, old_target_conf in self.old_target_configs.items():
-                self.assertDictEqual(self.config.get('targets', uuid),
-                                     old_target_conf)
+                self.assertDictEqual(
+                    self.config.get('targets', uuid), old_target_conf)

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2017 Intel Corporation. All rights reserved.
+# Copyright (c) 2018 Intel Corporation. All rights reserved.
 # Use of this source code is governed by a MIT-style
 # license that can be found in the LICENSE file.
 
@@ -12,6 +12,7 @@ import signal
 import socket
 
 from chroma_agent import config
+from chroma_agent.conf import ENV_PATH
 from chroma_agent.crypto import Crypto
 from chroma_agent.plugin_manager import ActionPluginManager, DevicePluginManager
 from chroma_agent.agent_client import AgentClient
@@ -62,8 +63,8 @@ def main():
     try:
         daemon_log.info("Entering main loop")
         try:
-            conf = config.get('settings', 'server')
-        except (KeyError, TypeError) as e:
+            url = os.environ["IML_MANAGER_URL"] + 'agent/message/'
+        except KeyError as e:
             daemon_log.error(
                 "No configuration found (must be registered before running the agent service), "
                 "details: %s" % e)
@@ -79,10 +80,9 @@ def main():
             import chroma_agent.plugin_manager
             chroma_agent.plugin_manager.EXCLUDED_PLUGINS += ['corosync']
 
-        agent_client = AgentClient(conf['url'] + "message/",
-                                   ActionPluginManager(),
+        agent_client = AgentClient(url, ActionPluginManager(),
                                    DevicePluginManager(), ServerProperties(),
-                                   Crypto(config.path))
+                                   Crypto(ENV_PATH))
 
         def teardown_callback(*args, **kwargs):
             agent_client.stop()

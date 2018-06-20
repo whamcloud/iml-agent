@@ -2,7 +2,7 @@
 # Use of this source code is governed by a MIT-style
 # license that can be found in the LICENSE file.
 
-
+import os
 import time
 import re
 import socket
@@ -24,7 +24,8 @@ env = Environment(loader=PackageLoader('chroma_agent', 'templates'))
 
 firewall_control = FirewallControl.create(logger=console_log)
 
-talker_thread = None                    # Used to make noise on ring1 to enable corosync detection.
+# Used to make noise on ring1 to enable corosync detection.
+talker_thread = None
 
 
 class RingDetectionError(Exception):
@@ -57,7 +58,7 @@ def generate_ring1_network(ring0):
 def get_ring0():
     # ring0 will always be on the interface used for agent->manager comms
     from urlparse import urlparse
-    server_url = config.get('settings', 'server')['url']
+    server_url = os.environ["IML_MANAGER_URL"] + 'agent/'
     manager_address = socket.gethostbyname(urlparse(server_url).hostname)
     out = AgentShell.try_run(['/sbin/ip', 'route', 'get', manager_address])
     match = re.search(r'dev\s+([^\s]+)', out)
