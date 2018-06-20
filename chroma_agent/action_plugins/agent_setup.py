@@ -29,35 +29,21 @@ def _service_is_running():
     return agent_service.running
 
 
-def _start_service():
-    return agent_ok_or_error(agent_service.start())
-
-
-def _stop_service():
-    return agent_ok_or_error(agent_service.stop())
-
-
-def _service_is_enabled():
-    return agent_service.enabled
-
-
-def _enable_service():
-    return agent_ok_or_error(agent_service.enable())
-
-
-def _disable_service():
-    return agent_ok_or_error(agent_service.disable())
-
-
 def deregister_server():
     conf.remove_server_url()
 
     def disable_and_kill():
-        console_log.info("Disabling chroma-agent service")
-        _disable_service()
+        console_log.info("Disabling iml-storage-server units")
+
+        map(lambda x: ServiceControl.create(x).disable(), [
+            'device-scanner.socket',
+            'mount-emitter.service',
+            'swap-emitter.service',
+            'scanner-proxy.path'
+        ])
 
         console_log.info("Terminating")
-        os._exit(0)
+        ServiceControl.create('iml-storage-server.target').stop()
 
     raise CallbackAfterResponse(None, disable_and_kill)
 
