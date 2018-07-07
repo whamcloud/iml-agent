@@ -1,4 +1,4 @@
-VERSION = "4.1.1"
+VERSION = "4.1.1-6-ga167f1c"
 PACKAGE_VERSION = "4.1.1"
 BUILD = ""
 IS_RELEASE = False

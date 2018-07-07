@@ -21,8 +21,8 @@ excludes = ["*tests*"]
 setup(
     name = 'iml-agent',
     version = package_version(),
-    author = "Intel Corporation",
-    author_email = "iml@intel.com",
+    author = "whamCloud Team",
+    author_email = "iml@whamcloud.com",
     url = 'https://pypi.python.org/pypi/iml-agent',
     packages = find_packages(exclude=excludes),
     include_package_data = True,
