@@ -8,3 +8,4 @@ rpm_deps
 chroma_agent.egg-info/
 _topdir/
 tags
+settings.json

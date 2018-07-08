@@ -16,7 +16,7 @@ from chroma_agent.plugin_manager import DevicePlugin
 from chroma_agent import plugin_manager
 from chroma_agent.device_plugins.linux import LinuxDevicePlugin
 from iml_common.lib.exception_sandbox import exceptionSandBox
-from chroma_agent.device_plugins.block_devices import get_normalized_device_table, parse_local_mounts, scanner_cmd
+from chroma_agent.device_plugins.block_devices import parse_local_mounts, scanner_cmd
 from chroma_agent.lib.yum_utils import yum_util
 from iml_common.lib.date_time import IMLDateTime
 
@@ -111,7 +111,7 @@ def scan_packages():
                                             (installed.epoch,
                                              installed.version,
                                              installed.release)) > 0:
-                        updates_available.append("%s:%s-%s-%s-%s" % 
+                        updates_available.append("%s:%s-%s-%s-%s" %
                                                  (repo_name,
                                                   package_name,
                                                   available.version,
@@ -131,7 +131,7 @@ def process_zfs_mount(device, data, zfs_mounts):
     # If zfs-backed target/dataset, lookup underlying pool to get uuid
     # and nested dataset in zed structures to access lustre svname (label).
     dev_root = device.split('/')[0]
-    if dev_root not in [d for d, m, f in zfs_mounts]:
+    if dev_root not in [d for d, _, _ in zfs_mounts]:
         daemon_log.debug('lustre device is not zfs')
         return None, None, None
 
@@ -151,13 +151,7 @@ def process_zfs_mount(device, data, zfs_mounts):
 
     fs_uuid = dataset['guid']
 
-    # note: this will be one of the many partitions that belong to the pool
-    new_device = next(
-        child['Disk']['path'] for child in pool['vdev']['Root']['children']
-        if child.get('Disk')
-    )
-
-    return fs_label, fs_uuid, new_device
+    return fs_label, fs_uuid
 
 
 def process_lvm_mount(device, data):
@@ -175,7 +169,7 @@ def process_lvm_mount(device, data):
         p.split(label_prefix, 1)[1] for p in bdev[0] if p.startswith(label_prefix)
     )
 
-    return fs_label, bdev[1], None
+    return fs_label, bdev[1]
 
 
 class LustrePlugin(DevicePlugin):
@@ -197,11 +191,11 @@ class LustrePlugin(DevicePlugin):
         zfs_mounts = [(d, m, f) for d, m, f in local_mounts if f == 'zfs']
         lustre_mounts = [(d, m, f) for d, m, f in local_mounts if f == 'lustre']
 
-        for device, mntpnt, fstype in lustre_mounts:
-            fs_label, fs_uuid, new_device = process_zfs_mount(device, data, zfs_mounts)
+        for device, mntpnt, _ in lustre_mounts:
+            fs_label, fs_uuid = process_zfs_mount(device, data, zfs_mounts)
 
             if not fs_label:
-                fs_label, fs_uuid, new_device = process_lvm_mount(device, data)
+                fs_label, fs_uuid = process_lvm_mount(device, data)
 
                 if not fs_label:
                     # todo: derive information directly from device-scanner output for ldiskfs
@@ -225,9 +219,6 @@ class LustrePlugin(DevicePlugin):
                         except AgentShell.CommandExecutionError:
                             continue
 
-            ndt = get_normalized_device_table()
-            dev_normalized = ndt.normalized_device_path(device if not new_device else new_device)
-
             recovery_status = {}
             try:
                 recovery_file = glob.glob("/proc/fs/lustre/*/%s/recovery_status" % fs_label)[0]
@@ -245,7 +236,6 @@ class LustrePlugin(DevicePlugin):
                 pass
 
             mounts[device] = {
-                'device': dev_normalized,
                 'fs_uuid': fs_uuid,
                 'mount_point': mntpnt,
                 'recovery_status': recovery_status
