@@ -1,5 +1,12 @@
+RPM_SPEC:= $(NAME).spec
+
+ifneq ($(REPO),)
 VERSION := $(shell repoquery --disablerepo=\* --enablerepo=$(REPO) -q --qf "%{version}" $(NAME) | sed -e 's/.el7//g')
 RELEASE := $(shell repoquery --disablerepo=\* --enablerepo=$(REPO) -q --qf "%{release}" $(NAME) | sed -e 's/.el7//g')
+else
+VERSION := $(shell rpmspec -q --srpm --qf "%{version}\n" $(RPM_SPEC))
+RELEASE := $(shell rpmspec -q --srpm --qf "%{release}\n" $(RPM_SPEC))
+endif
 
 PACKAGE_VERSION ?= $(VERSION)
 PACKAGE_RELEASE ?= $(RELEASE).01
