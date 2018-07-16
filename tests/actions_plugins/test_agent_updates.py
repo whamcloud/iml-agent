@@ -100,7 +100,9 @@ lustre-backend-fs
 jasper-libs.x86_64                                                                             1.900.1-16.el6_6.3                                                                             myrepo
 """),
                           CommandCaptureCommand(('dnf', 'update', '--allowerasing', '-y', '--exclude', 'kernel-debug', '--enablerepo=myrepo', 'jasper-libs.x86_64')),
-                          CommandCaptureCommand(('grubby', '--default-kernel'), stdout='/boot/vmlinuz-2.6.32-504.3.3.el6.x86_64'))
+                          CommandCaptureCommand(('grubby', '--default-kernel'), stdout='/boot/vmlinuz-2.6.32-504.3.3.el6.x86_64'),
+                          CommandCaptureCommand(('systemctl', 'start', 'iml-update-check')),
+                          )
 
         def isfile(arg):
             return True
