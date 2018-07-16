@@ -30,12 +30,12 @@ Group:          Development/Libraries
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Prefix:         %{_prefix}
 BuildArch:      noarch
-Vendor:         Intel Corporation <hpdd-info@intel.com>
+Vendor:         whamCloud <iml@whamcloud.com>
 BuildRequires:  python2-setuptools
 BuildRequires:  systemd
 
 %description
-This is the Intel Manager for Lustre monitoring and adminstration agent
+This is the Integrated Manager for Lustre monitoring and adminstration agent
 
 %package -n     python2-%{pypi_name}
 Summary:        %{summary}
@@ -55,6 +55,7 @@ Requires:       systemd-python
 Requires:       python-tzlocal
 Requires:       python2-toolz
 Requires:       iml-device-scanner-proxy < 3
+Requires:       iml-update-check < 2
 Requires:       util-linux-ng
 Requires(post): selinux-policy
 Requires:       dnf
@@ -63,7 +64,7 @@ Requires:       python-urllib3
 %{?python_provide:%python_provide python2-%{pypi_name}}
 
 %description -n python2-%{pypi_name}
-This is the Intel Manager for Lustre monitoring and adminstration agent
+This is the Integrated Manager for Lustre monitoring and adminstration agent
 
 %package -n     python2-%{pypi_name}-management
 Summary:        Management functionality layer.
@@ -87,7 +88,7 @@ Requires:       fence-agents
 Requires:       fence-agents-virsh
 
 %description -n python2-%{pypi_name}-management
-This package layers on management capabilities for Intel Manager for Lustre Agent.
+This package layers on management capabilities for Integrated Manager for Lustre Agent.
 
 %prep
 %if %{?dist_version:1}%{!?dist_version:0}
@@ -191,7 +192,10 @@ grubby --set-default=/boot/vmlinuz-$MOST_RECENT_KERNEL_VERSION
 %defattr(-,root,root)
 
 %changelog
-* Fri Dec  1 2017 Brian J. Murrell <brian.murrell@intel.com> - 4.0.5.0-1
+* Mon Jul 16 2018 Joe Grund <jgrund@whamcloud.com> - 4.1.1.0-1
+Remove old package update scan from this project.
+
+* Fri Dec 1 2017 Brian J. Murrell <brian.murrell@intel.com> - 4.0.5.0-1
 - Initial module
   * split out from the intel-manager-for-lustre project
 

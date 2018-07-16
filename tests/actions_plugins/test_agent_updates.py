@@ -5,7 +5,6 @@ from tempfile import NamedTemporaryFile
 from mock import patch
 
 from chroma_agent.action_plugins import agent_updates
-from chroma_agent.device_plugins import lustre
 from chroma_agent import config
 from iml_common.lib.shell import Shell
 from iml_common.test.command_capture_testcase import CommandCaptureTestCase, CommandCaptureCommand
@@ -17,14 +16,9 @@ class TestManageUpdates(CommandCaptureTestCase):
         super(TestManageUpdates, self).setUp()
         self.tmpRepo = NamedTemporaryFile(delete=False)
 
-        self.old_scan_packages = lustre.scan_packages
-        lustre.scan_packages = mock.Mock(return_value={})
-
     def tearDown(self):
         if os.path.exists(self.tmpRepo.name):
             os.remove(self.tmpRepo.name)
-
-        lustre.scan_packages = self.old_scan_packages
 
     def test_configure_repo(self):
         import chroma_agent

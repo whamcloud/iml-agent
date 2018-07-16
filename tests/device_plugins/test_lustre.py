@@ -3,7 +3,6 @@ import mock
 
 from iml_common.test.command_capture_testcase import CommandCaptureTestCase
 from tests.lib.agent_unit_testcase import AgentUnitTestCase
-from chroma_agent.device_plugins import lustre
 from chroma_agent.device_plugins.lustre import LustrePlugin
 
 
@@ -30,9 +29,6 @@ class TestLustreAudit(AgentUnitTestCase):
     def mock_scan_mounts(self):
         return {'scan_mounts': TestLustreAudit.values['scan_mounts']}
 
-    def mock_scan_packages(self):
-        return {'scan_packages': TestLustreAudit.values['scan_packages']}
-
     def setUp(self):
         super(TestLustreAudit, self).setUp()
 
@@ -41,7 +37,6 @@ class TestLustreAudit(AgentUnitTestCase):
         TestLustreAudit.values = {'capabilities': True,
                                  'resource_locations': True,
                                  'scan_mounts': True,
-                                 'scan_packages': True,
                                  'metrics': True,
                                  'properties': True}
 
@@ -56,9 +51,6 @@ class TestLustreAudit(AgentUnitTestCase):
 
         mock.patch('chroma_agent.device_plugins.lustre.LustrePlugin._scan_mounts',
                    self.mock_scan_mounts).start()
-
-        mock.patch('chroma_agent.device_plugins.lustre.scan_packages',
-                   self.mock_scan_packages).start()
 
         self.lustre_plugin = LustrePlugin(None)
 
@@ -105,28 +97,3 @@ class TestLustreAudit(AgentUnitTestCase):
                 self.assertGreater(result_none[key], result_all[key])
             else:
                 self.assertEqual(result_all[key], result_none[key])
-
-
-class TestLustreScanPackages(CommandCaptureTestCase):
-    '''
-    This is a very incomplete test of the scan packages. But is at least some test that I added, it ensures the expected
-    commands are run and does a loose check of the scanning of the repo file. Pass alphabetically sorted repo_list.
-    '''
-    def test_scan_packages(self):
-        repo_list = sorted(['lustre-client', 'lustre', 'e2fsprogs', 'robinhood'])
-        lustre.REPO_PATH = os.path.join(os.path.dirname(__file__), '../data/device_plugins/lustre/Intel-Lustre-Agent.repo')
-
-        lustre.rpm_lib = mock.Mock()
-
-        # supply sorted list to preserve command parameter sequence
-        self.add_command(('dnf', 'clean', 'all', '--disablerepo=*') + tuple(['--enablerepo=%s' % r for r in repo_list]))
-
-        for repo in repo_list:
-            self.add_command(('dnf', 'repoquery', '--available', '--disablerepo=*', '--enablerepo=%s' % repo, '--queryformat=%{EPOCH} %{NAME} %{VERSION} %{RELEASE} %{ARCH}'))
-
-        scanned_packages = lustre.scan_packages()
-
-        # sort keys before comparing with initial sorted list
-        self.assertEqual(sorted(scanned_packages.keys()), repo_list)
-
-        self.assertRanAllCommandsInOrder()
