@@ -101,6 +101,7 @@ jasper-libs.x86_64                                                              
 """),
                           CommandCaptureCommand(('dnf', 'update', '--allowerasing', '-y', '--exclude', 'kernel-debug', '--enablerepo=myrepo', 'jasper-libs.x86_64')),
                           CommandCaptureCommand(('grubby', '--default-kernel'), stdout='/boot/vmlinuz-2.6.32-504.3.3.el6.x86_64'),
+                          CommandCaptureCommand(('systemctl', 'is-active', 'iml-update-check')),
                           CommandCaptureCommand(('systemctl', 'start', 'iml-update-check')),
                           )
 
