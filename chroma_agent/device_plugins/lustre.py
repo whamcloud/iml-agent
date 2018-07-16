@@ -133,7 +133,7 @@ def process_zfs_mount(device, data, zfs_mounts):
     dev_root = device.split('/')[0]
     if dev_root not in [d for d, _, _ in zfs_mounts]:
         daemon_log.debug('lustre device is not zfs')
-        return None, None, None
+        return None, None
 
     pool = next(
         p for p in data['zed'].values()
@@ -162,7 +162,7 @@ def process_lvm_mount(device, data):
         )
     except StopIteration:
         daemon_log.debug('lustre device is not lvm')
-        return None, None, None
+        return None, None
 
     label_prefix = '/dev/disk/by-label/'
     fs_label = next(
