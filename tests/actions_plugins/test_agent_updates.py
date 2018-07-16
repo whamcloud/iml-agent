@@ -101,15 +101,15 @@ jasper-libs.x86_64                                                              
 """),
                           CommandCaptureCommand(('dnf', 'update', '--allowerasing', '-y', '--exclude', 'kernel-debug', '--enablerepo=myrepo', 'jasper-libs.x86_64')),
                           CommandCaptureCommand(('grubby', '--default-kernel'), stdout='/boot/vmlinuz-2.6.32-504.3.3.el6.x86_64'),
-                          CommandCaptureCommand(('systemctl', 'is-active', 'iml-update-check')),
                           CommandCaptureCommand(('systemctl', 'start', 'iml-update-check')),
+                          CommandCaptureCommand(('systemctl', 'is-active', 'iml-update-check')),
                           )
 
         def isfile(arg):
             return True
 
         with patch('os.path.isfile', side_effect=isfile):
-            self.assertEqual(agent_updates.install_packages(['myrepo'], ['foo', 'bar']), agent_result({}))
+            self.assertEqual(agent_updates.install_packages(['myrepo'], ['foo', 'bar']), agent_result_ok)
 
         self.assertRanAllCommandsInOrder()
 
