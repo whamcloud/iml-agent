@@ -49,7 +49,7 @@ class ServerProperties(object):
 def main():
     """handle unexpected exceptions"""
     parser = argparse.ArgumentParser(
-        description="Intel® Manager for Lustre* software Agent")
+        description="Integrated Manager for Lustre software Agent")
 
     parser.add_argument("--publish-zconf", action="store_true")
     parser.parse_args()

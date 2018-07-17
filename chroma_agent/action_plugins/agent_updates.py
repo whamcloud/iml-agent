@@ -10,13 +10,13 @@ import errno
 
 from chroma_agent.lib.shell import AgentShell
 from chroma_agent.device_plugins.action_runner import CallbackAfterResponse
-from chroma_agent.device_plugins import lustre
 from chroma_agent.log import daemon_log
 from chroma_agent import config
 from chroma_agent.conf import ENV_PATH
 from chroma_agent.crypto import Crypto
 from chroma_agent.lib.yum_utils import yum_util, yum_check_update
 from iml_common.lib.agent_rpc import agent_result, agent_error, agent_result_ok
+from iml_common.lib.service_control import ServiceControl
 
 REPO_PATH = '/etc/yum.repos.d'
 
@@ -125,7 +125,9 @@ def install_packages(repos, packages):
         if error:
             return agent_error(error)
 
-    return agent_result(lustre.scan_packages())
+    ServiceControl.create('iml-update-check').start()
+
+    return agent_result_ok
 
 
 def _check_HYD4050():

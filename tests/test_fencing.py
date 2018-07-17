@@ -15,8 +15,8 @@ cib_configured_result = '''<cib epoch="99" num_updates="1" admin_epoch="0" valid
         <nvpair id="cib-bootstrap-options-symmetric-cluster" name="symmetric-cluster" value="true"/>
         <nvpair id="cib-bootstrap-options-stonith-enabled" name="stonith-enabled" value="true"/>
       </cluster_property_set>
-      <cluster_property_set id="intel_manager_for_lustre_configuration">
-        <nvpair id="intel_manager_for_lustre_configuration_configured_by" name="configured_by" value="lotus-33vm15"/>
+      <cluster_property_set id="integrated_manager_for_lustre_configuration">
+        <nvpair id="integrated_manager_for_lustre_configuration_configured_by" name="configured_by" value="lotus-33vm15"/>
       </cluster_property_set>
     </crm_config>
   </configuration>
