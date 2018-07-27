@@ -1,5 +1,13 @@
 [Unit]
 Description=IML Storage Server Service Target
-Before=chroma-agent.service
-Wants=device-scanner.target
-Wants=iml-update-check.timer
+Requires=chroma-agent.service
+After=chroma-agent.service
+Requires=device-scanner.target
+After=device-scanner.target
+Requires=iml-update-check.timer
+
+[Install]
+WantedBy=multi-user.target
+Also=device-scanner.target
+Also=chroma-agent.service
+Also=iml-update-check.timer
