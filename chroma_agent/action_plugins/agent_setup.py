@@ -33,17 +33,12 @@ def deregister_server():
     conf.remove_server_url()
 
     def disable_and_kill():
-        console_log.info("Disabling iml-storage-server units")
-
-        map(lambda x: ServiceControl.create(x).disable(), [
-            'device-scanner.socket',
-            'mount-emitter.service',
-            'swap-emitter.service',
-            'scanner-proxy.path'
-        ])
-
         console_log.info("Terminating")
-        ServiceControl.create('iml-storage-server.target').stop()
+
+        storage_server_target = ServiceControl.create('iml-storage-server.target')
+        storage_server_target.disable()
+        storage_server_target.stop()
+
 
     raise CallbackAfterResponse(None, disable_and_kill)
 

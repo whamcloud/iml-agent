@@ -25,7 +25,6 @@ Source2:        50-chroma-agent.preset
 Source3:        logrotate.cfg
 Source4:        iml-storage-server.target
 Source5:        10-device-scanner.target.conf
-Source6:        10-device-scanner.socket.conf
 Group:          Development/Libraries
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Prefix:         %{_prefix}
@@ -117,8 +116,6 @@ install -m 644 %{SOURCE3} $RPM_BUILD_ROOT/etc/logrotate.d/chroma-agent
 install -m 644 %{SOURCE4} %{buildroot}%{_unitdir}/iml-storage-server.target
 mkdir -p %{buildroot}%{_unitdir}/device-scanner.target.d/
 install -m 644 %{SOURCE5} %{buildroot}%{_unitdir}/device-scanner.target.d/10-device-scanner.target.conf
-mkdir -p %{buildroot}%{_unitdir}/device-scanner.socket.d/
-install -m 644 %{SOURCE6} %{buildroot}%{_unitdir}/device-scanner.socket.d/10-device-scanner.socket.conf
 
 touch management.files
 cat <<EndOfList>>management.files
@@ -183,7 +180,6 @@ grubby --set-default=/boot/vmlinuz-$MOST_RECENT_KERNEL_VERSION
 %attr(0644,root,root)%{_presetdir}/50-chroma-agent.preset
 %attr(0644,root,root)%{_unitdir}/iml-storage-server.target
 %attr(0644,root,root)%{_unitdir}/device-scanner.target.d/10-device-scanner.target.conf
-%attr(0644,root,root)%{_unitdir}/device-scanner.socket.d/10-device-scanner.socket.conf
 %{_bindir}/chroma-agent*
 %{python_sitelib}/%(a=%{pypi_name}; echo ${a//-/_})-*.egg-info/*
 %attr(0644,root,root)/etc/logrotate.d/chroma-agent
