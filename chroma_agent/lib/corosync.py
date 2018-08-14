@@ -10,6 +10,7 @@ import socket
 from jinja2 import Environment, PackageLoader
 from netaddr import IPNetwork, IPAddress
 from netaddr.core import AddrFormatError
+from urlparse import urljoin
 
 from chroma_agent import config
 from chroma_agent.lib import node_admin
@@ -58,7 +59,7 @@ def generate_ring1_network(ring0):
 def get_ring0():
     # ring0 will always be on the interface used for agent->manager comms
     from urlparse import urlparse
-    server_url = os.environ["IML_MANAGER_URL"] + 'agent/'
+    server_url = urljoin(os.environ["IML_MANAGER_URL"], "agent")
     manager_address = socket.gethostbyname(urlparse(server_url).hostname)
     out = AgentShell.try_run(['/sbin/ip', 'route', 'get', manager_address])
     match = re.search(r'dev\s+([^\s]+)', out)
