@@ -11,6 +11,8 @@ import argparse
 import signal
 import socket
 
+from urlparse import urljoin
+
 from chroma_agent import config
 from chroma_agent.conf import ENV_PATH
 from chroma_agent.crypto import Crypto
@@ -63,7 +65,7 @@ def main():
     try:
         daemon_log.info("Entering main loop")
         try:
-            url = os.environ["IML_MANAGER_URL"] + 'agent/message/'
+            url = urljoin(os.environ["IML_MANAGER_URL"], "agent/message/")
         except KeyError as e:
             daemon_log.error(
                 "No configuration found (must be registered before running the agent service), "

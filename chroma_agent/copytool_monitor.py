@@ -14,6 +14,7 @@ import select
 import json
 
 from argparse import ArgumentParser, ArgumentError, Action
+from urlparse import urljoin
 
 from chroma_agent import config
 from chroma_agent.conf import ENV_PATH
@@ -285,7 +286,7 @@ def main():
     copytool_log_setup()
 
     try:
-        manager_url = os.environ["IML_MANAGER_URL"] + "agent/copytool_event/"
+        manager_url = urljoin(os.environ["IML_MANAGER_URL"], "agent/copytool_event")
     except KeyError:
         copytool_log.error("No configuration found (must be configured before starting a copytool monitor)")
         sys.exit(1)
