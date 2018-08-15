@@ -65,7 +65,7 @@ def main():
     try:
         daemon_log.info("Entering main loop")
         try:
-            url = urljoin(os.environ["IML_MANAGER_URL"], "agent/message")
+            url = urljoin(os.environ["IML_MANAGER_URL"], "agent/message/")
         except KeyError as e:
             daemon_log.error(
                 "No configuration found (must be registered before running the agent service), "
