@@ -46,11 +46,11 @@ def _convert_agentstore_config():
     if os.path.exists(server_conf_path):
         with open(server_conf_path) as f:
             old_server_conf = json.load(f)
-        set_server_url(old_server_conf.get('url'))
+        set_server_url(old_server_conf.get('url').replace("/agent/", "/"))
         os.unlink(server_conf_path)
     else:
         try:
-            url = config.get('settings', 'server').get('url')
+            url = config.get('settings', 'server').get('url').replace("/agent/", "/")
             set_server_url(url)
 
             config.delete('settings', 'server')
