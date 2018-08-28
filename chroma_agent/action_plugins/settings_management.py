@@ -6,6 +6,7 @@
 import os
 import re
 import json
+import shutil
 
 from chroma_agent.conf import set_server_url, ENV_PATH
 from chroma_agent import config
@@ -33,7 +34,7 @@ def get_agent_config(key):
 
 def migrate_file(old_path, new_path):
     if os.path.exists(old_path):
-        os.rename(old_path, new_path)
+        shutil.copy2(old_path, new_path)
 
 
 def reset_agent_config():
