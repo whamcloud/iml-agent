@@ -151,24 +151,13 @@ rm -f /var/lib/iml/zfs_store.json
 
 %systemd_post %{unit_name}
 
-if [ $1 -eq 1 ]; then
-    # new install; create default agent config
-    chroma-agent reset_agent_config
-elif [ $1 -eq 2 ]; then
-    # upgrade; convert any older agent config and then restart
-    chroma-agent convert_agent_config
-    # it's tempting to restart the agent here, but this upgrade
-    # could have been initiated from the running chroma-agent and
-    # so restarting here would pull the rug out from under that
-    # upgrade procedure
-    #systemctl restart %{name}
-    systemctl preset %{unit_name} >/dev/null 2>&1 || :
-fi
+# this will either convert an old (pre-4.1) config or initialize
+chroma-agent convert_agent_config
 
 %preun
 %systemd_preun %{unit_name}
 
-%triggerin -n   python2-%{pypi_name}-management -- kernel
+%triggerin -n python2-%{pypi_name}-management -- kernel
 # when a kernel is installed, make sure that our kernel is reset back to
 # being the preferred boot kernel
 MOST_RECENT_KERNEL_VERSION=$(rpm -q kernel --qf "%{INSTALLTIME} %{VERSION}-%{RELEASE}.%{ARCH}\n" | sort -nr | sed -n -e '/_lustre/{s/.* //p;q}')
