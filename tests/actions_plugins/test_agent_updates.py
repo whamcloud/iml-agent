@@ -23,8 +23,8 @@ class TestManageUpdates(CommandCaptureTestCase):
     def test_configure_repo(self):
         import chroma_agent
         expected_content = """
-[Intel-Lustre-Manager]
-name=Intel Lustre Manager updates
+[Integrated-Manager-For-Lustre]
+name=Integrated Manager for Lustre updates
 baseurl=http://www.test.com/test.repo
 enabled=1
 gpgcheck=0
@@ -34,8 +34,8 @@ sslclientkey = /etc/iml/private.pem
 sslclientcert = /etc/iml/self.crt
 """
         provided_content = """
-[Intel-Lustre-Manager]
-name=Intel Lustre Manager updates
+[Integrated-Manager-For-Lustre]
+name=Integrated Manager for Lustre updates
 baseurl=http://www.test.com/test.repo
 enabled=1
 gpgcheck=0
