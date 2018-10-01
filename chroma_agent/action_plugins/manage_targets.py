@@ -9,24 +9,24 @@ import re
 import tempfile
 import time
 import socket
+from xml.dom.minidom import parseString
 
+from chroma_agent import config
+from chroma_agent.action_plugins.manage_pacemaker import PreservePacemakerCorosyncState
 from chroma_agent.device_plugins.block_devices import get_local_mounts
 from chroma_agent.lib.shell import AgentShell
-from iml_common.filesystems.filesystem import FileSystem
-from iml_common.blockdevices.blockdevice import BlockDevice
+from chroma_agent.lib.pacemaker import cibadmin
 from chroma_agent.log import console_log
-from chroma_agent import config
-from iml_common.lib.exception_sandbox import exceptionSandBox
+from iml_common.blockdevices.blockdevice import BlockDevice
+from iml_common.filesystems.filesystem import FileSystem
 from iml_common.lib.agent_rpc import agent_error
 from iml_common.lib.agent_rpc import agent_result
 from iml_common.lib.agent_rpc import agent_result_ok
 from iml_common.lib.agent_rpc import agent_ok_or_error
 from iml_common.lib.agent_rpc import agent_result_is_error
 from iml_common.lib.agent_rpc import agent_result_is_ok
-from chroma_agent.lib.pacemaker import cibadmin
-from chroma_agent.action_plugins.manage_pacemaker import PreservePacemakerCorosyncState
+from iml_common.lib.exception_sandbox import exceptionSandBox
 from iml_common.lib.util import platform_info
-
 
 def writeconf_target(device=None, target_types=(), mgsnode=(), fsname=None,
                      failnode=(), servicenode=(), param={}, index=None,
@@ -104,7 +104,7 @@ def get_resource_location(resource_name):
     '''
     locations = get_resource_locations()
 
-    if type(locations) is not dict:
+    if not isinstance(locations, dict):
         # Pacemaker not running, or no resources configured yet
         return None
 
@@ -113,75 +113,35 @@ def get_resource_location(resource_name):
 
 @exceptionSandBox(console_log, None)
 def get_resource_locations():
-    # FIXME: this may break on non-english systems or new versions of pacemaker
-    """Parse `crm_mon -1` to identify where (if anywhere)
-       resources (i.e. targets) are running."""
+    """Parse `crm_mon -1` to identify where (if anywhere) resources
+    (i.e. targets) are running
+    returns [ resoure_id: location|None, ... ]
+
+    """
 
     try:
-        rc, lines_text, stderr = AgentShell.run_old(["crm_mon", "-1", "-r"])
+        result = AgentShell.run(["crm_mon", "-1", "-r", "-X"])
     except OSError, e:
         # ENOENT is fine here.  Pacemaker might not be installed yet.
         if e.errno != errno.ENOENT:
             raise
 
-    if rc != 0:
+    if result.rc != 0:
         # Pacemaker not running, or no resources configured yet
-        return {"crm_mon_error": {"rc": rc,
-                                  "stdout": lines_text,
-                                  "stderr": stderr}}
+        return {"crm_mon_error": result}
+
+    dom = parseString(result.stdout)
 
     locations = {}
-    before_resources = True
-    for line in lines_text.split("\n"):
-        # if we don't have a DC for this cluster yet, we can't really believe
-        # anything it says
-        if line == "Current DC: NONE":
-            return {}
-
-        # skip down to the resources part
-        if before_resources:
-            if line.startswith("Full list of resources:"):
-                before_resources = False
-            continue
-
-        # only interested in Target resources
-        if "(ocf::chroma:Target)" not in line:
-            continue
-
-        # The line can have 3 - 5 arguments so pad it out to at least 5 and
-        # throw away any extra
-        # credit it goes to Aric Coady for this little trick
-        columns = (line.lstrip().split() + [None, None])[:5]
-
-        # In later pacemakers a new entry is added for stopped servers
-        # MGS_424f74	(ocf::chroma:Target):	(target-role:Stopped) Stopped
-        # and for started servers:
-        # MGS_424f74	(ocf::chroma:Target):	(target-role:Stopped) Started lotus-13vm6
-        # (target-role:Stopped) is new.
-        if "target-role" in columns[2]:
-            del columns[2]
-
-        # and even newer pacemakers add a "(disabled)" to the end of the line:
-        # MGS_e1321a	(ocf::chroma:Target):	Stopped (disabled)
-        if columns[3] == "(disabled)":
-            columns[3] = None
-
-        # Similar to above, the third column can report one of various
-        # states such as Starting, Started, Stopping, Stopped so only
-        # consider targets which are Started
-        # If we still have 4 columns at this point, the third column
-        # must be the state
-        if columns[2] not in ['Starting', 'Started', 'Stopping', 'Stopped']:
-            console_log.error("Unable to determine state of %s in\n%s'" %
-                              (columns[0], lines_text))
-
-        # a target that is "Stopping" has not completed the transistion
-        # from "Started" (i.e. running) to Stopped, so count it as running
-        # until it completes the transition
-        if columns[2] == "Started" or columns[2] == "Stopping":
-            locations[columns[0]] = columns[3]
-        else:
-            locations[columns[0]] = None
+    for res in dom.getElementsByTagName('resource'):
+        agent = res.getAttribute("resource_agent")
+        if agent in ["ocf::chroma:Target", "ocf::lustre:Lustre"]:
+            resid = res.getAttribute("id")
+            if res.getAttribute("role") in ["Started", "Stopping"] and res.getAttribute("failed") == "false":
+                node = res.getElementsByTagName("node")[0]
+                locations[resid] = node.getAttribute("name")
+            else:
+                locations[resid] = None
 
     return locations
 
@@ -579,18 +539,13 @@ def start_target(ha_label):
             return agent_error(error)
 
         # now wait for it to start
-        _wait_target(ha_label, True)
+        if _wait_target(ha_label, True):
+            location = get_resource_location(ha_label)
+            if not location:
+                return agent_error("Started %s but now can't locate it!" % ha_label)
+            return agent_result(location)
 
-        # and make sure it didn't start but (the RA) fail(ed)
-        rc, stdout, stderr = AgentShell.run_old(['crm_mon', '-1'])
-
-        failed = True
-        for line in stdout.split("\n"):
-            if line.lstrip().startswith(ha_label):
-                if line.find("FAILED") < 0:
-                    failed = False
-
-        if failed:
+        else:
             # try to leave things in a sane state for a failed mount
             error = AgentShell.run_canned_error_message(['crm_resource', '-r', ha_label, '-p', 'target-role', '-m', '-v', 'Stopped'])
 
@@ -601,12 +556,6 @@ def start_target(ha_label):
                 console_log.info("failed to start target %s" % ha_label)
             else:
                 return agent_error("Failed to start target %s" % ha_label)
-
-        else:
-            location = get_resource_location(ha_label)
-            if not location:
-                return agent_error("Started %s but now can't locate it!" % ha_label)
-            return agent_result(location)
 
 
 def stop_target(ha_label):
@@ -673,7 +622,7 @@ def _move_target(target_label, dest_node):
     # now delete the constraint that crm_resource --move created
     AgentShell.try_run(['crm_resource', '--resource', target_label, '--un-move', '--node', dest_node])
 
-    if timeout == 0:
+    if timeout <= 0:
         return "Failed to move target %s to node %s" % (target_label, dest_node)
 
     return None
