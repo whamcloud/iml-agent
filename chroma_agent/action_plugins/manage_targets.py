@@ -15,7 +15,6 @@ from chroma_agent import config
 from chroma_agent.action_plugins.manage_pacemaker import PreservePacemakerCorosyncState
 from chroma_agent.device_plugins.block_devices import get_local_mounts
 from chroma_agent.lib.shell import AgentShell
-from chroma_agent.lib.pacemaker import cibadmin
 from chroma_agent.log import console_log
 from iml_common.blockdevices.blockdevice import BlockDevice
 from iml_common.filesystems.filesystem import FileSystem
@@ -29,7 +28,7 @@ from iml_common.lib.exception_sandbox import exceptionSandBox
 from iml_common.lib.util import platform_info
 
 def writeconf_target(device=None, target_types=(), mgsnode=(), fsname=None,
-                     failnode=(), servicenode=(), param={}, index=None,
+                     failnode=(), servicenode=(), param=None, index=None,
                      comment=None, mountfsoptions=None, network=(),
                      erase_params=False, nomgs=False, writeconf=False,
                      dryrun=False, verbose=False, quiet=False):
@@ -56,8 +55,8 @@ def writeconf_target(device=None, target_types=(), mgsnode=(), fsname=None,
             arg = (arg,)
 
         if name == "target_types":
-            for type in arg:
-                options.append("--%s" % type)
+            for target in arg:
+                options.append("--%s" % target)
         elif name == 'mgsnode':
             for mgs_nids in arg:
                 options.append("--%s=%s" % (name, ",".join(mgs_nids)))
@@ -68,9 +67,10 @@ def writeconf_target(device=None, target_types=(), mgsnode=(), fsname=None,
     dict_options = ["param"]
     for name in dict_options:
         arg = args[name]
-        for key in arg:
-            if arg[key] is not None:
-                options.extend(["--%s" % name, "%s=%s" % (key, arg[key])])
+        if arg:
+            for key in arg:
+                if arg[key] is not None:
+                    options.extend(["--%s" % name, "%s=%s" % (key, arg[key])])
 
     flag_options = {
         'nomgs': '--nomgs',
@@ -121,9 +121,9 @@ def get_resource_locations():
 
     try:
         result = AgentShell.run(["crm_mon", "-1", "-r", "-X"])
-    except OSError, e:
+    except OSError, err:
         # ENOENT is fine here.  Pacemaker might not be installed yet.
-        if e.errno != errno.ENOENT:
+        if err.errno != errno.ENOENT:
             raise
 
     if result.rc != 0:
@@ -183,8 +183,8 @@ def format_target(device_type, target_name, device, backfstype,
             arg = (arg,)
 
         if name == "target_types":
-            for type in arg:
-                options.append("--%s" % type)
+            for target in arg:
+                options.append("--%s" % target)
         elif name == 'mgsnode':
             for mgs_nids in arg:
                 options.append("--%s=%s" % (name, ",".join(mgs_nids)))
@@ -271,18 +271,24 @@ def unconfigure_target_ha(primary, ha_label, uuid):
     '''
 
     with PreservePacemakerCorosyncState():
+        info = _get_target_config(uuid)
         if get_resource_location(ha_label):
             return agent_error("cannot unconfigure-ha: %s is still running " % ha_label)
 
         if primary:
-            result = cibadmin(["-D", "-X", "<rsc_location id=\"%s-primary\">" % ha_label])
-            result = cibadmin(["-D", "-X", "<primitive id=\"%s\">" % ha_label])
+            result = AgentShell.run(['pcs', 'constraint', 'location', 'remove', "%s-primary" % ha_label])
+
+            if info['backfstype'] == "zfs":
+                result = AgentShell.run(['pcs', 'resource', 'ungroup', 'group-%s' % ha_label])
+                result = AgentShell.run(['pcs', 'resource', 'delete', 'zfs-%s' % ha_label])
+
+            result = AgentShell.run(['pcs', 'resource', 'delete', ha_label])
 
             if result.rc != 0 and result.rc != 234:
                 return agent_error("Error %s trying to cleanup resource %s" % (result.rc, ha_label))
 
         else:
-            result = cibadmin(["-D", "-X", "<rsc_location id=\"%s-secondary\">" % ha_label])
+            result = AgentShell.run(['pcs', 'constraint', 'location', 'remove', "%s-secondary" % ha_label])
 
         return agent_result_ok
 
@@ -299,10 +305,10 @@ def unconfigure_target_store(uuid):
 
 
 def configure_target_store(device, uuid, mount_point, backfstype, device_type):
-    # Logically this should be config.set - but an error condition exists where the configure_target_store
-    # steps fail later on and so the config exists but the manager doesn't know. Meaning that a set fails
-    # because of a duplicate, where as an update doesn't.
-    # So use update because that updates or creates.
+    # Logically this should be config.set - but an error condition exists where the
+    # configure_target_store steps fail later on and so the config exists but the manager doesn't
+    # know. Meaning that a set fails because of a duplicate, where as an update doesn't.  So use
+    # update because that updates or creates.
     config.update('targets', uuid, {'bdev': device,
                                     'mntpt': mount_point,
                                     'backfstype': backfstype,
@@ -316,58 +322,67 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
     Return: Value using simple return protocol
     '''
 
+    _mkdir_p_concurrent(mount_point)
+
     if primary:
         # If the target already exists with the same params, skip.
         # If it already exists with different params, that is an error
-        rc, stdout, stderr = AgentShell.run_old(["crm_resource", "-r", ha_label, "-g", "target"])
-        if rc == 0:
-            info = _get_target_config(stdout.rstrip("\n"))
+        result = AgentShell.run(["crm_resource", "-r", ha_label, "-g", "target"])
+        info = _get_target_config(uuid)
+        if result.rc == 0:
             if info['bdev'] == device and info['mntpt'] == mount_point:
                 return agent_result_ok
             else:
                 return agent_error("A resource with the name %s already exists" % ha_label)
 
-        tmp_f, tmp_name = tempfile.mkstemp()
-        os.write(tmp_f, "<primitive class=\"ocf\" provider=\"chroma\" type=\"Target\" id=\"%s\">\
-  <meta_attributes id=\"%s-meta_attributes\">\
-    <nvpair name=\"target-role\" id=\"%s-meta_attributes-target-role\" value=\"Stopped\"/>\
-  </meta_attributes>\
-  <operations id=\"%s-operations\">\
-    <op id=\"%s-monitor-5\" interval=\"5\" name=\"monitor\" timeout=\"60\"/>\
-    <op id=\"%s-start-0\" interval=\"0\" name=\"start\" timeout=\"300\"/>\
-    <op id=\"%s-stop-0\" interval=\"0\" name=\"stop\" timeout=\"300\"/>\
-  </operations>\
-  <instance_attributes id=\"%s-instance_attributes\">\
-    <nvpair id=\"%s-instance_attributes-target\" name=\"target\" value=\"%s\"/>\
-  </instance_attributes>\
-</primitive>" % (ha_label, ha_label, ha_label, ha_label, ha_label,
-                 ha_label, ha_label, ha_label, ha_label, uuid))
-        os.close(tmp_f)
+        if info['device_type'] == 'zfs':
+            zpool = device.split("/")[0]
+            result = AgentShell.run(['pcs', 'resource', 'create',
+                                     'zfs-%s' % ha_label, 'ZFS', 'params', 'pool=%s' % zpool,
+                                     'op', 'start', 'timeout=90', 'op', 'stop', 'timeout=90'])
+            if result.rc != 0:
+                # @@ remove Lustre resource?
+                return agent_error("Failed to create ZFS resource for zpool:%s for resource " % (zpool, ha_label))
+            realpath = device
+        else:
+            # Because of LU-11461 find realpath of devices and use that as Lustre target
+            result = AgentShell.run(['realpath', device])
+            if result.rc == 0:
+                realpath = result.stdout.strip()
+            else:
+                realpath = device
 
-        cibadmin(["-o", "resources", "-C", "-x", "%s" % tmp_name])
+
+        # Create Lustre resource and add target=uuid as an attribute
+        result = AgentShell.run(['pcs', 'resource', 'create', ha_label, 'ocf:lustre:Lustre',
+                                 'target=%s' % realpath, 'mountpoint=%s' % mount_point])
+        result = AgentShell.run(['crm_resource', '-r', ha_label, '-p', 'uuid', '-v', uuid])
+
+        if info['device_type'] == 'zfs':
+            result = AgentShell.run(['pcs', 'resource', 'group', 'add',
+                                     'group-%s' % ha_label, 'pool-%s' % ha_label, ha_label])
+
         score = 20
         preference = "primary"
     else:
         score = 10
         preference = "secondary"
 
-    # Hostname. This is a shorterm point fix that will allow us to make HP2 release more functional. Between el6 and el7
-    # (truthfully we should probably be looking at Pacemaker or Corosync versions) Pacemaker started to use fully qualified
-    # domain names rather than just the nodename.  lotus-33vm15.lotus.hpdd.lab.intel.com vs lotus-33vm15. To keep compatiblity
-    # easily we have to make the contraints follow the same fqdn vs node.
+    # Hostname. This is a shorterm point fix that will allow us to make HP2 release more
+    # functional. Between el6 and el7 (truthfully we should probably be looking at Pacemaker or
+    # Corosync versions) Pacemaker started to use fully qualified domain names rather than just the
+    # nodename.  lotus-33vm15.lotus.hpdd.lab.intel.com vs lotus-33vm15. To keep compatiblity easily
+    # we have to make the contraints follow the same fqdn vs node.
     if platform_info.distro_version >= 7.0:
         node = socket.getfqdn()
     else:
         node = os.uname()[1]
 
-    result = cibadmin(["-o", "constraints", "-C", "-X",
-                       "<rsc_location id=\"%s-%s\" node=\"%s\" rsc=\"%s\" score=\"%s\"/>" %
-                       (ha_label, preference, node, ha_label, score)])
+    result = AgentShell.run(['pcs', 'constraint', 'location', 'add',
+                             "%s-%s" % (ha_label, preference), ha_label, node, "%d" % score])
 
     if result.rc == 76:
         return agent_error("A constraint with the name %s-%s already exists" % (ha_label, preference))
-
-    _mkdir_p_concurrent(mount_point)
 
     return agent_result_ok
 
@@ -426,11 +441,11 @@ def mount_target(uuid, pacemaker_ha_operation):
 
     try:
         filesystem.mount(info['mntpt'])
-    except RuntimeError, e:
+    except RuntimeError, err:
         # Make sure we export any pools when a mount fails
         export_target(info['device_type'], info['bdev'])
 
-        raise e
+        raise err
 
 
 def unmount_target(uuid):
@@ -632,7 +647,7 @@ def _find_resource_constraint(ha_label, location):
     stdout = AgentShell.try_run(["crm_resource", "-r", ha_label, "-a"])
 
     for line in stdout.rstrip().split("\n"):
-        match = re.match("\s+:\s+Node\s+([^\s]+)\s+\(score=[^\s]+ id=%s-%s\)" %
+        match = re.match(r"\s+:\s+Node\s+([^\s]+)\s+\(score=[^\s]+ id=%s-%s\)" %
                          (ha_label, location), line)
         if match:
             return match.group(1)
@@ -706,7 +721,7 @@ def target_running(uuid):
     _exit(1)
 
 
-def clear_targets(force = False):
+def clear_targets(force=False):
     if not force:
         from os import _exit
         import textwrap
