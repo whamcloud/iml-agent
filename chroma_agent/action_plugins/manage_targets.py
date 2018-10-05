@@ -6,7 +6,6 @@
 import errno
 import os
 import re
-import tempfile
 import time
 import socket
 from xml.dom.minidom import parseString
@@ -336,15 +335,19 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
                 return agent_error("A resource with the name %s already exists" % ha_label)
 
         if info['device_type'] == 'zfs':
+            group = ['--group', 'group-%s' % ha_label]
             zpool = device.split("/")[0]
             result = AgentShell.run(['pcs', 'resource', 'create',
-                                     'zfs-%s' % ha_label, 'ZFS', 'params', 'pool=%s' % zpool,
-                                     'op', 'start', 'timeout=90', 'op', 'stop', 'timeout=90'])
+                                     'zfs-%s' % ha_label, 'ZFS', 'pool=%s' % zpool,
+                                     'op', 'start', 'timeout=90',
+                                     'op', 'stop', 'timeout=90'] + group)
             if result.rc != 0:
                 # @@ remove Lustre resource?
-                return agent_error("Failed to create ZFS resource for zpool:%s for resource " % (zpool, ha_label))
+                return agent_error("Failed to create ZFS resource for zpool:%s for resource %s" %
+                                   (zpool, ha_label))
             realpath = device
         else:
+            group = []
             # Because of LU-11461 find realpath of devices and use that as Lustre target
             result = AgentShell.run(['realpath', device])
             if result.rc == 0:
@@ -355,12 +358,7 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
 
         # Create Lustre resource and add target=uuid as an attribute
         result = AgentShell.run(['pcs', 'resource', 'create', ha_label, 'ocf:lustre:Lustre',
-                                 'target=%s' % realpath, 'mountpoint=%s' % mount_point])
-        result = AgentShell.run(['crm_resource', '-r', ha_label, '-p', 'uuid', '-v', uuid])
-
-        if info['device_type'] == 'zfs':
-            result = AgentShell.run(['pcs', 'resource', 'group', 'add',
-                                     'group-%s' % ha_label, 'pool-%s' % ha_label, ha_label])
+                                 'target=%s' % realpath, 'mountpoint=%s' % mount_point] + group)
 
         score = 20
         preference = "primary"
@@ -382,7 +380,8 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
                              "%s-%s" % (ha_label, preference), ha_label, node, "%d" % score])
 
     if result.rc == 76:
-        return agent_error("A constraint with the name %s-%s already exists" % (ha_label, preference))
+        return agent_error("A constraint with the name %s-%s already exists" %
+                           (ha_label, preference))
 
     return agent_result_ok
 
