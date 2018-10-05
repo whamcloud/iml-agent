@@ -358,7 +358,8 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
 
         # Create Lustre resource and add target=uuid as an attribute
         result = AgentShell.run(['pcs', 'resource', 'create', ha_label, 'ocf:lustre:Lustre',
-                                 'target=%s' % realpath, 'mountpoint=%s' % mount_point] + group)
+                                 'target=%s' % realpath, 'mountpoint=%s' % mount_point,
+                                 '--disabled'] + group)
 
         score = 20
         preference = "primary"
