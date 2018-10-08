@@ -324,11 +324,10 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
     _mkdir_p_concurrent(mount_point)
 
     if primary:
+        info = _get_target_config(uuid)
         # If the target already exists with the same params, skip.
         # If it already exists with different params, that is an error
-        result = AgentShell.run(["crm_resource", "-r", ha_label, "-g", "target"])
-        info = _get_target_config(uuid)
-        if result.rc == 0:
+        if _resource_exists(ha_label):
             if info['bdev'] == device and info['mntpt'] == mount_point:
                 return agent_result_ok
             else:
@@ -340,7 +339,7 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
             result = AgentShell.run(['pcs', 'resource', 'create',
                                      'zfs-%s' % ha_label, 'ZFS', 'pool=%s' % zpool,
                                      'op', 'start', 'timeout=90',
-                                     'op', 'stop', 'timeout=90'] + group)
+                                     'op', 'stop', 'timeout=90', '--disabled'] + group)
             if result.rc != 0:
                 # @@ remove Lustre resource?
                 return agent_error("Failed to create ZFS resource for zpool:%s for resource %s" %
@@ -536,6 +535,13 @@ def _wait_target(ha_label, started):
 
     return False
 
+def _resource_exists(ha_label):
+    '''
+    Check if a resource exists in current configuration.
+    :return: True if exists
+    '''
+    result = AgentShell.run(["crm_resource", "-W", "-r", ha_label])
+    return result.rc == 0
 
 def start_target(ha_label):
     '''
@@ -548,10 +554,14 @@ def start_target(ha_label):
     while True:
         i += 1
 
-        error = AgentShell.run_canned_error_message(['crm_resource', '-r', ha_label, '-p', 'target-role', '-m', '-v', 'Started'])
-
+        # This section could just try enabling the group- if zfs- exists, but doing them
+        # individually is safer, since if one is enabled and one isn't, enabling the group
+        # doesn't enable the disabled resource.
+        error = AgentShell.run_canned_error_message(['pcs', 'resource', 'enable', ha_label])
         if error:
             return agent_error(error)
+        if _resource_exists('zfs-'+ha_label):
+            error = AgentShell.run_canned_error_message(['pcs', 'resource', 'enable', 'zfs-'+ha_label])
 
         # now wait for it to start
         if _wait_target(ha_label, True):
@@ -562,7 +572,7 @@ def start_target(ha_label):
 
         else:
             # try to leave things in a sane state for a failed mount
-            error = AgentShell.run_canned_error_message(['crm_resource', '-r', ha_label, '-p', 'target-role', '-m', '-v', 'Stopped'])
+            error = AgentShell.run_canned_error_message(['pcs', 'resource', 'disable', ha_label])
 
             if error:
                 return agent_error(error)
@@ -585,7 +595,11 @@ def stop_target(ha_label):
         i += 1
 
         # Issue the command to Pacemaker to stop the target
-        error = AgentShell.run_canned_error_message(['crm_resource', '-r', ha_label, '-p', 'target-role', '-m', '-v', 'Stopped'])
+        if _resource_exists('zfs-'+ha_label):
+            # Group disable will disable all members of group regardless of current status
+            error = AgentShell.run_canned_error_message(['pcs', 'resource', 'disable', 'group-'+ha_label])
+        else:
+            error = AgentShell.run_canned_error_message(['pcs', 'resource', 'disable', ha_label])
 
         if error:
             return agent_error(error)
