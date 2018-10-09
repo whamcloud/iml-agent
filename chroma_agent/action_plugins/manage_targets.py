@@ -277,11 +277,10 @@ def unconfigure_target_ha(primary, ha_label, uuid):
         if primary:
             result = AgentShell.run(['pcs', 'constraint', 'location', 'remove', "%s-primary" % ha_label])
 
-            if info['backfstype'] == "zfs":
-                result = AgentShell.run(['pcs', 'resource', 'ungroup', 'group-%s' % ha_label])
-                result = AgentShell.run(['pcs', 'resource', 'delete', 'zfs-%s' % ha_label])
-
             result = AgentShell.run(['pcs', 'resource', 'delete', ha_label])
+
+            if info['backfstype'] == "zfs":
+                result = AgentShell.run(['pcs', 'resource', 'delete', 'zfs-%s' % ha_label])
 
             if result.rc != 0 and result.rc != 234:
                 return agent_error("Error %s trying to cleanup resource %s" % (result.rc, ha_label))
@@ -312,6 +311,37 @@ def configure_target_store(device, uuid, mount_point, backfstype, device_type):
                                     'mntpt': mount_point,
                                     'backfstype': backfstype,
                                     'device_type': device_type})
+
+def _this_node():
+    '''
+    Return correct nodename for pacemaker for this node
+    :returns: nodename for this node
+    '''
+    # Hostname. This is a shorterm point fix that will allow us to make HP2 release more
+    # functional. Between el6 and el7 (truthfully we should probably be looking at Pacemaker or
+    # Corosync versions) Pacemaker started to use fully qualified domain names rather than just the
+    # nodename.  lotus-33vm15.lotus.hpdd.lab.intel.com vs lotus-33vm15. To keep compatiblity easily
+    # we have to make the contraints follow the same fqdn vs node.
+    if platform_info.distro_version >= 7.0:
+        node = socket.getfqdn()
+    else:
+        node = os.uname()[1]
+    return node
+
+def _configure_target_priority(primary, ha_label, node):
+    '''
+    Configure location constraint for a given resource on a given node.
+    :returns: result form AgentShell.run()
+    '''
+    if primary:
+        score = 20
+        preference = "primary"
+    else:
+        score = 10
+        preference = "secondary"
+
+    return AgentShell.run(['pcs', 'constraint', 'location', 'add',
+                           "%s-%s" % (ha_label, preference), ha_label, node, "%d" % score])
 
 
 def configure_target_ha(primary, device, ha_label, uuid, mount_point):
@@ -360,24 +390,7 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
                                  'target=%s' % realpath, 'mountpoint=%s' % mount_point,
                                  '--disabled'] + group)
 
-        score = 20
-        preference = "primary"
-    else:
-        score = 10
-        preference = "secondary"
-
-    # Hostname. This is a shorterm point fix that will allow us to make HP2 release more
-    # functional. Between el6 and el7 (truthfully we should probably be looking at Pacemaker or
-    # Corosync versions) Pacemaker started to use fully qualified domain names rather than just the
-    # nodename.  lotus-33vm15.lotus.hpdd.lab.intel.com vs lotus-33vm15. To keep compatiblity easily
-    # we have to make the contraints follow the same fqdn vs node.
-    if platform_info.distro_version >= 7.0:
-        node = socket.getfqdn()
-    else:
-        node = os.uname()[1]
-
-    result = AgentShell.run(['pcs', 'constraint', 'location', 'add',
-                             "%s-%s" % (ha_label, preference), ha_label, node, "%d" % score])
+    result = _configure_target_priority(primary, ha_label, _this_node())
 
     if result.rc == 76:
         return agent_error("A constraint with the name %s-%s already exists" %
@@ -397,11 +410,11 @@ def _get_nvpairid_from_xml(xml_string):
 def _query_ha_targets():
     targets = {}
 
-    rc, stdout, stderr = AgentShell.run_old(['crm_resource', '-l'])
-    if rc == 234:
+    result = AgentShell.run(['crm_resource', '-l'])
+    if result.rc == 234:
         return targets
-    elif rc != 0:
-        raise RuntimeError("Error %s running crm_resource -l: %s %s" % (rc, stdout, stderr))
+    elif result.rc != 0:
+        raise RuntimeError("Error %s running crm_resource -l: %s %s" % (result.rc, result.stdout, result.stderr))
     else:
         for resource_id in stdout.split("\n"):
             if len(resource_id) < 1:
@@ -763,6 +776,69 @@ def purge_configuration(mgs_device_path, mgs_device_type, filesystem_name):
     return agent_ok_or_error(mgs_blockdevice.purge_filesystem_configuration(filesystem_name, console_log))
 
 
+def convert_targets():
+    '''
+    Convert existing ocf:chroma:Target to ocf:chroma:ZFS + ocf:lustre:Lustre
+    '''
+    try:
+        result = AgentShell.run(['cibadmin', '--query'])
+    except OSError, err:
+        if err.errno != errno.ENOENT:
+            raise
+
+    if result.rc != 0:
+        # Pacemaker not running, or no resources configured yet
+        return {"crm_mon_error": result}
+
+    dom = parseString(result.stdout)
+
+    # Build map of resource -> [ primary node, secondary node ]
+    locations = {}
+    for con in dom.getElementsByTagName('rsc_location'):
+        ha_label = con.getAttribute("rsc")
+        if not locations.get(ha_label):
+            locations[ha_label] = {}
+        if con.getAttribute("id") == ha_label+"-primary":
+            ind = 0
+        elif con.getAttribute("id") == ha_label+"-secondary":
+            ind = 1
+        else:
+            console_log.info("Unknown constraint: "+con.getAttribute("id"))
+            continue
+        locations[ha_label][ind] = con.getAttribute("node")
+
+    active = get_resource_locations()
+
+    for res in dom.getElementsByTagName('primitive'):
+        if not (res.getAttribute("provider") == "chroma" and res.getAttribute("type") == "Target"):
+            continue
+
+        ha_label = res.getAttribute("id")
+
+        if active.get(ha_label):
+            console_log.info("Resource %s still active on %s. Not converting" %
+                             (ha_label, active.get(ha_label)))
+            continue
+
+        if locations[ha_label][0] != _this_node():
+            console_log.info("Resource %s is not primary here" % ha_label)
+            continue
+
+        info = None
+        for ops in res.getElementsByTagName('nvpair'):
+            if ops.getAttribute("name") == "target":
+                uuid = ops.getAttribute("value")
+                info = _get_target_config(uuid)
+                break
+        if not info:
+            console_log.error("Failed to parse resource: "+ ha_label)
+            continue
+
+        unconfigure_target_ha(True, ha_label, uuid)
+        configure_target_ha(True, info['bdev'], ha_label, uuid, info['mntpt'])
+        _configure_target_priority(False, ha_label, locations[ha_label][1])
+
+
 ACTIONS = [purge_configuration, register_target,
            configure_target_ha, unconfigure_target_ha,
            mount_target, unmount_target,
@@ -771,5 +847,5 @@ ACTIONS = [purge_configuration, register_target,
            format_target, check_block_device,
            writeconf_target, failback_target,
            failover_target, target_running,
-           clear_targets,
+           clear_targets, convert_targets,
            configure_target_store, unconfigure_target_store]
