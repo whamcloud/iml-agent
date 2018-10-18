@@ -399,35 +399,6 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
     return agent_result_ok
 
 
-def _get_nvpairid_from_xml(xml_string):
-    import xml.etree.ElementTree as et
-    doc = et.fromstring(xml_string)
-    nodes = doc.findall('instance_attributes/nvpair')
-    node = [x for x in nodes if x.attrib.get('name') == 'target']
-    return node[0].get('value')
-
-
-def _query_ha_targets():
-    targets = {}
-
-    result = AgentShell.run(['crm_resource', '-l'])
-    if result.rc == 234:
-        return targets
-    elif result.rc != 0:
-        raise RuntimeError("Error %s running crm_resource -l: %s %s" % (result.rc, result.stdout, result.stderr))
-    else:
-        for resource_id in stdout.split("\n"):
-            if len(resource_id) < 1:
-                continue
-
-            target = {'ha_label': resource_id}
-            raw_xml = "\n".join(AgentShell.try_run(['crm_resource', '-r', resource_id, '-q']).split("\n")[2:])
-            target['uuid'] = _get_nvpairid_from_xml(raw_xml)
-            targets[resource_id] = target
-
-        return targets
-
-
 def mount_target(uuid, pacemaker_ha_operation):
     # This is called by the Target RA from corosync
     info = _get_target_config(uuid)
@@ -748,28 +719,6 @@ def target_running(uuid):
     _exit(1)
 
 
-def clear_targets(force=False):
-    if not force:
-        from os import _exit
-        import textwrap
-        warning = """
-        clear-targets will forcibly unmount and unconfigure all Lustre targets
-        on EVERY node in this HA domain.  This is an irreversible and
-        potentially very destructive operation.  Data loss may occur.  Please
-        do not use it unless you fully understand the consequences!  If you
-        are sure that this command does what you intend to do, then you must
-        supply the --force flag to avoid seeing this message.
-        """
-        console_log.warn(textwrap.fill(textwrap.dedent(warning)))
-        _exit(1)
-
-    for resource, attrs in _query_ha_targets().items():
-        console_log.info("Stopping %s" % resource)
-        stop_target(attrs['ha_label'])
-        console_log.info("Unconfiguring %s" % resource)
-        unconfigure_target_ha(True, attrs['ha_label'], attrs['uuid'])
-
-
 def purge_configuration(mgs_device_path, mgs_device_type, filesystem_name):
     mgs_blockdevice = BlockDevice(mgs_device_type, mgs_device_path)
 
@@ -847,5 +796,5 @@ ACTIONS = [purge_configuration, register_target,
            format_target, check_block_device,
            writeconf_target, failback_target,
            failover_target, target_running,
-           clear_targets, convert_targets,
+           convert_targets,
            configure_target_store, unconfigure_target_store]
