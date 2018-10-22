@@ -239,11 +239,11 @@ def _mkdir_p_concurrent(path):
     def mkdir_silent(path):
         try:
             os.makedirs(path)
-        except OSError, e:
-            if e.errno == errno.EEXIST:
+        except OSError, err:
+            if err.errno == errno.EEXIST:
                 pass
             else:
-                raise e
+                raise err
 
     parent = os.path.split(path)[0]
     mkdir_silent(parent)
@@ -327,11 +327,8 @@ def configure_target_store(device, uuid, mount_point, backfstype, device_type):
                                     'backfstype': backfstype,
                                     'device_type': device_type})
 
+
 def _this_node():
-    '''
-    Return correct nodename for pacemaker for this node
-    :returns: nodename for this node
-    '''
     # Hostname. This is a shorterm point fix that will allow us to make HP2 release more
     # functional. Between el6 and el7 (truthfully we should probably be looking at Pacemaker or
     # Corosync versions) Pacemaker started to use fully qualified domain names rather than just the
@@ -736,13 +733,14 @@ def _get_target_config(uuid):
 
 
 def target_running(uuid):
+    # This is called by the Target RA from corosync
     from os import _exit
     try:
         info = _get_target_config(uuid)
-    except (KeyError, TypeError) as e:
+    except (KeyError, TypeError) as err:
         # it can't possibly be running here if the config entry for
         # it doesn't even exist, or if the store doesn't even exist!
-        console_log.warning("Exception getting target config: '%s'" % e)
+        console_log.warning("Exception getting target config: " + err)
         _exit(1)
 
     filesystem = FileSystem(info['backfstype'], info['bdev'])
