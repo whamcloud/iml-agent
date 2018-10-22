@@ -262,36 +262,51 @@ def register_target(device_path, mount_point, backfstype):
     return {'label': filesystem.label}
 
 
+def _unconfigure_target_ha(ha_label, info, force=False):
+    if force:
+        extra = ["--force"]
+    else:
+        extra = []
+
+    result = AgentShell.run(['pcs', 'resource', 'delete', ha_label] + extra)
+    if info['backfstype'] == "zfs":
+        AgentShell.run(['pcs', 'resource', 'delete', '%s-zfs' % ha_label] + extra)
+
+    return result
+
+
 def unconfigure_target_ha(primary, ha_label, uuid):
     '''
     Unconfigure the target high availability
 
-    Return: Value using simple return protocol
-    '''
+    :param primary: Boolean if localhost is primary
+    :param ha_label: String that identifies resource
+    :param uuid: UUID that identifies config
+    :return: Value using simple return protocol
+     '''
 
     with PreservePacemakerCorosyncState():
         info = _get_target_config(uuid)
         if get_resource_location(ha_label):
             return agent_error("cannot unconfigure-ha: %s is still running " % ha_label)
 
+        _unconfigure_target_priority(primary, ha_label)
+
         if primary:
-            result = AgentShell.run(['pcs', 'constraint', 'location', 'remove', "%s-primary" % ha_label])
-
-            result = AgentShell.run(['pcs', 'resource', 'delete', ha_label])
-
-            if info['backfstype'] == "zfs":
-                result = AgentShell.run(['pcs', 'resource', 'delete', 'zfs-%s' % ha_label])
+            result = _unconfigure_target_ha(ha_label, info)
 
             if result.rc != 0 and result.rc != 234:
                 return agent_error("Error %s trying to cleanup resource %s" % (result.rc, ha_label))
-
-        else:
-            result = AgentShell.run(['pcs', 'constraint', 'location', 'remove', "%s-secondary" % ha_label])
 
         return agent_result_ok
 
 
 def unconfigure_target_store(uuid):
+    '''
+    Remove target directory and config store for given uuid.
+
+    :param uuid: UUID identifying target
+    '''
     try:
         target = _get_target_config(uuid)
         os.rmdir(target['mntpt'])
@@ -328,11 +343,16 @@ def _this_node():
         node = os.uname()[1]
     return node
 
+
+def _unconfigure_target_priority(primary, ha_label):
+    if primary:
+        preference = "primary"
+    else:
+        preference = "secondary"
+    return AgentShell.run(['pcs', 'constraint', 'location', 'remove', "%s-%s" % (ha_label, preference)])
+
+
 def _configure_target_priority(primary, ha_label, node):
-    '''
-    Configure location constraint for a given resource on a given node.
-    :returns: result form AgentShell.run()
-    '''
     if primary:
         score = 20
         preference = "primary"
@@ -340,15 +360,58 @@ def _configure_target_priority(primary, ha_label, node):
         score = 10
         preference = "secondary"
 
-    return AgentShell.run(['pcs', 'constraint', 'location', 'add',
-                           "%s-%s" % (ha_label, preference), ha_label, node, "%d" % score])
+    result = AgentShell.run(['pcs', 'constraint', 'location', 'add',
+                             "%s-%s" % (ha_label, preference), '%s-lu' % ha_label, node, "%d" % score])
 
+    if result.rc == 76:
+        console_log.warn("A constraint with the name %s-%s already exists" %
+                         (ha_label, preference))
+        result.rc = 0
+
+    return result
+
+
+def _configure_target_ha(ha_label, info, enabled=False):
+    if enabled:
+        extra = []
+    else:
+        extra = ['--disabled']
+
+    if info['device_type'] == 'zfs':
+        extra += ['--group', 'group-%s' % ha_label]
+        zpool = info['bdev'].split("/")[0]
+        result = AgentShell.run(['pcs', 'resource', 'create',
+                                 '%s-zfs' % ha_label, 'ocf:chroma:ZFS', 'pool=%s' % zpool,
+                                 'op', 'start', 'timeout=90', 'op', 'stop', 'timeout=90'] + extra)
+        if result.rc != 0:
+            # @@ remove Lustre resource?
+            return agent_error("Failed to create ZFS resource for zpool:%s for resource %s" %
+                               (zpool, ha_label))
+        realpath = info['bdev']
+
+    else:
+        # Because of LU-11461 find realpath of devices and use that as Lustre target
+        result = AgentShell.run(['realpath', info['bdev']])
+        if result.rc == 0:
+            realpath = result.stdout.strip()
+        else:
+            realpath = info['bdev']
+
+    # Create Lustre resource and add target=uuid as an attribute
+    result = AgentShell.run(['pcs', 'resource', 'create', ha_label, 'ocf:lustre:Lustre',
+                             'target=%s' % realpath, 'mountpoint=%s' % info['mntpt']] + extra)
+
+    if result.rc != 0 and info['device_type'] == 'zfs':
+        console_log.error("Failed to create resource %s" % ha_label)
+        AgentShell.run(['pcs', 'resource', 'delete', '%s-zfs' % ha_label])
+
+    return result
 
 def configure_target_ha(primary, device, ha_label, uuid, mount_point):
     '''
     Configure the target high availability
 
-    Return: Value using simple return protocol
+    :return: Value using simple return protocol
     '''
 
     _mkdir_p_concurrent(mount_point)
@@ -362,39 +425,12 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
                 return agent_result_ok
             else:
                 return agent_error("A resource with the name %s already exists" % ha_label)
+        if info['bdev'] != device or info['mntpt'] != mount_point:
+            console_log.error("Mismatch for %s do not match configured (%s on %s) != (%s on %s)" %
+                              (ha_label, device, mount_point, info['bdev'], info['mntpt']))
+        _configure_target_ha(ha_label, info)
 
-        if info['device_type'] == 'zfs':
-            group = ['--group', 'group-%s' % ha_label]
-            zpool = device.split("/")[0]
-            result = AgentShell.run(['pcs', 'resource', 'create',
-                                     'zfs-%s' % ha_label, 'ZFS', 'pool=%s' % zpool,
-                                     'op', 'start', 'timeout=90',
-                                     'op', 'stop', 'timeout=90', '--disabled'] + group)
-            if result.rc != 0:
-                # @@ remove Lustre resource?
-                return agent_error("Failed to create ZFS resource for zpool:%s for resource %s" %
-                                   (zpool, ha_label))
-            realpath = device
-        else:
-            group = []
-            # Because of LU-11461 find realpath of devices and use that as Lustre target
-            result = AgentShell.run(['realpath', device])
-            if result.rc == 0:
-                realpath = result.stdout.strip()
-            else:
-                realpath = device
-
-
-        # Create Lustre resource and add target=uuid as an attribute
-        result = AgentShell.run(['pcs', 'resource', 'create', ha_label, 'ocf:lustre:Lustre',
-                                 'target=%s' % realpath, 'mountpoint=%s' % mount_point,
-                                 '--disabled'] + group)
-
-    result = _configure_target_priority(primary, ha_label, _this_node())
-
-    if result.rc == 76:
-        return agent_error("A constraint with the name %s-%s already exists" %
-                           (ha_label, preference))
+    _configure_target_priority(primary, ha_label, _this_node())
 
     return agent_result_ok
 
@@ -538,14 +574,14 @@ def start_target(ha_label):
     while True:
         i += 1
 
-        # This section could just try enabling the group- if zfs- exists, but doing them
+        # This section could just try enabling the group- if -zfs exists, but doing them
         # individually is safer, since if one is enabled and one isn't, enabling the group
         # doesn't enable the disabled resource.
         error = AgentShell.run_canned_error_message(['pcs', 'resource', 'enable', ha_label])
         if error:
             return agent_error(error)
-        if _resource_exists('zfs-'+ha_label):
-            error = AgentShell.run_canned_error_message(['pcs', 'resource', 'enable', 'zfs-'+ha_label])
+        if _resource_exists(ha_label+'-zfs'):
+            error = AgentShell.run_canned_error_message(['pcs', 'resource', 'enable', ha_label+'-zfs'])
 
         # now wait for it to start
         if _wait_target(ha_label, True):
@@ -579,7 +615,7 @@ def stop_target(ha_label):
         i += 1
 
         # Issue the command to Pacemaker to stop the target
-        if _resource_exists('zfs-'+ha_label):
+        if _resource_exists(ha_label+'-zfs'):
             # Group disable will disable all members of group regardless of current status
             error = AgentShell.run_canned_error_message(['pcs', 'resource', 'disable', 'group-'+ha_label])
         else:
@@ -725,7 +761,7 @@ def purge_configuration(mgs_device_path, mgs_device_type, filesystem_name):
     return agent_ok_or_error(mgs_blockdevice.purge_filesystem_configuration(filesystem_name, console_log))
 
 
-def convert_targets():
+def convert_targets(force=False):
     '''
     Convert existing ocf:chroma:Target to ocf:chroma:ZFS + ocf:lustre:Lustre
     '''
@@ -740,6 +776,15 @@ def convert_targets():
         return {"crm_mon_error": result}
 
     dom = parseString(result.stdout)
+
+    this_node = _this_node()
+
+    # node elements are number from 1
+    # dc-uuid is the node id of the domain controller
+    dcuuid = dom.getElementsByTagName('node')[int(dom.documentElement.getAttribute('dc-uuid'))-1].getAttribute('uname')
+    if dcuuid != this_node and not force:
+        console_log.info("This is not Pacemaker DC %s this is %s" % (dcuuid, this_node))
+        return
 
     # Build map of resource -> [ primary node, secondary node ]
     locations = {}
@@ -758,35 +803,42 @@ def convert_targets():
 
     active = get_resource_locations()
 
+    AgentShell.run(['pcs', 'property', 'set', 'maintenance-mode=true'])
+
+    wait_list = []
     for res in dom.getElementsByTagName('primitive'):
         if not (res.getAttribute("provider") == "chroma" and res.getAttribute("type") == "Target"):
             continue
 
         ha_label = res.getAttribute("id")
 
-        if active.get(ha_label):
-            console_log.info("Resource %s still active on %s. Not converting" %
-                             (ha_label, active.get(ha_label)))
-            continue
-
-        if locations[ha_label][0] != _this_node():
-            console_log.info("Resource %s is not primary here" % ha_label)
-            continue
-
         info = None
         for ops in res.getElementsByTagName('nvpair'):
             if ops.getAttribute("name") == "target":
                 uuid = ops.getAttribute("value")
-                info = _get_target_config(uuid)
+                try:
+                    info = _get_target_config(uuid)
+                except Exception as err:
+                    console_log.debug("Could not get info for uuid " + uuid)
                 break
+
         if not info:
-            console_log.error("Failed to parse resource: "+ ha_label)
+            console_log.error("No local info for resource: "+ ha_label)
             continue
 
-        unconfigure_target_ha(True, ha_label, uuid)
-        configure_target_ha(True, info['bdev'], ha_label, uuid, info['mntpt'])
+        _unconfigure_target_priority(False, ha_label)
+        _unconfigure_target_priority(True, ha_label)
+        _unconfigure_target_ha(ha_label, info, True)
+        _configure_target_ha(ha_label, info, (active.get(ha_label) is not None))
+        _configure_target_priority(True, ha_label, locations[ha_label][0])
         _configure_target_priority(False, ha_label, locations[ha_label][1])
+        wait_list.append([ha_label, (active.get(ha_label) is not None)])
 
+    # wait for last item
+    for wait in wait_list:
+        console_log.info("Waiting on "+wait[0])
+        _wait_target(wait[0], wait[1])
+    AgentShell.run(['pcs', 'property', 'unset', 'maintenance-mode'])
 
 ACTIONS = [purge_configuration, register_target,
            configure_target_ha, unconfigure_target_ha,

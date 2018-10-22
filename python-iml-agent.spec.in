@@ -156,9 +156,6 @@ systemctl preset %{unit_name} >/dev/null 2>&1
 # this will either convert an old (pre-4.1) config or initialize
 chroma-agent convert_agent_config
 
-%post -n python2-%{pypi_name}-management
-chroma-agent convert_targets
-
 %preun
 %systemd_preun %{unit_name}
 
