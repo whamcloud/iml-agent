@@ -466,6 +466,29 @@ def mount_target(uuid, pacemaker_ha_operation):
 
 def unmount_target(uuid):
     # This is called by the Target RA from corosync
+
+    # only unmount targets that are controlled by chroma:Target
+    try:
+        result = AgentShell.run(['cibadmin', '--query'])
+    except OSError, err:
+        if err.errno != errno.ENOENT:
+            raise
+    if result.rc != 0:
+        exit(-1)
+    dom = parseString(result.stdout)
+    found = False
+    for res in dom.getElementsByTagName('primitive'):
+        if not (res.getAttribute("provider") == "chroma" and res.getAttribute("type") == "Target"):
+            continue
+        for ops in res.getElementsByTagName('nvpair'):
+            if ops.getAttribute("name") == "target" and ops.getAttribute("value") == uuid:
+                found = True
+                break
+        if found:
+            break
+    if not found:
+        return
+
     info = _get_target_config(uuid)
 
     filesystem = FileSystem(info['backfstype'], info['bdev'])
