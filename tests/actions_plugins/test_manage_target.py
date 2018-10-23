@@ -358,28 +358,6 @@ class TestFormatTarget(CommandCaptureTestCase):
         self.assertRaises(TypeError, self.manage_targets.format_target, unknown='whatever')
 
 
-class TestXMLParsing(unittest.TestCase):
-    xml_example = """<primitive class="ocf" provider="chroma" type="Target" id="MGS_a3903a">
-  <meta_attributes id="MGS_a3903a-meta_attributes">
-    <nvpair name="target-role" id="MGS_a3903a-meta_attributes-target-role" value="Started"/>
-  </meta_attributes>
-  <operations id="MGS_a3903a-operations">
-    <op id="MGS_a3903a-monitor-120" interval="120" name="monitor" timeout="60"/>
-    <op id="MGS_a3903a-start-0" interval="0" name="start" timeout="300"/>
-    <op id="MGS_a3903a-stop-0" interval="0" name="stop" timeout="300"/>
-  </operations>
-  <instance_attributes id="MGS_a3903a-instance_attributes">
-    <nvpair id="MGS_a3903a-instance_attributes-target" name="target" value="c2890397-e0a2-4759-8f4e-df5ed64e1518"/>
-  </instance_attributes>
-</primitive>
-"""
-
-    def test_get_nvpairid_from_xml(self):
-        from chroma_agent.action_plugins import manage_targets
-        self.assertEqual('c2890397-e0a2-4759-8f4e-df5ed64e1518',
-                         manage_targets._get_nvpairid_from_xml(self.xml_example))
-
-
 class TestCheckBlockDevice(CommandCaptureTestCase, AgentUnitTestCase):
     def setUp(self):
         super(TestCheckBlockDevice, self).setUp()
