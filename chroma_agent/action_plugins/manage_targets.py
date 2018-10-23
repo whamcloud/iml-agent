@@ -127,7 +127,9 @@ def get_resource_locations():
 
     if result.rc != 0:
         # Pacemaker not running, or no resources configured yet
-        return {"crm_mon_error": result}
+        return {"crm_mon_error": {"rc": result.rc,
+                                  "stdout": result.stdout,
+                                  "stderr": result.stderr}}
 
     dom = parseString(result.stdout)
 
@@ -794,7 +796,9 @@ def convert_targets(force=False):
 
     if result.rc != 0:
         # Pacemaker not running, or no resources configured yet
-        return {"crm_mon_error": result}
+        return {"crm_mon_error": {"rc": result.rc,
+                                  "stdout": result.stdout,
+                                  "stderr": result.stderr}}
 
     dom = parseString(result.stdout)
 
