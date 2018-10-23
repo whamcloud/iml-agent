@@ -109,29 +109,9 @@ def get_resource_location(resource_name):
 
     return locations.get(resource_name)
 
-
-@exceptionSandBox(console_log, None)
-def get_resource_locations():
-    """Parse `crm_mon -1` to identify where (if anywhere) resources
-    (i.e. targets) are running
-    returns [ resoure_id: location|None, ... ]
-
-    """
-
-    try:
-        result = AgentShell.run(["crm_mon", "-1", "-r", "-X"])
-    except OSError, err:
-        # ENOENT is fine here.  Pacemaker might not be installed yet.
-        if err.errno != errno.ENOENT:
-            raise
-
-    if result.rc != 0:
-        # Pacemaker not running, or no resources configured yet
-        return {"crm_mon_error": {"rc": result.rc,
-                                  "stdout": result.stdout,
-                                  "stderr": result.stderr}}
-
-    dom = parseString(result.stdout)
+def _get_resource_locations(xml):
+    # allow testing
+    dom = parseString(xml)
 
     locations = {}
     for res in dom.getElementsByTagName('resource'):
@@ -146,6 +126,26 @@ def get_resource_locations():
 
     return locations
 
+@exceptionSandBox(console_log, None)
+def get_resource_locations():
+    """Parse `crm_mon -1` to identify where (if anywhere) resources
+    (i.e. targets) are running
+    returns [ resoure_id: location|None, ... ]
+    """
+    try:
+        result = AgentShell.run(["crm_mon", "-1", "-r", "-X"])
+    except OSError, err:
+        # ENOENT is fine here.  Pacemaker might not be installed yet.
+        if err.errno != errno.ENOENT:
+            raise
+
+    if result.rc != 0:
+        # Pacemaker not running, or no resources configured yet
+        return {"crm_mon_error": {"rc": result.rc,
+                                  "stdout": result.stdout,
+                                  "stderr": result.stderr}}
+
+    return _get_resource_locations(result.stdout)
 
 def check_block_device(path, device_type):
     """
@@ -478,17 +478,13 @@ def unmount_target(uuid):
     if result.rc != 0:
         exit(-1)
     dom = parseString(result.stdout)
-    found = False
-    for res in dom.getElementsByTagName('primitive'):
-        if not (res.getAttribute("provider") == "chroma" and res.getAttribute("type") == "Target"):
-            continue
-        for ops in res.getElementsByTagName('nvpair'):
-            if ops.getAttribute("name") == "target" and ops.getAttribute("value") == uuid:
-                found = True
-                break
-        if found:
-            break
-    if not found:
+
+    # Searches for <nvpair name="target" value=uuid> in <primitive provider="chroma" type="Target"> in dom
+    if not next((ops for res in dom.getElementsByTagName('primitive')
+                 if res.getAttribute("provider") == "chroma" and res.getAttribute("type") == "Target"
+                 for ops in res.getElementsByTagName('nvpair')
+                 if ops.getAttribute("name") == "target" and ops.getAttribute("value") == uuid),
+                False):
         return
 
     info = _get_target_config(uuid)
@@ -806,7 +802,8 @@ def convert_targets(force=False):
 
     # node elements are number from 1
     # dc-uuid is the node id of the domain controller
-    dcuuid = dom.getElementsByTagName('node')[int(dom.documentElement.getAttribute('dc-uuid'))-1].getAttribute('uname')
+    dcuuid = next((node.getAttribute('uname') for node in dom.getElementsByTagName('node')
+                   if node.getAttribute("id") == dom.documentElement.getAttribute('dc-uuid')), "")
     if dcuuid != this_node and not force:
         console_log.info("This is not Pacemaker DC %s this is %s" % (dcuuid, this_node))
         return

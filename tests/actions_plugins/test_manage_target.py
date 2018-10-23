@@ -357,6 +357,57 @@ class TestFormatTarget(CommandCaptureTestCase):
     def test_unknown_opt(self):
         self.assertRaises(TypeError, self.manage_targets.format_target, unknown='whatever')
 
+class TestXMLParsing(unittest.TestCase):
+    xml_crm_mon = """<?xml version="1.0"?>
+<crm_mon version="1.1.18">
+    <summary>
+        <stack type="corosync" />
+        <current_dc present="true" version="1.1.18-11.el7_5.3-2b07d5c5a9" name="iml-mds01.iml" id="1" with_quorum="true" />
+        <last_update time="Tue Oct 23 16:09:16 2018" />
+        <last_change time="Sat Oct 20 13:34:12 2018" user="root" client="cibadmin" origin="iml-mds01.iml" />
+        <nodes_configured number="2" expected_votes="unknown" />
+        <resources_configured number="5" disabled="0" blocked="0" />
+        <cluster_options stonith-enabled="true" symmetric-cluster="true" no-quorum-policy="stop" maintenance-mode="false" />
+    </summary>
+    <nodes>
+        <node name="iml-mds01.iml" id="2" online="true" standby="false" standby_onfail="false" maintenance="false" pending="false" unclean="false" shutdown="false" expected_up="true" is_dc="false" resources_running="3" type="member" />
+        <node name="iml-mds02.iml" id="1" online="true" standby="false" standby_onfail="false" maintenance="false" pending="false" unclean="false" shutdown="false" expected_up="true" is_dc="false" resources_running="2" type="member" />
+    </nodes>
+    <resources>
+        <resource id="st-fencing" resource_agent="stonith:fence_chroma" role="Started" active="true" orphaned="false" blocked="false" managed="true" failed="false" failure_ignored="false" nodes_running_on="1" >
+            <node name="iml-mds01.iml" id="2" cached="false"/>
+        </resource>
+        <resource id="MGS_054510" resource_agent="ocf::lustre:Lustre" role="Started" active="true" orphaned="false" blocked="false" managed="true" failed="false" failure_ignored="false" nodes_running_on="1" >
+            <node name="iml-mds02.iml" id="1" cached="false"/>
+        </resource>
+        <group id="group-fs1-MDT0001_41549d" number_resources="2" >
+             <resource id="fs1-MDT0001_41549d-zfs" resource_agent="ocf::chroma:ZFS" role="Started" active="true" orphaned="false" blocked="false" managed="true" failed="false" failure_ignored="false" nodes_running_on="1" >
+                 <node name="iml-mds01.iml" id="2" cached="false"/>
+             </resource>
+             <resource id="fs1-MDT0001_41549d" resource_agent="ocf::lustre:Lustre" role="Started" active="true" orphaned="false" blocked="false" managed="true" failed="false" failure_ignored="false" nodes_running_on="1" >
+                 <node name="iml-mds01.iml" id="2" cached="false"/>
+             </resource>
+        </group>
+        <resource id="fs1-MDT0000_6cc06e" resource_agent="ocf::chroma:Target" role="Started" target_role="Started" active="true" orphaned="false" blocked="false" managed="true" failed="false" failure_ignored="false" nodes_running_on="1" >
+            <node name="iml-mds01.iml" id="1" cached="false"/>
+        </resource>
+   </resources>
+   <node_attributes>
+        <node name="iml-mds01.iml">
+        </node>
+        <node name="iml-mds02.iml">
+        </node>
+    </node_attributes>
+</crm_mon>
+    """
+
+    def test_get_resource_locations(self):
+        from chroma_agent.action_plugins import manage_targets
+        self.assertDictEqual(manage_targets._get_resource_locations(self.xml_crm_mon),
+                             {'fs1-MDT0000_6cc06e': 'iml-mds01.iml',
+                              'fs1-MDT0001_41549d': 'iml-mds01.iml',
+                              'MGS_054510': 'iml-mds02.iml'})
+        
 
 class TestCheckBlockDevice(CommandCaptureTestCase, AgentUnitTestCase):
     def setUp(self):
