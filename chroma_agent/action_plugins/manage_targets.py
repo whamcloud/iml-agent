@@ -42,9 +42,10 @@ def writeconf_target(device=None, target_types=(), mgsnode=(), fsname=None,
     early_flag_options = {
         'erase_params': '--erase-params'
     }
-    for arg, val in early_flag_options.items():
-        if args[arg]:
-            options.append("%s" % val)
+    options += [early_flag_options[arg] for arg in early_flag_options if args[arg]]
+
+    single = lambda x: "--{}".format(x)
+    double = lambda x, y: "--{}={}".format(x, y)
 
     tuple_options = ["target_types", "mgsnode", "failnode", "servicenode", "network"]
     for name in tuple_options:
@@ -54,14 +55,11 @@ def writeconf_target(device=None, target_types=(), mgsnode=(), fsname=None,
             arg = (arg,)
 
         if name == "target_types":
-            for target in arg:
-                options.append("--%s" % target)
+            options += [single(target) for target in arg]
         elif name == 'mgsnode':
-            for mgs_nids in arg:
-                options.append("--%s=%s" % (name, ",".join(mgs_nids)))
-        else:
-            if len(arg) > 0:
-                options.append("--%s=%s" % (name, ",".join(arg)))
+            options += [double(name, ",".join(mgs_nids)) for mgs_nids in arg]
+        elif len(arg) > 0:
+            options.append(double(name, ",".join(arg)))
 
     dict_options = ["param"]
     for name in dict_options:
@@ -69,28 +67,21 @@ def writeconf_target(device=None, target_types=(), mgsnode=(), fsname=None,
         if arg:
             for key in arg:
                 if arg[key] is not None:
-                    options.extend(["--%s" % name, "%s=%s" % (key, arg[key])])
+                    options += [single(name), "{}={}".format(key, arg[key])]
 
-    flag_options = {
-        'nomgs': '--nomgs',
-        'writeconf': '--writeconf',
-        'dryrun': '--dryrun',
-        'verbose': '--verbose',
-        'quiet': '--quiet',
-    }
-    for arg in flag_options:
-        if args[arg]:
-            options.append("%s" % flag_options[arg])
+    # flag options
+    flag_options = ['writeconf', 'quiet', 'dryrun', 'nomgs', 'verbose']
+    options += [single(arg) for arg in flag_options if args[arg]]
 
     # everything else
-    handled = set(flag_options.keys() + early_flag_options.keys() + tuple_options + dict_options)
+    handled = set(flag_options + early_flag_options.keys() + tuple_options + dict_options)
     for name in set(args.keys()) - handled:
         if name == "device":
             continue
         value = args[name]
 
         if value is not None:
-            options.append("--%s=%s" % (name, value))
+            options.append(double(name, value))
 
     AgentShell.try_run(['tunefs.lustre'] + options + [device])
 
