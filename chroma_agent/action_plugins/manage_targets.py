@@ -24,7 +24,6 @@ from iml_common.lib.agent_rpc import agent_ok_or_error
 from iml_common.lib.agent_rpc import agent_result_is_error
 from iml_common.lib.agent_rpc import agent_result_is_ok
 from iml_common.lib.exception_sandbox import exceptionSandBox
-from iml_common.lib.util import platform_info
 
 def writeconf_target(device=None, target_types=(), mgsnode=(), fsname=None,
                      failnode=(), servicenode=(), param=None, index=None,
@@ -44,8 +43,8 @@ def writeconf_target(device=None, target_types=(), mgsnode=(), fsname=None,
     }
     options += [early_flag_options[arg] for arg in early_flag_options if args[arg]]
 
-    single = lambda x: "--{}".format(x)
-    double = lambda x, y: "--{}={}".format(x, y)
+    single = "--{}".format
+    double = "--{}={}".format
 
     tuple_options = ["target_types", "mgsnode", "failnode", "servicenode", "network"]
     for name in tuple_options:
@@ -65,9 +64,9 @@ def writeconf_target(device=None, target_types=(), mgsnode=(), fsname=None,
     for name in dict_options:
         arg = args[name]
         if arg:
-            for key in arg:
-                if arg[key] is not None:
-                    options += [single(name), "{}={}".format(key, arg[key])]
+            options += [x for key in arg
+                        if arg[key] is not None
+                        for x in [single(name), "{}={}".format(key, arg[key])]]
 
     # flag options
     flag_options = ['writeconf', 'quiet', 'dryrun', 'nomgs', 'verbose']
@@ -75,13 +74,8 @@ def writeconf_target(device=None, target_types=(), mgsnode=(), fsname=None,
 
     # everything else
     handled = set(flag_options + early_flag_options.keys() + tuple_options + dict_options)
-    for name in set(args.keys()) - handled:
-        if name == "device":
-            continue
-        value = args[name]
-
-        if value is not None:
-            options.append(double(name, value))
+    options += [double(name, args[name]) for name in set(args.keys()) - handled
+                if name != "device" and args[name] is not None]
 
     AgentShell.try_run(['tunefs.lustre'] + options + [device])
 
@@ -151,7 +145,7 @@ def check_block_device(path, device_type):
 
 def format_target(device_type, target_name, device, backfstype,
                   target_types=(), mgsnode=(), fsname=None,
-                  failnode=(), servicenode=(), param={}, index=None,
+                  failnode=(), servicenode=(), param=None, index=None,
                   comment=None, mountfsoptions=None, network=(),
                   device_size=None, mkfsoptions=None,
                   reformat=False, stripe_count_hint=None, iam_dir=False,
@@ -167,6 +161,9 @@ def format_target(device_type, target_name, device, backfstype,
     del args['device_type']
     del args['target_name']
 
+    single = "--{}".format
+    double = "--{}={}".format
+
     tuple_options = ["target_types", "mgsnode", "failnode", "servicenode", "network"]
     for name in tuple_options:
         arg = args[name]
@@ -175,14 +172,11 @@ def format_target(device_type, target_name, device, backfstype,
             arg = (arg,)
 
         if name == "target_types":
-            for target in arg:
-                options.append("--%s" % target)
+            options += [single(target) for target in arg]
         elif name == 'mgsnode':
-            for mgs_nids in arg:
-                options.append("--%s=%s" % (name, ",".join(mgs_nids)))
-        else:
-            if len(arg) > 0:
-                options.append("--%s=%s" % (name, ",".join(arg)))
+            options += [double(name, ",".join(mgs_nids)) for mgs_nids in arg]
+        elif len(arg) > 0:
+            options.append(double(name, ",".join(arg)))
 
     flag_options = {
         'dryrun': '--dryrun',
@@ -191,25 +185,20 @@ def format_target(device_type, target_name, device, backfstype,
         'verbose': '--verbose',
         'quiet': '--quiet',
     }
-
-    for arg in flag_options:
-        if args[arg]:
-            options.append("%s" % flag_options[arg])
+    options += [flag_options[arg] for arg in flag_options if args[arg]]
 
     dict_options = ["param"]
     for name in dict_options:
-        for key, value in args[name].items():
-            if value is not None:
-                options.extend(["--%s" % name, "%s=%s" % (key, value)])
+        arg = args[name]
+        if arg:
+            options += [x for key in arg
+                        if arg[key] is not None
+                        for x in [single(name), "{}={}".format(key, arg[key])]]
 
     # everything else
     handled = set(flag_options.keys() + tuple_options + dict_options)
-    for name in set(args.keys()) - handled:
-        if name == "device":
-            continue
-        value = args[name]
-        if value is not None:
-            options.append("--%s=%s" % (name, value))
+    options += [double(name, args[name]) for name in set(args.keys()) - handled
+                if name != "device" and args[name] is not None]
 
     # cache BlockDevice to store knowledge of the device_type at this path
     BlockDevice(device_type, device)
@@ -322,7 +311,7 @@ def unconfigure_target_store(uuid):
     except KeyError:
         console_log.warn("Cannot retrieve target information")
     except IOError:
-        console_log.warn("Cannot remove target mount folder: {}".format(target['mntpt']))
+        console_log.warn("Cannot remove target mount folder: %s", target['mntpt'])
     config.delete('targets', uuid)
 
 
@@ -355,7 +344,7 @@ def _configure_target_priority(primary, ha_label, node):
     result = AgentShell.run(['pcs', 'constraint', 'location', 'add', name, ha_label, node, score])
 
     if result.rc == 76:
-        console_log.warn("A constraint with the name {} already exists".format(name))
+        console_log.warn("A constraint with the name %s already exists", name)
         result.rc = 0
 
     return result
@@ -391,7 +380,7 @@ def _configure_target_ha(ha_label, info, enabled=False):
                              'target={}'.format(realpath), 'mountpoint={}'.format(info['mntpt'])] + extra)
 
     if result.rc != 0 and info['device_type'] == 'zfs':
-        console_log.error("Failed to create resource {}".format(ha_label))
+        console_log.error("Failed to create resource %s", ha_label)
         AgentShell.run(['pcs', 'resource', 'delete', _zfs_name(ha_label)])
 
     return result
@@ -415,7 +404,8 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
             else:
                 return agent_error("A resource with the name {} already exists".format(ha_label))
         if info['bdev'] != device or info['mntpt'] != mount_point:
-            console_log.error("Mismatch for {} do not match configured ({} on {}) != ({} on {})".format(ha_label, device, mount_point, info['bdev'], info['mntpt']))
+            console_log.error("Mismatch for %s do not match configured (%s on %s) != (%s on %s)",
+                              ha_label, device, mount_point, info['bdev'], info['mntpt'])
         _configure_target_ha(ha_label, info)
 
     _configure_target_priority(primary, ha_label, _this_node())
@@ -430,7 +420,7 @@ def mount_target(uuid, pacemaker_ha_operation):
     import_retries = 60
     succeeded = False
 
-    for i in xrange(import_retries):
+    while import_retries > 0:
         # This loop is needed due pools not being immediately importable during
         # STONITH operations. Track: https://github.com/zfsonlinux/zfs/issues/6727
         result = import_target(info['device_type'], info['bdev'], pacemaker_ha_operation)
@@ -440,6 +430,7 @@ def mount_target(uuid, pacemaker_ha_operation):
         elif (not pacemaker_ha_operation) or (info['device_type'] != 'zfs'):
             exit(-1)
         time.sleep(1)
+        import_retries -= 1
 
     if succeeded is False:
         exit(-1)
@@ -505,7 +496,7 @@ def import_target(device_type, path, pacemaker_ha_operation):
             error = blockdevice.import_(True)
 
     if error:
-        console_log.error("Error importing pool: '%s'" % error)
+        console_log.error("Error importing pool: '%s'", error)
 
     return agent_ok_or_error(error)
 
@@ -524,7 +515,7 @@ def export_target(device_type, path):
     error = blockdevice.export()
 
     if error:
-        console_log.error("Error exporting pool: '%s'" % error)
+        console_log.error("Error exporting pool: '%s'", error)
 
     return agent_ok_or_error(error)
 
@@ -606,7 +597,7 @@ def start_target(ha_label):
                 return agent_error(error)
 
             if i < 4:
-                console_log.info("failed to start target {}".format(ha_label))
+                console_log.info("failed to start target %s", ha_label)
             else:
                 return agent_error("Failed to start target {}".format(ha_label))
 
@@ -636,7 +627,7 @@ def stop_target(ha_label):
             return agent_result_ok
 
         if i < 4:
-            console_log.info("failed to stop target {}".format(ha_label))
+            console_log.info("failed to stop target %s", ha_label)
         else:
             return agent_error("Failed to stop target {}".format(ha_label))
 
@@ -704,7 +695,7 @@ def _failoverback_target(ha_label, primary):
     """
     node = _find_resource_constraint(ha_label, primary)
     if not node:
-        return agent_error("Unable to find the {} server for '{}'".format(destination, ha_label))
+        return agent_error("Unable to find the {} server for '{}'".format('primary' if primary else 'secondary', ha_label))
 
     error = _move_target(ha_label, node)
 
@@ -751,16 +742,16 @@ def target_running(uuid):
     except (KeyError, TypeError) as err:
         # it can't possibly be running here if the config entry for
         # it doesn't even exist, or if the store doesn't even exist!
-        console_log.warning("Exception getting target config: " + err)
+        console_log.warning("Exception getting target config: %s", err)
         _exit(1)
 
     filesystem = FileSystem(info['backfstype'], info['bdev'])
 
-    for device, mntpnt, fstype in get_local_mounts():
+    for device, mntpnt in get_local_mounts()[0:2]:
         if (mntpnt == info['mntpt']) and filesystem.devices_match(device, info['bdev'], uuid):
             _exit(0)
 
-    console_log.warning("Did not find mount with matching mntpt and device for " + uuid)
+    console_log.warning("Did not find mount with matching mntpt and device for %s", uuid)
     _exit(1)
 
 
@@ -795,7 +786,7 @@ def convert_targets(force=False):
     dcuuid = next((node.getAttribute('uname') for node in dom.getElementsByTagName('node')
                    if node.getAttribute("id") == dom.documentElement.getAttribute('dc-uuid')), "")
     if dcuuid != this_node and not force:
-        console_log.info("This is not Pacemaker DC {} this is {}".format(dcuuid, this_node))
+        console_log.info("This is not Pacemaker DC %s this is %s", dcuuid, this_node)
         return
 
     # Build map of resource -> [ primary node, secondary node ]
@@ -809,7 +800,7 @@ def convert_targets(force=False):
         elif con.getAttribute("id") == _constraint(ha_label, False):
             ind = 1
         else:
-            console_log.info("Unknown constraint: "+con.getAttribute("id"))
+            console_log.info("Unknown constraint: %s", con.getAttribute("id"))
             continue
         locations[ha_label][ind] = con.getAttribute("node")
 
@@ -831,7 +822,7 @@ def convert_targets(force=False):
                         for ops in res.getElementsByTagName('nvpair')
                         if ops.getAttribute("name") == "target")
         except Exception as err:
-            console_log.error("No local info for resource: "+ ha_label)
+            console_log.error("No local info for resource: %s", ha_label)
             continue
 
         _unconfigure_target_priority(False, ha_label)
@@ -844,8 +835,8 @@ def convert_targets(force=False):
 
     # wait for last item
     for wait in wait_list:
-        console_log.info("Waiting on "+wait[0])
-        _wait_target(wait[0], wait[1])
+        console_log.info("Waiting on %s", wait[0])
+        _wait_target(*wait)
     AgentShell.run(['pcs', 'property', 'unset', 'maintenance-mode'])
 
 ACTIONS = [purge_configuration, register_target,
