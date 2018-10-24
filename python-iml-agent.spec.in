@@ -85,6 +85,7 @@ Requires:       ed
 
 Requires:       fence-agents
 Requires:       fence-agents-virsh
+Requires:	lustre-resource-agents
 
 %description -n python2-%{pypi_name}-management
 This package layers on management capabilities for Integrated Manager for Lustre Agent.
@@ -122,6 +123,8 @@ cat <<EndOfList>>management.files
 %{python_sitelib}/chroma_agent/action_plugins/manage_*.py*
 %{python_sitelib}/chroma_agent/templates/
 %{_usr}/lib/ocf/resource.d/chroma/Target
+# ZFS is pulled from resource-agents master (see README.md)
+%{_usr}/lib/ocf/resource.d/chroma/ZFS
 %{_sbindir}/fence_chroma
 %{_sbindir}/chroma-copytool-monitor
 EndOfList

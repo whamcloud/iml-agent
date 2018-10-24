@@ -36,7 +36,7 @@ setup(
         'Programming Language :: Python :: 2.7',
     ],
     keywords = 'IML lustre high-availability',
-    data_files=[('/usr/lib/ocf/resource.d/chroma', ['Target'])],
+    data_files=[('/usr/lib/ocf/resource.d/chroma', ['Target', 'ZFS'])],
     entry_points = {
         'console_scripts': [
             'chroma-agent = chroma_agent.cli:main',

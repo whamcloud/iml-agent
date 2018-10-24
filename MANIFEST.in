@@ -1,5 +1,6 @@
 include LICENSE.txt
 include Target
+include ZFS
 include logrotate.cfg
 include chroma_agent/templates/corosync.conf
 include chroma_agent/templates/ifcfg-nic
