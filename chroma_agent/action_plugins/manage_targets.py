@@ -800,7 +800,7 @@ def convert_targets(force=False):
 
     this_node = _this_node()
 
-    # node elements are number from 1
+    # node elements are numbered from 1
     # dc-uuid is the node id of the domain controller
     dcuuid = next((node.getAttribute('uname') for node in dom.getElementsByTagName('node')
                    if node.getAttribute("id") == dom.documentElement.getAttribute('dc-uuid')), "")
