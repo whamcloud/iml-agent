@@ -2,12 +2,15 @@
 # Use of this source code is governed by a MIT-style
 # license that can be found in the LICENSE file.
 
-
 from chroma_agent.lib.shell import AgentShell
 from chroma_agent.log import daemon_log
 
 
-def yum_util(action, packages=[], fromrepo=None, enablerepo=None, narrow_updates=False):
+def yum_util(action,
+             packages=[],
+             fromrepo=None,
+             enablerepo=None,
+             narrow_updates=False):
     '''
     A wrapper to perform yum actions in encapsulated way.
     :param action:  clean, install, remove, update, requires etc
@@ -19,29 +22,36 @@ def yum_util(action, packages=[], fromrepo=None, enablerepo=None, narrow_updates
     '''
 
     if fromrepo and enablerepo:
-        raise ValueError("Cannot provide fromrepo and enablerepo simultaneously")
+        raise ValueError(
+            "Cannot provide fromrepo and enablerepo simultaneously")
 
     repo_arg = []
-    valid_rc_values = [0]                               # Some errors values other than 0 are valid.
+    valid_rc_values = [0]  # Some errors values other than 0 are valid.
     tries = 2
     if fromrepo:
-        repo_arg = ['--disablerepo=*'] + ['--enablerepo=%s' % r for r in fromrepo]
+        repo_arg = ['--disablerepo=*'
+                    ] + ['--enablerepo=%s' % r for r in fromrepo]
     elif enablerepo:
         repo_arg = ['--enablerepo=%s' % r for r in enablerepo]
     if narrow_updates and action == 'query':
         repo_arg.extend(['--upgrades'])
 
     if action == 'clean':
-        cmd = ['dnf', 'clean', 'all'] + (repo_arg if repo_arg
-                                         else ["--enablerepo=*"])
+        cmd = ['dnf', 'clean', 'all'] + (repo_arg
+                                         if repo_arg else ["--enablerepo=*"])
     elif action == 'install':
-        cmd = ['dnf', 'install', '--allowerasing', '-y', '--exclude',
-               'kernel-debug'] + repo_arg + list(packages)
+        cmd = [
+            'dnf', 'install', '--allowerasing', '-y', '--exclude',
+            'kernel-debug'
+        ] + repo_arg + list(packages)
     elif action == 'remove':
         cmd = ['dnf', 'remove', '-y'] + repo_arg + list(packages)
     elif action == 'update':
-        cmd = ['dnf', 'update', '--allowerasing', '-y', '--exclude',
-               'kernel-debug'] + repo_arg + list(packages)
+        cmd = [
+            'dnf', 'update', '--allowerasing', '-y', '--exclude',
+            'kernel-debug', '--exclude'
+            'NetworkManager*'
+        ] + repo_arg + list(packages)
     elif action == 'requires':
         cmd = ['dnf', 'repoquery', '--latest-limit', '1', '--requires'] + \
                repo_arg + list(packages)
@@ -74,10 +84,13 @@ def yum_util(action, packages=[], fromrepo=None, enablerepo=None, narrow_updates
             # trying again
             if action == 'install':
                 AgentShell.run(['dnf', 'clean', 'metadata'])
-            daemon_log.info("HYD-3885 Retrying yum command '%s'" % " ".join(cmd))
+            daemon_log.info(
+                "HYD-3885 Retrying yum command '%s'" % " ".join(cmd))
             if hyd_3885 == 0:
-                daemon_log.info("HYD-3885 Retry yum command failed '%s'" % " ".join(cmd))
-                raise AgentShell.CommandExecutionError(result, cmd)   # Out of retries so raise for the caller..
+                daemon_log.info(
+                    "HYD-3885 Retry yum command failed '%s'" % " ".join(cmd))
+                raise AgentShell.CommandExecutionError(
+                    result, cmd)  # Out of retries so raise for the caller..
 
 
 def yum_check_update(repos):
@@ -101,6 +114,8 @@ def yum_check_update(repos):
             if not repos or elements[2] in repos:
                 packages.append(elements[0])
         else:
-            daemon_log.warning("dnf check-update found unknown response of: %s\nIn: %s\nLooking at: repos %s" % (line, yum_response, repos))
+            daemon_log.warning(
+                "dnf check-update found unknown response of: %s\nIn: %s\nLooking at: repos %s"
+                % (line, yum_response, repos))
 
     return packages
