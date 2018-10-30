@@ -49,8 +49,7 @@ def yum_util(action,
     elif action == 'update':
         cmd = [
             'dnf', 'update', '--allowerasing', '-y', '--exclude',
-            'kernel-debug', '--exclude'
-            'NetworkManager*'
+            'kernel-debug', '--exclude', 'NetworkManager*'
         ] + repo_arg + list(packages)
     elif action == 'requires':
         cmd = ['dnf', 'repoquery', '--latest-limit', '1', '--requires'] + \
