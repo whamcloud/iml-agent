@@ -294,7 +294,8 @@ def unconfigure_target_ha(primary, ha_label, uuid):
             result = _unconfigure_target_ha(ha_label, info)
 
             if result.rc != 0 and result.rc != 234:
-                return agent_error("Error {} trying to cleanup resource {}".format(result.rc, ha_label))
+                return agent_error("Error {} trying to cleanup resource {}".format(result.rc,
+                                                                                   ha_label))
 
         return agent_result_ok
 
@@ -331,7 +332,8 @@ def _this_node():
 
 
 def _unconfigure_target_priority(primary, ha_label):
-    return AgentShell.run(['pcs', 'constraint', 'location', 'remove', _constraint(ha_label, primary)])
+    return AgentShell.run(['pcs', 'constraint', 'location', 'remove',
+                           _constraint(ha_label, primary)])
 
 
 def _configure_target_priority(primary, ha_label, node):
@@ -363,8 +365,9 @@ def _configure_target_ha(ha_label, info, enabled=False):
                                  _zfs_name(ha_label), 'ocf:chroma:ZFS', 'pool={}'.format(zpool),
                                  'op', 'start', 'timeout=90', 'op', 'stop', 'timeout=90'] + extra)
         if result.rc != 0:
-            # @@ remove Lustre resource?
-            return agent_error("Failed to create ZFS resource for zpool:{} for resource {}".format(zpool, ha_label))
+            console_log.error("Resource (%s) create failed:%d: %s", zpool, result.rc, result.stderr)
+            return result
+
         realpath = info['bdev']
 
     else:
@@ -377,11 +380,15 @@ def _configure_target_ha(ha_label, info, enabled=False):
 
     # Create Lustre resource and add target=uuid as an attribute
     result = AgentShell.run(['pcs', 'resource', 'create', ha_label, 'ocf:lustre:Lustre',
-                             'target={}'.format(realpath), 'mountpoint={}'.format(info['mntpt'])] + extra)
+                             'target={}'.format(realpath),
+                             'mountpoint={}'.format(info['mntpt'])] + extra)
 
-    if result.rc != 0 and info['device_type'] == 'zfs':
-        console_log.error("Failed to create resource %s", ha_label)
-        AgentShell.run(['pcs', 'resource', 'delete', _zfs_name(ha_label)])
+    if result.rc != 0:
+        console_log.error("Failed to create resource %s:%d: %s",
+                          ha_label, result.rc, result.stderr)
+
+        if info['device_type'] == 'zfs':
+            AgentShell.run(['pcs', 'resource', 'delete', _zfs_name(ha_label)])
 
     return result
 
@@ -406,7 +413,9 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
         if info['bdev'] != device or info['mntpt'] != mount_point:
             console_log.error("Mismatch for %s do not match configured (%s on %s) != (%s on %s)",
                               ha_label, device, mount_point, info['bdev'], info['mntpt'])
-        _configure_target_ha(ha_label, info)
+        result = _configure_target_ha(ha_label, info)
+        if result.rc != 0:
+            return agent_error("Failed to create {}: {}".format(ha_label, result.rc))
 
     _configure_target_priority(primary, ha_label, _this_node())
 
@@ -459,7 +468,8 @@ def unmount_target(uuid):
         exit(-1)
     dom = parseString(result.stdout)
 
-    # Searches for <nvpair name="target" value=uuid> in <primitive provider="chroma" type="Target"> in dom
+    # Searches for <nvpair name="target" value=uuid> in
+    # <primitive provider="chroma" type="Target"> in dom
     if not next((ops for res in dom.getElementsByTagName('primitive')
                  if res.getAttribute("provider") == "chroma" and res.getAttribute("type") == "Target"
                  for ops in res.getElementsByTagName('nvpair')
@@ -480,13 +490,15 @@ def unmount_target(uuid):
 
 def import_target(device_type, path, pacemaker_ha_operation):
     """
-    Passed a device type and a path import the device if such an operation make sense. For example a jbod scsi
-    disk does not have the concept of import whilst zfs does.
+    Passed a device type and a path import the device if such an operation make sense.
+    For example a jbod scsi disk does not have the concept of import whilst zfs does.
     :param device_type: the type of device to import
     :param path: path of device to import
-    :param pacemaker_ha_operation: This import is at the request of pacemaker. In HA operations the device may
-               often have not have been cleanly exported because the previous mounted node failed in operation.
+    :param pacemaker_ha_operation: This import is at the request of pacemaker. In HA operations the
+    device may often have not have been cleanly exported because the previous mounted node failed
+    in operation.
     :return: None or an Error message
+
     """
     blockdevice = BlockDevice(device_type, path)
 
@@ -503,8 +515,8 @@ def import_target(device_type, path, pacemaker_ha_operation):
 
 def export_target(device_type, path):
     """
-    Passed a device type and a path export the device if such an operation make sense. For example a jbod scsi
-    disk does not have the concept of export whilst zfs does.
+    Passed a device type and a path export the device if such an operation make sense.
+    For example a jbod scsi disk does not have the concept of export whilst zfs does.
     :param path: path of device to export
     :param device_type: the type of device to export
     :return: None or an Error message
@@ -528,9 +540,9 @@ def _wait_target(ha_label, started):
     :return: True if successful.
     '''
 
-    # Now wait for it to stop, if a lot of things are starting/stopping this can take a long long time.
-    # So if the number of things started is changing we keep going, but when nothing at all has stopped
-    # for 2 minutes we timeout, but an overall timeout of 20 minutes.
+    # Now wait for it to stop, if a lot of things are starting/stopping this can take a long long
+    # time.  So if the number of things started is changing we keep going, but when nothing at all
+    # has stopped for 2 minutes we timeout, but an overall timeout of 20 minutes.
     master_timeout = 1200
     activity_timeout = 120
     started_items = -1
@@ -580,7 +592,8 @@ def start_target(ha_label):
         if error:
             return agent_error(error)
         if _resource_exists(_zfs_name(ha_label)):
-            error = AgentShell.run_canned_error_message(['pcs', 'resource', 'enable', _zfs_name(ha_label)])
+            error = AgentShell.run_canned_error_message(['pcs', 'resource', 'enable',
+                                                         _zfs_name(ha_label)])
 
         # now wait for it to start
         if _wait_target(ha_label, True):
@@ -616,7 +629,8 @@ def stop_target(ha_label):
         # Issue the command to Pacemaker to stop the target
         if _resource_exists(_zfs_name(ha_label)):
             # Group disable will disable all members of group regardless of current status
-            error = AgentShell.run_canned_error_message(['pcs', 'resource', 'disable', _group_name(ha_label)])
+            error = AgentShell.run_canned_error_message(['pcs', 'resource', 'disable',
+                                                         _group_name(ha_label)])
         else:
             error = AgentShell.run_canned_error_message(['pcs', 'resource', 'disable', ha_label])
 
@@ -644,18 +658,19 @@ def _move_target(target_label, dest_node):
     # Issue the command to Pacemaker to move the target
     arg_list = ['crm_resource', '--resource', target_label, '--move', '--node', dest_node]
 
-    # For on going debug purposes, lets get the resource locations at the beginning. This provides useful
-    # log output in the case where things don't work.
+    # For on going debug purposes, lets get the resource locations at the beginning.
+    # This provides useful log output in the case where things don't work.
     AgentShell.run(['crm_mon', '-1'])
 
-    # Now before we start cleanup anything that has gone on before. HA is a fickle old thing and this will make sure
-    # that everything is clean before we start.
+    # Now before we start cleanup anything that has gone on before. HA is a fickle
+    # old thing and this will make sure that everything is clean before we start.
     AgentShell.try_run(['crm_resource', '--resource', target_label, '--cleanup'])
 
     result = AgentShell.run(arg_list)
 
     if result.rc != 0:
-        return "Error ({}) running '{}': '{}' '{}'".format(result.rc, " ".join(arg_list), result.stdout, result.stderr)
+        return "Error ({}) running '{}': '{}' '{}'".format(result.rc, " ".join(arg_list),
+                                                           result.stdout, result.stderr)
 
     timeout = 100
 
@@ -668,7 +683,8 @@ def _move_target(target_label, dest_node):
         timeout -= 1
 
     # now delete the constraint that crm_resource --move created
-    AgentShell.try_run(['crm_resource', '--resource', target_label, '--un-move', '--node', dest_node])
+    AgentShell.try_run(['crm_resource', '--resource', target_label, '--un-move',
+                        '--node', dest_node])
 
     if timeout <= 0:
         return "Failed to move target {} to node {}".format(target_label, dest_node)
@@ -726,7 +742,8 @@ def failback_target(ha_label):
 def _get_target_config(uuid):
     info = config.get('targets', uuid)
 
-    # Some history, previously the backfstype, device_type was not stored so if not present presume ldiskfs/linux
+    # Some history, previously the backfstype, device_type was not stored so if
+    # not present presume ldiskfs/linux
     if ('backfstype' not in info) or ('device_type' not in info):
         info['backfstype'] = info.get('backfstype', 'ldiskfs')
         info['device_type'] = info.get('device_type', 'linux')
@@ -756,9 +773,9 @@ def target_running(uuid):
 
 
 def purge_configuration(mgs_device_path, mgs_device_type, filesystem_name):
-    mgs_blockdevice = BlockDevice(mgs_device_type, mgs_device_path)
+    mgs_bdev = BlockDevice(mgs_device_type, mgs_device_path)
 
-    return agent_ok_or_error(mgs_blockdevice.purge_filesystem_configuration(filesystem_name, console_log))
+    return agent_ok_or_error(mgs_bdev.purge_filesystem_configuration(filesystem_name, console_log))
 
 
 def convert_targets(force=False):
