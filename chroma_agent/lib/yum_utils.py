@@ -48,8 +48,12 @@ def yum_util(action,
         cmd = ['dnf', 'remove', '-y'] + repo_arg + list(packages)
     elif action == 'update':
         cmd = [
-            'dnf', 'update', '--allowerasing', '-y', '--exclude',
-            'kernel-debug', '--exclude', 'NetworkManager*'
+            'dnf',
+            'update',
+            '--allowerasing',
+            '-y',
+            '--exclude',
+            'kernel-debug',
         ] + repo_arg + list(packages)
     elif action == 'requires':
         cmd = ['dnf', 'repoquery', '--latest-limit', '1', '--requires'] + \
@@ -90,31 +94,3 @@ def yum_util(action,
                     "HYD-3885 Retry yum command failed '%s'" % " ".join(cmd))
                 raise AgentShell.CommandExecutionError(
                     result, cmd)  # Out of retries so raise for the caller..
-
-
-def yum_check_update(repos):
-    '''
-    Uses yum check_update -q to return a list of packages from the repos passed in that require an update
-
-    Will raise a CommandExecutionError if yum throws unexpected errors.
-
-    :param repos: The repos to check for update
-    :return: List of packages that require an update.
-    '''
-    packages = []
-
-    yum_response = yum_util('check-update', fromrepo=repos)
-
-    for line in filter(None, yum_response.split('\n')):
-        elements = line.split()
-
-        # Valid lines have 3 elements with the third entry being one of the repos anything else should be ignored but logged
-        if len(elements) == 3:
-            if not repos or elements[2] in repos:
-                packages.append(elements[0])
-        else:
-            daemon_log.warning(
-                "dnf check-update found unknown response of: %s\nIn: %s\nLooking at: repos %s"
-                % (line, yum_response, repos))
-
-    return packages

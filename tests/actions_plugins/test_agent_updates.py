@@ -126,7 +126,7 @@ jasper-libs.x86_64                                                              
 """),
             CommandCaptureCommand(
                 ('dnf', 'update', '--allowerasing', '-y', '--exclude',
-                 'kernel-debug', '--exclude', 'NetworkManager*',
+                 'kernel-debug',
                  '--enablerepo=myrepo', 'jasper-libs.x86_64')),
             CommandCaptureCommand(
                 ('grubby', '--default-kernel'),
