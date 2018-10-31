@@ -118,17 +118,6 @@ lustre-backend-fs
                  'kernel-debug', '--enablerepo=myrepo', 'foo', 'bar',
                  'kernel-2.6.32-279.14.1.el6_lustre')),
             CommandCaptureCommand(
-                ('dnf', 'repoquery',
-                 '--queryformat=%{name} %{version}-%{release}.%{arch} %{repoid}',
-                 '--upgrades', '--disablerepo=*', '--enablerepo=myrepo'),
-                stdout="""
-jasper-libs.x86_64                                                                             1.900.1-16.el6_6.3                                                                             myrepo
-"""),
-            CommandCaptureCommand(
-                ('dnf', 'update', '--allowerasing', '-y', '--exclude',
-                 'kernel-debug', '--exclude', 'NetworkManager*',
-                 '--enablerepo=myrepo', 'jasper-libs.x86_64')),
-            CommandCaptureCommand(
                 ('grubby', '--default-kernel'),
                 stdout='/boot/vmlinuz-2.6.32-504.3.3.el6.x86_64'),
             CommandCaptureCommand(('systemctl', 'start', 'iml-update-check')),
@@ -164,10 +153,6 @@ lustre-backend-fs
                 ('dnf', 'install', '--allowerasing', '-y', '--exclude',
                  'kernel-debug', '--enablerepo=myrepo', 'foo',
                  'kernel-2.6.32-279.14.1.el6_lustre')),
-            CommandCaptureCommand((
-                'dnf', 'repoquery',
-                '--queryformat=%{name} %{version}-%{release}.%{arch} %{repoid}',
-                '--upgrades', '--disablerepo=*', '--enablerepo=myrepo')),
             CommandCaptureCommand(('grubby', '--default-kernel'), rc=1))
 
         def isfile(arg):
@@ -197,10 +182,6 @@ lustre-backend-fs
                 ('dnf', 'install', '--allowerasing', '-y', '--exclude',
                  'kernel-debug', '--enablerepo=myrepo', 'foo',
                  'kernel-2.6.32-279.14.1.el6_lustre')),
-            CommandCaptureCommand((
-                'dnf', 'repoquery',
-                '--queryformat=%{name} %{version}-%{release}.%{arch} %{repoid}',
-                '--upgrades', '--disablerepo=*', '--enablerepo=myrepo')),
             CommandCaptureCommand(
                 ('grubby', '--default-kernel'),
                 stdout='/boot/vmlinuz-2.6.32-504.3.3.el6.x86_64'))

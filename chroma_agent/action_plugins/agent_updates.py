@@ -2,7 +2,6 @@
 # Use of this source code is governed by a MIT-style
 # license that can be found in the LICENSE file.
 
-
 import subprocess
 import re
 import os
@@ -14,7 +13,7 @@ from chroma_agent.log import daemon_log
 from chroma_agent import config
 from chroma_agent.conf import ENV_PATH
 from chroma_agent.crypto import Crypto
-from chroma_agent.lib.yum_utils import yum_util, yum_check_update
+from chroma_agent.lib.yum_utils import yum_util
 from iml_common.lib.agent_rpc import agent_result, agent_error, agent_result_ok
 from iml_common.lib.service_control import ServiceControl
 
@@ -26,10 +25,13 @@ def configure_repo(filename, file_contents):
     full_filename = os.path.join(REPO_PATH, filename)
     temp_full_filename = full_filename + '.tmp'
 
-    file_contents = file_contents.format(crypto.AUTHORITY_FILE, crypto.PRIVATE_KEY_FILE, crypto.CERTIFICATE_FILE)
+    file_contents = file_contents.format(crypto.AUTHORITY_FILE,
+                                         crypto.PRIVATE_KEY_FILE,
+                                         crypto.CERTIFICATE_FILE)
 
     try:
-        file_handle = os.fdopen(os.open(temp_full_filename, os.O_WRONLY | os.O_CREAT, 0644), 'w')
+        file_handle = os.fdopen(
+            os.open(temp_full_filename, os.O_WRONLY | os.O_CREAT, 0644), 'w')
         file_handle.write(file_contents)
         file_handle.close()
         os.rename(temp_full_filename, full_filename)
@@ -58,7 +60,6 @@ def update_profile(profile):
     :return: error or result OK
     '''
     old_profile = config.get('settings', 'profile')
-
     '''
     This is an incomplete solution but the incompleteness is at the bottom of the stack and we need this as a fix up
     for 2.2 release.
@@ -83,7 +84,8 @@ def update_profile(profile):
         try:
             yum_util(action, packages=['python2-iml-agent-management'])
         except AgentShell.CommandExecutionError as cee:
-            return agent_error("Unable to set profile because yum returned %s" % cee.result.stdout)
+            return agent_error("Unable to set profile because yum returned %s"
+                               % cee.result.stdout)
 
     config.update('settings', 'profile', profile)
 
@@ -112,14 +114,6 @@ def install_packages(repos, packages):
 
         yum_util('install', enablerepo=repos, packages=packages)
 
-        # So now we have installed the packages requested, we will also make sure that any installed packages we
-        # have that are already installed are updated to our presumably better versions.
-        update_packages = yum_check_update(repos)
-
-        if update_packages:
-            daemon_log.debug("The following packages need update after we installed IML packages %s" % update_packages)
-            yum_util('update', packages=update_packages, enablerepo=repos)
-
         error = _check_HYD4050()
 
         if error:
@@ -141,7 +135,8 @@ def _check_HYD4050():
 
     #  Make sure that there is an initramfs for the booting kernel
     try:
-        default_kernel = AgentShell.try_run(["grubby", "--default-kernel"]).strip()
+        default_kernel = AgentShell.try_run(["grubby",
+                                             "--default-kernel"]).strip()
     except AgentShell.CommandExecutionError:
         return ("Unable to determine your default kernel.  "
                 "This node may not boot successfully until grub "
@@ -183,15 +178,17 @@ def kernel_status():
                 next(k for k in AgentShell.try_run(["rpm", "-q", "--requires",
                                                     "kmod-lustre-client"]).split('\n')
                      if "kernel >=" in k).split(" >= ")[1]
-            required_kernel = AgentShell.try_run(["rpm", "-q", "kernel-%s*" %
-                                                  required_kernel_prefix ]).split('\n')[0]
+            required_kernel = AgentShell.try_run(
+                ["rpm", "-q",
+                 "kernel-%s*" % required_kernel_prefix]).split('\n')[0]
         except (AgentShell.CommandExecutionError, StopIteration):
             required_kernel = None
     else:
         required_kernel = None
 
     available_kernels = []
-    for installed_kernel in AgentShell.try_run(["rpm", "-q", "kernel"]).split("\n"):
+    for installed_kernel in AgentShell.try_run(["rpm", "-q",
+                                                "kernel"]).split("\n"):
         if installed_kernel:
             available_kernels.append(installed_kernel)
 
@@ -212,6 +209,8 @@ def restart_agent():
     raise CallbackAfterResponse(None, _shutdown)
 
 
-ACTIONS = [configure_repo, unconfigure_repo, install_packages,
-           kernel_status, restart_agent, update_profile]
+ACTIONS = [
+    configure_repo, unconfigure_repo, install_packages, kernel_status,
+    restart_agent, update_profile
+]
 CAPABILITIES = ['manage_updates']
