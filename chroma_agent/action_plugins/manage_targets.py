@@ -103,7 +103,8 @@ def _get_resource_locations(xml):
         agent = res.getAttribute("resource_agent")
         if agent in ["ocf::chroma:Target", "ocf::lustre:Lustre"]:
             resid = res.getAttribute("id")
-            if res.getAttribute("role") in ["Started", "Stopping"] and res.getAttribute("failed") == "false":
+            if res.getAttribute("role") in ["Started", "Stopping"] and \
+               res.getAttribute("failed") == "false":
                 node = res.getElementsByTagName("node")[0]
                 locations[resid] = node.getAttribute("name")
             else:
@@ -585,15 +586,20 @@ def start_target(ha_label):
     while True:
         i += 1
 
-        # This section could just try enabling the group- if -zfs exists, but doing them
-        # individually is safer, since if one is enabled and one isn't, enabling the group
-        # doesn't enable the disabled resource.
         error = AgentShell.run_canned_error_message(['pcs', 'resource', 'enable', ha_label])
         if error:
             return agent_error(error)
         if _resource_exists(_zfs_name(ha_label)):
             error = AgentShell.run_canned_error_message(['pcs', 'resource', 'enable',
                                                          _zfs_name(ha_label)])
+            if error:
+                return agent_error(error)
+        if _resource_exists(_group_name(ha_label)):
+            # enable group also, in case group was disabled
+            error = AgentShell.run_canned_error_message(['pcs', 'resource', 'enable',
+                                                         _group_name(ha_label)])
+            if error:
+                return agent_error(error)
 
         # now wait for it to start
         if _wait_target(ha_label, True):
@@ -780,7 +786,7 @@ def purge_configuration(mgs_device_path, mgs_device_type, filesystem_name):
 
 def convert_targets(force=False):
     '''
-    Convert existing ocf:chroma:Target to ocf:chroma:ZFS + ocf:lustre:Lustre
+    Convert existing ocf:chroma:Target to ZFS + Lustre
     '''
     try:
         result = AgentShell.run(['cibadmin', '--query'])
