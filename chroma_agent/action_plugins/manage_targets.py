@@ -369,19 +369,9 @@ def _configure_target_ha(ha_label, info, enabled=False):
             console_log.error("Resource (%s) create failed:%d: %s", zpool, result.rc, result.stderr)
             return result
 
-        realpath = info['bdev']
-
-    else:
-        # Because of LU-11461 find realpath of devices and use that as Lustre target
-        result = AgentShell.run(['realpath', info['bdev']])
-        if result.rc == 0:
-            realpath = result.stdout.strip()
-        else:
-            realpath = info['bdev']
-
     # Create Lustre resource and add target=uuid as an attribute
     result = AgentShell.run(['pcs', 'resource', 'create', ha_label, 'ocf:lustre:Lustre',
-                             'target={}'.format(realpath),
+                             'target={}'.format(info['bdev']),
                              'mountpoint={}'.format(info['mntpt'])] + extra)
 
     if result.rc != 0:
