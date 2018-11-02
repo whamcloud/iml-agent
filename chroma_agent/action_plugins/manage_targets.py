@@ -359,6 +359,8 @@ def _configure_target_ha(ha_label, info, enabled=False):
     else:
         extra = ['--disabled']
 
+    bdev = info['bdev']
+
     if info['device_type'] == 'zfs':
         extra += ['--group', _group_name(ha_label)]
         zpool = info['bdev'].split("/")[0]
@@ -369,9 +371,15 @@ def _configure_target_ha(ha_label, info, enabled=False):
             console_log.error("Resource (%s) create failed:%d: %s", zpool, result.rc, result.stderr)
             return result
 
+    else:
+        # This is a hack for ocf:lustre:Lustre up to Lustre 2.10.5/2.11 see LU-11461
+        result = AgentShell.run(['realpath', info['bdev']])
+        if result.rc == 0 and result.stdout.startswith('/dev/sd'):
+            bdev = result.stdout.strip()
+
     # Create Lustre resource and add target=uuid as an attribute
     result = AgentShell.run(['pcs', 'resource', 'create', ha_label, 'ocf:lustre:Lustre',
-                             'target={}'.format(info['bdev']),
+                             'target={}'.format(bdev),
                              'mountpoint={}'.format(info['mntpt'])] + extra)
 
     if result.rc != 0:
