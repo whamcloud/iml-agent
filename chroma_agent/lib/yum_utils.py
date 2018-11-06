@@ -58,7 +58,7 @@ def yum_util(action,
     elif action == 'requires':
         cmd = ['repoquery', '--requires'] + repo_arg + list(packages)
     elif action == 'query':
-        cmd = ['repoquery', '--show-duplicates'] + repo_arg + list(packages)
+        cmd = ['repoquery'] + repo_arg + list(packages)
     elif action == 'repoquery':
         cmd = ['repoquery', '--show-duplicates'] + repo_arg + \
               ['--queryformat=%{EPOCH} %{NAME} ' \
