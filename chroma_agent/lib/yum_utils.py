@@ -37,18 +37,18 @@ def yum_util(action,
         repo_arg.extend(['--upgrades'])
 
     if action == 'clean':
-        cmd = ['dnf', 'clean', 'all'] + (repo_arg
+        cmd = ['yum', 'clean', 'all'] + (repo_arg
                                          if repo_arg else ["--enablerepo=*"])
     elif action == 'install':
         cmd = [
-            'dnf', 'install', '--allowerasing', '-y', '--exclude',
+            'yum', 'install', '--allowerasing', '-y', '--exclude',
             'kernel-debug'
         ] + repo_arg + list(packages)
     elif action == 'remove':
-        cmd = ['dnf', 'remove', '-y'] + repo_arg + list(packages)
+        cmd = ['yum', 'remove', '-y'] + repo_arg + list(packages)
     elif action == 'update':
         cmd = [
-            'dnf',
+            'yum',
             'update',
             '--allowerasing',
             '-y',
@@ -56,20 +56,13 @@ def yum_util(action,
             'kernel-debug',
         ] + repo_arg + list(packages)
     elif action == 'requires':
-        cmd = ['dnf', 'repoquery', '--latest-limit', '1', '--requires'] + \
-               repo_arg + list(packages)
+        cmd = ['repoquery', '--requires'] + repo_arg + list(packages)
     elif action == 'query':
-        cmd = ['dnf', 'repoquery', '--latest-limit', '1', '--available'] + \
-               repo_arg + list(packages)
+        cmd = ['repoquery', '--show-duplicates'] + repo_arg + list(packages)
     elif action == 'repoquery':
-        cmd = ['dnf', 'repoquery', '--available'] + repo_arg + \
-               ['--queryformat=%{EPOCH} %{NAME} ' \
-                              '%{VERSION} %{RELEASE} %{ARCH}']
-    elif action == 'check-update':
-        cmd = ['dnf', 'repoquery',
-               '--queryformat=%{name} %{version}-%{release}.'
-               '%{arch} %{repoid}', '--upgrades'] + repo_arg + \
-            list(packages)
+        cmd = ['repoquery', '--show-duplicates'] + repo_arg + \
+              ['--queryformat=%{EPOCH} %{NAME} ' \
+               '%{VERSION} %{RELEASE} %{ARCH}']
     else:
         raise RuntimeError('Unknown yum util action %s' % action)
 
@@ -86,7 +79,7 @@ def yum_util(action,
             # if we were trying to install, clean the metadata before
             # trying again
             if action == 'install':
-                AgentShell.run(['dnf', 'clean', 'metadata'])
+                AgentShell.run(['yum', 'clean', 'metadata'])
             daemon_log.info(
                 "HYD-3885 Retrying yum command '%s'" % " ".join(cmd))
             if hyd_3885 == 0:
