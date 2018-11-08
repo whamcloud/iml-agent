@@ -113,7 +113,7 @@ kernel = 2.6.32-279.14.1.el6_lustre
 lustre-backend-fs
         """),
             CommandCaptureCommand(
-                ('yum', 'install', '--allowerasing', '-y', '--exclude',
+                ('yum', 'install', '-y', '--exclude',
                  'kernel-debug', '--enablerepo=myrepo', 'foo', 'bar',
                  'kernel-2.6.32-279.14.1.el6_lustre')),
             CommandCaptureCommand(
@@ -148,7 +148,7 @@ kernel = 2.6.32-279.14.1.el6_lustre
 lustre-backend-fs
         """),
             CommandCaptureCommand(
-                ('yum', 'install', '--allowerasing', '-y', '--exclude',
+                ('yum', 'install', '-y', '--exclude',
                  'kernel-debug', '--enablerepo=myrepo', 'foo',
                  'kernel-2.6.32-279.14.1.el6_lustre')),
             CommandCaptureCommand(('grubby', '--default-kernel'), rc=1))
@@ -177,7 +177,7 @@ kernel = 2.6.32-279.14.1.el6_lustre
 lustre-backend-fs
         """),
             CommandCaptureCommand(
-                ('yum', 'install', '--allowerasing', '-y', '--exclude',
+                ('yum', 'install', '-y', '--exclude',
                  'kernel-debug', '--enablerepo=myrepo', 'foo',
                  'kernel-2.6.32-279.14.1.el6_lustre')),
             CommandCaptureCommand(
@@ -198,7 +198,7 @@ lustre-backend-fs
 
         # Go from managed = False to managed = True
         self.add_command(
-            ('yum', 'install', '--allowerasing', '-y', '--exclude',
+            ('yum', 'install', '-y', '--exclude',
              'kernel-debug', 'python2-iml-agent-management'))
         self.assertEqual(
             agent_updates.update_profile({
@@ -228,21 +228,21 @@ lustre-backend-fs
         # Three times because yum will try three times.
         self.add_commands(
             CommandCaptureCommand(
-                ('yum', 'install', '--allowerasing', '-y', '--exclude',
+                ('yum', 'install', '-y', '--exclude',
                  'kernel-debug', 'python2-iml-agent-management'),
                 rc=1,
                 stdout="Bad command stdout",
                 stderr="Bad command stderr"),
             CommandCaptureCommand(('yum', 'clean', 'metadata')),
             CommandCaptureCommand(
-                ('yum', 'install', '--allowerasing', '-y', '--exclude',
+                ('yum', 'install', '-y', '--exclude',
                  'kernel-debug', 'python2-iml-agent-management'),
                 rc=1,
                 stdout="Bad command stdout",
                 stderr="Bad command stderr"),
             CommandCaptureCommand(('yum', 'clean', 'metadata')),
             CommandCaptureCommand(
-                ('yum', 'install', '--allowerasing', '-y', '--exclude',
+                ('yum', 'install', '-y', '--exclude',
                  'kernel-debug', 'python2-iml-agent-management'),
                 rc=1,
                 stdout="Bad command stdout",

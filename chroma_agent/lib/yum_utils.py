@@ -29,32 +29,20 @@ def yum_util(action,
     valid_rc_values = [0]  # Some errors values other than 0 are valid.
     tries = 2
     if fromrepo:
-        repo_arg = ['--disablerepo=*'
-                    ] + ['--enablerepo=%s' % r for r in fromrepo]
+        repo_arg = ['--disablerepo=*'] + ['--enablerepo=%s' % r for r in fromrepo]
     elif enablerepo:
         repo_arg = ['--enablerepo=%s' % r for r in enablerepo]
     if narrow_updates and action == 'query':
         repo_arg.extend(['--upgrades'])
 
     if action == 'clean':
-        cmd = ['yum', 'clean', 'all'] + (repo_arg
-                                         if repo_arg else ["--enablerepo=*"])
+        cmd = ['yum', 'clean', 'all'] + (repo_arg if repo_arg else ["--enablerepo=*"])
     elif action == 'install':
-        cmd = [
-            'yum', 'install', '--allowerasing', '-y', '--exclude',
-            'kernel-debug'
-        ] + repo_arg + list(packages)
+        cmd = ['yum', 'install', '-y', '--exclude', 'kernel-debug'] + repo_arg + list(packages)
     elif action == 'remove':
         cmd = ['yum', 'remove', '-y'] + repo_arg + list(packages)
     elif action == 'update':
-        cmd = [
-            'yum',
-            'update',
-            '--allowerasing',
-            '-y',
-            '--exclude',
-            'kernel-debug',
-        ] + repo_arg + list(packages)
+        cmd = ['yum', 'update', '-y', '--exclude', 'kernel-debug',] + repo_arg + list(packages)
     elif action == 'requires':
         cmd = ['repoquery', '--requires'] + repo_arg + list(packages)
     elif action == 'query':
