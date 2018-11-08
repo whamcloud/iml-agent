@@ -73,7 +73,6 @@ Obsoletes:      chroma-agent-management
 Provides:       chroma-agent-management
 
 Requires:       python2-%{pypi_name} = %{version}-%{release}
-Requires:       pcs
 Requires:       libxml2-python
 Requires:       python-netaddr
 Requires:       python-ethtool
@@ -83,12 +82,11 @@ Requires:       python-impacket
 Requires:       system-config-firewall-base
 Requires:       ed
 
-Requires:       fence-agents
-Requires:       fence-agents-virsh
-Requires:	lustre-resource-agents
-
 %description -n python2-%{pypi_name}-management
 This package layers on management capabilities for Integrated Manager for Lustre Agent.
+
+If using with pacemaker: pcs, fencing and resource agents should be installed.
+RPMS: pcs fence-agents lustre-resource-agents
 
 %prep
 %if %{?dist_version:1}%{!?dist_version:0}
