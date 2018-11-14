@@ -416,7 +416,9 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
         if result.rc != 0:
             return agent_error("Failed to create {}: {}".format(ha_label, result.rc))
 
-    _configure_target_priority(primary, ha_label, _this_node())
+    result = _configure_target_priority(primary, ha_label, _this_node())
+    if result.rc != 0:
+            return agent_error("Failed to create location constraint on {}: {}".format(ha_label, result.rc))
 
     return agent_result_ok
 
