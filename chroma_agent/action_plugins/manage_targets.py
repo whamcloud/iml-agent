@@ -412,7 +412,7 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
         if info['bdev'] != device or info['mntpt'] != mount_point:
             console_log.error("Mismatch for %s do not match configured (%s on %s) != (%s on %s)",
                               ha_label, device, mount_point, info['bdev'], info['mntpt'])
-        result = _configure_target_ha(ha_label, info)
+        result = _configure_target_ha(ha_label, info, True)
         if result.rc != 0:
             return agent_error("Failed to create {}: {}".format(ha_label, result.rc))
 
@@ -581,7 +581,7 @@ def start_target(ha_label):
     '''
     # HYD-1989: brute force, try up to 3 times to start the target
     i = 0
-    while True:
+    while _resource_exists(ha_label):
         i += 1
 
         error = AgentShell.run_canned_error_message(['pcs', 'resource', 'enable', ha_label])
@@ -617,7 +617,7 @@ def start_target(ha_label):
                 console_log.info("failed to start target %s", ha_label)
             else:
                 return agent_error("Failed to start target {}".format(ha_label))
-
+    return agent_error("Target {} does not exist".format(ha_label))
 
 def stop_target(ha_label):
     '''
