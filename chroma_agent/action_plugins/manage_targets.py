@@ -366,7 +366,7 @@ def _configure_target_ha(ha_label, info, enabled=False):
         zpool = info['bdev'].split("/")[0]
         result = AgentShell.run(['pcs', 'resource', 'create',
                                  _zfs_name(ha_label), 'ocf:chroma:ZFS', 'pool={}'.format(zpool),
-                                 'op', 'start', 'timeout=90', 'op', 'stop', 'timeout=90'] + extra)
+                                 'op', 'start', 'timeout=120', 'op', 'stop', 'timeout=90'] + extra)
         if result.rc != 0:
             console_log.error("Resource (%s) create failed:%d: %s", zpool, result.rc, result.stderr)
             return result
@@ -379,8 +379,8 @@ def _configure_target_ha(ha_label, info, enabled=False):
 
     # Create Lustre resource and add target=uuid as an attribute
     result = AgentShell.run(['pcs', 'resource', 'create', ha_label, 'ocf:lustre:Lustre',
-                             'target={}'.format(bdev),
-                             'mountpoint={}'.format(info['mntpt'])] + extra)
+                             'target={}'.format(bdev), 'mountpoint={}'.format(info['mntpt']),
+                             'op', 'start', 'timeout=600'] + extra)
 
     if result.rc != 0:
         console_log.error("Failed to create resource %s:%d: %s",
@@ -416,9 +416,13 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
         if result.rc != 0:
             return agent_error("Failed to create {}: {}".format(ha_label, result.rc))
 
+        if not _wait_target(ha_label, True):
+            return agent_error("Failed to create {}".format(ha_label))
+
     result = _configure_target_priority(primary, ha_label, _this_node())
     if result.rc != 0:
-            return agent_error("Failed to create location constraint on {}: {}".format(ha_label, result.rc))
+        return agent_error("Failed to create location constraint on {}: {}"
+                           .format(ha_label, result.rc))
 
     return agent_result_ok
 
@@ -736,7 +740,8 @@ def _failoverback_target(ha_label, primary):
     """
     node = _find_resource_constraint(ha_label, primary)
     if not node:
-        return agent_error("Unable to find the {} server for '{}'".format('primary' if primary else 'secondary', ha_label))
+        return agent_error("Unable to find the {} server for '{}'"
+                           .format('primary' if primary else 'secondary', ha_label))
 
     error = _move_target(ha_label, node)
 
