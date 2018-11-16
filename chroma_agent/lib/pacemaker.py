@@ -2,7 +2,6 @@
 # Use of this source code is governed by a MIT-style
 # license that can be found in the LICENSE file.
 
-
 import xml.etree.ElementTree as xml
 from xml.parsers.expat import ExpatError as ParseError
 import socket
@@ -10,6 +9,7 @@ import socket
 from chroma_agent.lib.shell import AgentShell
 from chroma_agent.lib import fence_agents
 from iml_common.lib import util
+from iml_common.lib.service_control import ServiceControl
 
 
 class PacemakerError(Exception):
@@ -34,7 +34,8 @@ class PacemakerObject(object):
             except KeyError, AttributeError:
                 pass
 
-        raise AttributeError("'%s' has no attribute '%s'" % (self.__class__.__name__, attr))
+        raise AttributeError(
+            "'%s' has no attribute '%s'" % (self.__class__.__name__, attr))
 
 
 class LustreTarget(PacemakerObject):
@@ -73,7 +74,8 @@ class PacemakerNode(object):
             try:
                 agents.append(getattr(fence_agents, kwargs['agent'])(**kwargs))
             except AttributeError:
-                raise PacemakerError("No FenceAgent class for %s" % kwargs['agent'])
+                raise PacemakerError(
+                    "No FenceAgent class for %s" % kwargs['agent'])
         return agents
 
     @property
@@ -91,8 +93,11 @@ class PacemakerNode(object):
         agents = []
         for agent in [k for k in self.attributes if 'agent' in k]:
             index = agent[0:agent.find('_')]
-            agents.append(dict([t for t in self.attributes.items()
-                                if t[0].startswith("%s_fence_" % index)]))
+            agents.append(
+                dict([
+                    t for t in self.attributes.items()
+                    if t[0].startswith("%s_fence_" % index)
+                ]))
 
         return agents
 
@@ -116,19 +121,29 @@ class PacemakerNode(object):
                 self.clear_attribute(agent_attr)
 
     def enable_standby(self):
-        AgentShell.try_run(["crm_attribute", "-N", self.name, "-n", "standby", "-v", "on", "--lifetime=forever"])
+        AgentShell.try_run([
+            "crm_attribute", "-N", self.name, "-n", "standby", "-v", "on",
+            "--lifetime=forever"
+        ])
 
     def disable_standby(self):
-        AgentShell.try_run(["crm_attribute", "-N", self.name, "-n", "standby", "-v", "off", "--lifetime=forever"])
+        AgentShell.try_run([
+            "crm_attribute", "-N", self.name, "-n", "standby", "-v", "off",
+            "--lifetime=forever"
+        ])
 
     # These crm_attribute options are undocumented, but they're exactly
     # what the crm utility uses when it does its thing. The documented
     # options don't actually work! Fun.
     def set_attribute(self, key, value):
-        AgentShell.try_run(["crm_attribute", "-t", "nodes", "-U", self.name, "-n", key, "-v", str(value)])
+        AgentShell.try_run([
+            "crm_attribute", "-t", "nodes", "-U", self.name, "-n", key, "-v",
+            str(value)
+        ])
 
     def clear_attribute(self, key):
-        AgentShell.try_run(["crm_attribute", "-D", "-t", "nodes", "-U", self.name, "-n", key])
+        AgentShell.try_run(
+            ["crm_attribute", "-D", "-t", "nodes", "-U", self.name, "-n", key])
 
 
 class PacemakerConfig(object):
@@ -175,7 +190,8 @@ class PacemakerConfig(object):
             try:
                 i_attrs = node.find('instance_attributes')
                 for nvpair in i_attrs.findall('nvpair'):
-                    nodeobj.attributes[nvpair.get('name')] = nvpair.get('value')
+                    nodeobj.attributes[nvpair.get('name')] = nvpair.get(
+                        'value')
             except AttributeError:
                 # No instance_attributes
                 pass
@@ -198,7 +214,8 @@ class PacemakerConfig(object):
 
         if dc_uuid:
             try:
-                return next(node.name for node in self.nodes if node.uuid == dc_uuid)
+                return next(
+                    node.name for node in self.nodes if node.uuid == dc_uuid)
             except StopIteration:
                 pass
 
@@ -210,7 +227,9 @@ class PacemakerConfig(object):
 
     def get_node(self, node_name):
         try:
-            return next(n for n in self.nodes if socket.getfqdn(n.name) == socket.getfqdn(node_name))
+            return next(
+                n for n in self.nodes
+                if socket.getfqdn(n.name) == socket.getfqdn(node_name))
         except IndexError:
             raise PacemakerError("%s does not exist in pacemaker" % node_name)
 
@@ -223,7 +242,8 @@ class PacemakerConfig(object):
         ''' configured returns True if this node has a pacemaker configuration set by IML.
         :return: True if configuration present else False
         '''
-        return 'fence_chroma' in AgentShell.try_run(['cibadmin', '--query', '-o', 'resource'])
+        return 'fence_chroma' in AgentShell.try_run(
+            ['cibadmin', '--query', '-o', 'resource'])
 
     def get_property_setvalue(self, property_set_name, value_name):
         '''
@@ -237,10 +257,13 @@ class PacemakerConfig(object):
         nvpairs = ""
 
         for key, value in properties.items():
-            nvpairs += '<nvpair id="%s-%s" name="%s" value="%s"/>\n' % (propertyset_name, key, key, value)
+            nvpairs += '<nvpair id="%s-%s" name="%s" value="%s"/>\n' % (
+                propertyset_name, key, key, value)
 
-        cibadmin(["--modify", "--allow-create", "-o", "crm_config", "-X",
-                  '<cluster_property_set id="%s">\n%s' % (propertyset_name, nvpairs)])
+        cibadmin([
+            "--modify", "--allow-create", "-o", "crm_config", "-X",
+            '<cluster_property_set id="%s">\n%s' % (propertyset_name, nvpairs)
+        ])
 
     def get_propertyset(self, propertyset_name):
         result = {}
@@ -248,7 +271,8 @@ class PacemakerConfig(object):
         for propertyset in self.crm_config:
             if propertyset.attrib['id'] == propertyset_name:
                 for value_pair in propertyset:
-                    result[value_pair.attrib['name']] = value_pair.attrib['value']
+                    result[value_pair.attrib['name']] = value_pair.attrib[
+                        'value']
 
         return result
 
@@ -279,8 +303,9 @@ def cibadmin(command_args, timeout=120):
             break
 
     if result.rc in RETRY_CODES:
-        raise PacemakerError("%s timed out after %d seconds: rc: %s, stderr: %s"
-                             % (" ".join(command_args), timeout, result.rc, result.stderr))
+        raise PacemakerError(
+            "%s timed out after %d seconds: rc: %s, stderr: %s" %
+            (" ".join(command_args), timeout, result.rc, result.stderr))
     else:
         raise AgentShell.CommandExecutionError(result, command_args)
 
