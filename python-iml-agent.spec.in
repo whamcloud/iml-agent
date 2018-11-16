@@ -47,7 +47,6 @@ Requires:       python-setuptools
 Requires:       python-requests >= 2.6.0
 Requires:       python2-tablib
 Requires:       yum-utils
-Requires:       initscripts
 Requires:       iml_sos_plugin
 Requires:       python2-iml-common1.4
 Requires:       systemd-python
@@ -142,7 +141,6 @@ done
 rm -rf %{buildroot}
 
 %post -n python2-%{pypi_name}
-chkconfig lustre-modules on
 # disable SELinux -- it prevents both lustre and pacemaker from working
 sed -ie 's/^SELINUX=.*$/SELINUX=disabled/' /etc/selinux/config
 # the above only disables on the next boot.  set to permissive currently, also

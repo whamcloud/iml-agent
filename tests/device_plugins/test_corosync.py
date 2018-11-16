@@ -3,7 +3,6 @@ import logging
 from datetime import timedelta
 import json
 
-
 from iml_common.test.command_capture_testcase import CommandCaptureTestCase, CommandCaptureCommand
 from iml_common.lib.date_time import IMLDateTime
 
@@ -39,7 +38,7 @@ class TestCorosync(CommandCaptureTestCase):
 
         feed_tz = -8
         feed_local_datetime = "Fri Jan 11 11:04:07 2013"  # PST  (UTC-8)
-        feed_utc_datetime = "2013-01-11T19:04:07+00:00"   # UTC
+        feed_utc_datetime = "2013-01-11T19:04:07+00:00"  # UTC
 
         # crm_mon --one-shot --as-xml
         # Simulating running this command for output
@@ -69,18 +68,22 @@ class TestCorosync(CommandCaptureTestCase):
           </nodes>
           <resources>
           </resources>
-        </crm_mon>""" % (feed_local_datetime,)
+        </crm_mon>""" % (feed_local_datetime, )
 
-        self.add_commands(CommandCaptureCommand(CMD, stdout=crm_one_shot_xml),
-                          CommandCaptureCommand(('service', 'corosync', 'status'), rc=0),
-                          CommandCaptureCommand(('service', 'pacemaker', 'status'), rc=0))
+        self.add_commands(
+            CommandCaptureCommand(CMD, stdout=crm_one_shot_xml),
+            CommandCaptureCommand(
+                ('systemctl', 'is-active', 'corosync'), rc=0),
+            CommandCaptureCommand(
+                ('systemctl', 'is-active', 'pacemaker'), rc=0))
 
         class mock_imldatetime(IMLDateTime):
             @classmethod
             def now(cls, tz=None):
                 return cls.utcnow() + timedelta(hours=feed_tz)
 
-        mock.patch('chroma_agent.device_plugins.corosync.IMLDateTime', mock_imldatetime).start()
+        mock.patch('chroma_agent.device_plugins.corosync.IMLDateTime',
+                   mock_imldatetime).start()
 
         plugin = CorosyncPlugin(None)
         result_dict = plugin.start_session()
@@ -114,9 +117,15 @@ class TestCorosync(CommandCaptureTestCase):
         """
         from chroma_agent.device_plugins.corosync import CorosyncPlugin
 
-        self.add_commands(CommandCaptureCommand(CMD, rc=10, stdout="""Connection to cluster failed: connection failed"""),
-                          CommandCaptureCommand(('service', 'corosync', 'status'), rc=1),
-                          CommandCaptureCommand(('service', 'pacemaker', 'status'), rc=1))
+        self.add_commands(
+            CommandCaptureCommand(
+                CMD,
+                rc=10,
+                stdout="""Connection to cluster failed: connection failed"""),
+            CommandCaptureCommand(
+                ('systemctl', 'is-active', 'corosync'), rc=1),
+            CommandCaptureCommand(
+                ('systemctl', 'is-active', 'pacemaker'), rc=1))
 
         plugin = CorosyncPlugin(None)
         result_dict = plugin.start_session()
@@ -142,9 +151,12 @@ class TestCorosync(CommandCaptureTestCase):
         from chroma_agent.device_plugins.corosync import CorosyncPlugin
 
         #  Simulate crm_mon returning an unexpected error code
-        self.add_commands(CommandCaptureCommand(CMD, rc=107),
-                          CommandCaptureCommand(('service', 'corosync', 'status'), rc=1),
-                          CommandCaptureCommand(('service', 'pacemaker', 'status'), rc=1))
+        self.add_commands(
+            CommandCaptureCommand(CMD, rc=107),
+            CommandCaptureCommand(
+                ('systemctl', 'is-active', 'corosync'), rc=1),
+            CommandCaptureCommand(
+                ('systemctl', 'is-active', 'pacemaker'), rc=1))
 
         plugin = CorosyncPlugin(None)
         result_dict = plugin.start_session()
