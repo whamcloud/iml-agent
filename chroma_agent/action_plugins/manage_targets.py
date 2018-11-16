@@ -461,7 +461,7 @@ def unmount_target(uuid):
 
     # only unmount targets that are controlled by chroma:Target
     try:
-        result = AgentShell.run(['cibadmin', '--query'])
+        result = AgentShell.run(['cibadmin', '--query', '--xpath', '//primitive'])
     except OSError, err:
         if err.errno != errno.ENOENT:
             raise
@@ -581,9 +581,26 @@ def start_target(ha_label):
 
     Return: Value using simple return protocol
     '''
+
+    if not _resource_exists(ha_label):
+        return agent_error("Target {} does not exist".format(ha_label))
+
+    # if resource already started but not on primary, move it
+    location = get_resource_location(ha_label)
+    primary = _find_resource_constraint(ha_label, True)
+    if location:
+        if location != primary:
+            console_log.info("Resource %s already started, moving to primary node %s",
+                             ha_label, primary)
+            error = _move_target(ha_label, primary)
+            if error:
+                return agent_error(error)
+            location = primary
+        return agent_result(location)
+
     # HYD-1989: brute force, try up to 3 times to start the target
     i = 0
-    while _resource_exists(ha_label):
+    while True:
         i += 1
 
         error = AgentShell.run_canned_error_message(['pcs', 'resource', 'enable', ha_label])
@@ -619,7 +636,7 @@ def start_target(ha_label):
                 console_log.info("failed to start target %s", ha_label)
             else:
                 return agent_error("Failed to start target {}".format(ha_label))
-    return agent_error("Target {} does not exist".format(ha_label))
+
 
 def stop_target(ha_label):
     '''
@@ -699,13 +716,15 @@ def _move_target(target_label, dest_node):
 
 
 def _find_resource_constraint(ha_label, primary):
-    stdout = AgentShell.try_run(["crm_resource", "-r", ha_label, "-a"])
+    stdout = AgentShell.try_run(["cibadmin", "--query", "--xpath",
+                                 "//constraints/rsc_location[@id=\"{}\"]"
+                                 .format(_constraint(ha_label, primary))])
 
-    for line in stdout.rstrip().split("\n"):
-        match = re.match(r"\s+:\s+Node\s+([^\s]+)\s+\(score=[^\s]+ id={}\)".format(_constraint(ha_label, primary)),
-                         line)
-        if match:
-            return match.group(1)
+    # Single line: <rsc_location id="HA_LABEL-PRIMARY" node="NODE" rsc="HA_LABEL" score="20"/>
+    match = re.match(r".*node=.([^\"]+)", stdout)
+
+    if match:
+        return match.group(1)
 
     return None
 
