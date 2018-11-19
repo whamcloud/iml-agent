@@ -17,3 +17,23 @@ def set_server_url(url):
 
 def remove_server_url():
     os.unlink('{}/manager-url.conf'.format(ENV_PATH))
+
+
+def set_iml_profile(name, repos, packages):
+    '''
+    Setup /etc/iml/profile.conf
+    '''
+    if not os.path.exists(ENV_PATH):
+        os.makedirs(ENV_PATH)
+
+    with open('{}/profile.conf'.format(ENV_PATH), 'w+') as f:
+        if name:
+            f.write("IML_PROFILE_NAME={}\n".format(name))
+        if repos:
+            f.write("IML_PROFILE_REPOS={}\n".format(repos.join(",")))
+        if packages:
+            f.write("IML_PROFILE_PACKAGES={}\n".format(packages.join(",")))
+
+
+def remove_iml_profile():
+    os.unlink('{}/profile.conf'.format(ENV_PATH))

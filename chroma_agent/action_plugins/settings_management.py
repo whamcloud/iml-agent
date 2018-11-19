@@ -8,7 +8,7 @@ import re
 import json
 import shutil
 
-from chroma_agent.conf import set_server_url, ENV_PATH
+from chroma_agent.conf import set_server_url, set_iml_profile, ENV_PATH
 from chroma_agent import config
 from chroma_agent.config_store import ConfigKeyExistsError
 
@@ -18,6 +18,7 @@ def set_profile(profile_json):
 
     try:
         config.set('settings', 'profile', profile)
+        set_iml_profile(profile.name, profile.bundles, profile.packages)
     except ConfigKeyExistsError:
         config.update('settings', 'profile', profile)
 
