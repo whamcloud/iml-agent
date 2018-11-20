@@ -56,8 +56,6 @@ Requires:       iml-device-scanner-proxy < 3
 Requires:       iml-update-check < 2
 Requires:       util-linux-ng
 Requires(post): selinux-policy
-Requires:       dnf
-Requires:       dnf-command(repoquery)
 Requires:       python-urllib3
 %{?python_provide:%python_provide python2-%{pypi_name}}
 
