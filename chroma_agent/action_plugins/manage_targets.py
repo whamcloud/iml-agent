@@ -366,7 +366,7 @@ def _configure_target_ha(ha_label, info, enabled=False):
         zpool = info['bdev'].split("/")[0]
         result = AgentShell.run(['pcs', 'resource', 'create',
                                  _zfs_name(ha_label), 'ocf:chroma:ZFS', 'pool={}'.format(zpool),
-                                 'op', 'start', 'timeout=90', 'op', 'stop', 'timeout=90'] + extra)
+                                 'op', 'start', 'timeout=120', 'op', 'stop', 'timeout=90'] + extra)
         if result.rc != 0:
             console_log.error("Resource (%s) create failed:%d: %s", zpool, result.rc, result.stderr)
             return result
@@ -379,8 +379,8 @@ def _configure_target_ha(ha_label, info, enabled=False):
 
     # Create Lustre resource and add target=uuid as an attribute
     result = AgentShell.run(['pcs', 'resource', 'create', ha_label, 'ocf:lustre:Lustre',
-                             'target={}'.format(bdev),
-                             'mountpoint={}'.format(info['mntpt'])] + extra)
+                             'target={}'.format(bdev), 'mountpoint={}'.format(info['mntpt']),
+                             'op', 'start', 'timeout=600'] + extra)
 
     if result.rc != 0:
         console_log.error("Failed to create resource %s:%d: %s",
@@ -412,13 +412,17 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
         if info['bdev'] != device or info['mntpt'] != mount_point:
             console_log.error("Mismatch for %s do not match configured (%s on %s) != (%s on %s)",
                               ha_label, device, mount_point, info['bdev'], info['mntpt'])
-        result = _configure_target_ha(ha_label, info)
+        result = _configure_target_ha(ha_label, info, True)
         if result.rc != 0:
             return agent_error("Failed to create {}: {}".format(ha_label, result.rc))
 
+        if not _wait_target(ha_label, True):
+            return agent_error("Failed to create {}".format(ha_label))
+
     result = _configure_target_priority(primary, ha_label, _this_node())
     if result.rc != 0:
-            return agent_error("Failed to create location constraint on {}: {}".format(ha_label, result.rc))
+        return agent_error("Failed to create location constraint on {}: {}"
+                           .format(ha_label, result.rc))
 
     return agent_result_ok
 
@@ -461,7 +465,7 @@ def unmount_target(uuid):
 
     # only unmount targets that are controlled by chroma:Target
     try:
-        result = AgentShell.run(['cibadmin', '--query'])
+        result = AgentShell.run(['cibadmin', '--query', '--xpath', '//primitive'])
     except OSError, err:
         if err.errno != errno.ENOENT:
             raise
@@ -581,6 +585,23 @@ def start_target(ha_label):
 
     Return: Value using simple return protocol
     '''
+
+    if not _resource_exists(ha_label):
+        return agent_error("Target {} does not exist".format(ha_label))
+
+    # if resource already started but not on primary, move it
+    location = get_resource_location(ha_label)
+    primary = _find_resource_constraint(ha_label, True)
+    if location:
+        if location != primary:
+            console_log.info("Resource %s already started, moving to primary node %s",
+                             ha_label, primary)
+            error = _move_target(ha_label, primary)
+            if error:
+                return agent_error(error)
+            location = primary
+        return agent_result(location)
+
     # HYD-1989: brute force, try up to 3 times to start the target
     i = 0
     while True:
@@ -699,13 +720,15 @@ def _move_target(target_label, dest_node):
 
 
 def _find_resource_constraint(ha_label, primary):
-    stdout = AgentShell.try_run(["crm_resource", "-r", ha_label, "-a"])
+    stdout = AgentShell.try_run(["cibadmin", "--query", "--xpath",
+                                 "//constraints/rsc_location[@id=\"{}\"]"
+                                 .format(_constraint(ha_label, primary))])
 
-    for line in stdout.rstrip().split("\n"):
-        match = re.match(r"\s+:\s+Node\s+([^\s]+)\s+\(score=[^\s]+ id={}\)".format(_constraint(ha_label, primary)),
-                         line)
-        if match:
-            return match.group(1)
+    # Single line: <rsc_location id="HA_LABEL-PRIMARY" node="NODE" rsc="HA_LABEL" score="20"/>
+    match = re.match(r".*node=.([^\"]+)", stdout)
+
+    if match:
+        return match.group(1)
 
     return None
 
@@ -717,7 +740,8 @@ def _failoverback_target(ha_label, primary):
     """
     node = _find_resource_constraint(ha_label, primary)
     if not node:
-        return agent_error("Unable to find the {} server for '{}'".format('primary' if primary else 'secondary', ha_label))
+        return agent_error("Unable to find the {} server for '{}'"
+                           .format('primary' if primary else 'secondary', ha_label))
 
     error = _move_target(ha_label, node)
 
