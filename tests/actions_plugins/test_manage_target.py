@@ -405,6 +405,7 @@ class TestXMLParsing(unittest.TestCase):
         from chroma_agent.action_plugins import manage_targets
         self.assertDictEqual(manage_targets._get_resource_locations(self.xml_crm_mon),
                              {'fs1-MDT0000_6cc06e': 'iml-mds01.iml',
+                              'fs1-MDT0001_41549d-zfs', 'iml-mds01.iml',
                               'fs1-MDT0001_41549d': 'iml-mds01.iml',
                               'MGS_054510': 'iml-mds02.iml'})
         
