@@ -101,7 +101,7 @@ def _get_resource_locations(xml):
     locations = {}
     for res in dom.getElementsByTagName('resource'):
         agent = res.getAttribute("resource_agent")
-        if agent in ["ocf::chroma:Target", "ocf::lustre:Lustre"]:
+        if agent in ["ocf::chroma:Target", "ocf::lustre:Lustre", "ocf::chroma:ZFS", "ocf::heartbeat:ZFS"]:
             resid = res.getAttribute("id")
             if res.getAttribute("role") in ["Started", "Stopping"] and \
                res.getAttribute("failed") == "false":
@@ -371,6 +371,10 @@ def _configure_target_ha(ha_label, info, enabled=False):
             console_log.error("Resource (%s) create failed:%d: %s", zpool, result.rc, result.stderr)
             return result
 
+        if enabled and not _wait_target(_zfs_name(ha_label), True):
+            return {"rc": -1, "stdout": "",
+                    "stderr": "ZFS Resource ({}) failed to start".format(_zfs_name(ha_label))}
+
     else:
         # This is a hack for ocf:lustre:Lustre up to Lustre 2.10.5/2.11 see LU-11461
         result = AgentShell.run(['realpath', info['bdev']])
@@ -382,7 +386,11 @@ def _configure_target_ha(ha_label, info, enabled=False):
                              'target={}'.format(bdev), 'mountpoint={}'.format(info['mntpt']),
                              'op', 'start', 'timeout=600'] + extra)
 
-    if result.rc != 0:
+    if result.rc != 0 or enabled and not _wait_target(ha_label, True):
+        if result.rc == 0:
+            result.rc = -1
+            result.stderr = "Resource ({}) failed to start".format(ha_label)
+
         console_log.error("Failed to create resource %s:%d: %s",
                           ha_label, result.rc, result.stderr)
 
@@ -415,9 +423,6 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
         result = _configure_target_ha(ha_label, info, True)
         if result.rc != 0:
             return agent_error("Failed to create {}: {}".format(ha_label, result.rc))
-
-        if not _wait_target(ha_label, True):
-            return agent_error("Failed to create {}".format(ha_label))
 
     result = _configure_target_priority(primary, ha_label, _this_node())
     if result.rc != 0:
