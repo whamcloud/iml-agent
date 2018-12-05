@@ -33,7 +33,7 @@ def scanner_cmd(cmd):
     AgentShell.run(["udevadm", "settle"])
 
     client = socket.socket(socket.AF_UNIX)
-    client.settimeout(1)
+    client.settimeout(10)
     client.connect_ex("/var/run/device-scanner.sock")
     client.sendall(json.dumps(cmd) + "\n")
 
@@ -284,8 +284,8 @@ def parse_sys_block(device_map):
     node_block_devices = reduce(
         lambda d, x: dict(d, **{x['path']: x['major_minor']}), xs, {})
 
-    block_device_nodes = reduce(
-        lambda d, x: dict(d, **{x['major_minor']: x}), xs, {})
+    block_device_nodes = reduce(lambda d, x: dict(d, **{x['major_minor']: x}),
+                                xs, {})
 
     ndt = NormalizedDeviceTable(xs)
 
@@ -311,10 +311,7 @@ def parse_local_mounts(xs):
     """ process block device info returned by device-scanner to produce
         a legacy version of local mounts
     """
-    return [
-        (d['source'], d['target'], d['fstype'])
-        for d in xs
-    ]
+    return [(d['source'], d['target'], d['fstype']) for d in xs]
 
 
 def get_local_mounts():
