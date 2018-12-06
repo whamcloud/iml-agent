@@ -322,6 +322,7 @@ def configure_target_store(device, uuid, mount_point, backfstype, device_type):
     # configure_target_store steps fail later on and so the config exists but the manager doesn't
     # know. Meaning that a set fails because of a duplicate, where as an update doesn't.  So use
     # update because that updates or creates.
+    _mkdir_p_concurrent(mount_point)
     config.update('targets', uuid, {'bdev': device,
                                     'mntpt': mount_point,
                                     'backfstype': backfstype,
