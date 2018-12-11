@@ -382,15 +382,22 @@ def _configure_target_ha(ha_label, info, enabled=False):
         if result.rc == 0 and result.stdout.startswith('/dev/sd'):
             bdev = result.stdout.strip()
 
-    # Create Lustre resource and add target=uuid as an attribute
-    result = AgentShell.run(['pcs', 'resource', 'create', ha_label, 'ocf:lustre:Lustre',
-                             'target={}'.format(bdev), 'mountpoint={}'.format(info['mntpt']),
-                             'op', 'start', 'timeout=600'] + extra)
+    retries = 3
+    while retries > 0:
+        # Create Lustre resource and add target=uuid as an attribute
+        result = AgentShell.run(['pcs', 'resource', 'create', ha_label, 'ocf:lustre:Lustre',
+                                 'target={}'.format(bdev), 'mountpoint={}'.format(info['mntpt']),
+                                 'op', 'start', 'timeout=600'] + extra)
+
+        if result.rc != 0 or enabled and get_resource_location(ha_label) is not None:
+            break
+        time.sleep(1)
+        retries -= 1
 
     if result.rc != 0 or enabled and not _wait_target(ha_label, True):
         if result.rc == 0:
-            result.rc = -1
-            result.stderr = "Resource ({}) failed to start".format(ha_label)
+            result = {'rc': -1, 'stdout': "",
+                      'stderr': "Resource ({}) failed to start".format(ha_label)}
 
         console_log.error("Failed to create resource %s:%d: %s",
                           ha_label, result.rc, result.stderr)
