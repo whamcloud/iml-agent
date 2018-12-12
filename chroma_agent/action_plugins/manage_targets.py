@@ -421,7 +421,7 @@ def _configure_target_priority(primary, ha_label, node):
 
     if result.rc == 76:
         console_log.warn("A constraint with the name %s already exists", name)
-        result.rc = 0
+        result = AgentShell.RunResult(0, result.stdout, result.stderr, result.timeout)
 
     return result
 
@@ -461,13 +461,12 @@ def _configure_target_ha(ha_label, info, enabled=False):
             return result
 
         if enabled and not _wait_target(_zfs_name(ha_label), True):
-            return {
-                "rc": -1,
-                "stdout": "",
-                "stderr": "ZFS Resource ({}) failed to start".format(
-                    _zfs_name(ha_label)
-                ),
-            }
+            return AgentShell.RunResult(
+                -1,
+                "",
+                "ZFS Resource ({}) failed to start".format(_zfs_name(ha_label)),
+                False,
+            )
 
     else:
         # FIXME: This is a hack for ocf:lustre:Lustre up to Lustre 2.10.6/2.11 see LU-11461
@@ -494,8 +493,9 @@ def _configure_target_ha(ha_label, info, enabled=False):
 
     if result.rc != 0 or enabled and not _wait_target(ha_label, True):
         if result.rc == 0:
-            result.rc = -1
-            result.stderr = "Resource ({}) failed to start".format(ha_label)
+            result = AgentShell.RunResult(
+                -1, "", "Resource ({}) failed to start".format(ha_label), False
+            )
 
         console_log.error(
             "Failed to create resource %s:%d: %s", ha_label, result.rc, result.stderr
