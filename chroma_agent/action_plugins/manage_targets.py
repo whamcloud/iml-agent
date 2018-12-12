@@ -349,7 +349,7 @@ def _configure_target_priority(primary, ha_label, node):
 
     if result.rc == 76:
         console_log.warn("A constraint with the name %s already exists", name)
-        result = AgentShell.RunResult(0, result.stdout, result.stderr, results.timeout)
+        result = AgentShell.RunResult(0, result.stdout, result.stderr, result.timeout)
 
     return result
 
