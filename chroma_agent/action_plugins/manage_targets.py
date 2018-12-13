@@ -377,7 +377,7 @@ def _configure_target_ha(ha_label, info, enabled=False):
                     "stderr": "ZFS Resource ({}) failed to start".format(_zfs_name(ha_label))}
 
     else:
-        # This is a hack for ocf:lustre:Lustre up to Lustre 2.10.5/2.11 see LU-11461
+        # FIXME: This is a hack for ocf:lustre:Lustre up to Lustre 2.10.6/2.11 see LU-11461
         result = AgentShell.run(['realpath', info['bdev']])
         if result.rc == 0 and result.stdout.startswith('/dev/sd'):
             bdev = result.stdout.strip()
