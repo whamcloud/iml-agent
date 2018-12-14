@@ -6,27 +6,27 @@ from iml_common.test.command_capture_testcase import CommandCaptureTestCase
 
 
 class TestServerShutdownAndReboot(CommandCaptureTestCase):
-    @patch('os._exit')
+    @patch("os._exit")
     def test_server_shutdown(self, os__exit):
-        run_args = ('shutdown', '-H', 'now')
+        run_args = ("shutdown", "-H", "now")
         self.add_command(run_args)
 
         try:
             shutdown_server()
-        except CallbackAfterResponse, e:
+        except CallbackAfterResponse as e:
             e.callback()
         self.assertRanAllCommandsInOrder()
 
         self.assertTrue(os__exit.called)
 
-    @patch('os._exit')
+    @patch("os._exit")
     def test_server_reboot(self, os__exit):
-        run_args = ('shutdown', '-r', 'now')
+        run_args = ("shutdown", "-r", "now")
         self.add_command(run_args)
 
         try:
             reboot_server()
-        except CallbackAfterResponse, e:
+        except CallbackAfterResponse as e:
             e.callback()
         self.assertRanAllCommandsInOrder()
         self.assertTrue(os__exit.called)

@@ -7,14 +7,15 @@ import errno
 import os
 
 DEFAULT_AGENT_CONFIG = {
-    'lustre_client_root': "/mnt/lustre_clients",
-    'copytool_fifo_directory': "/var/spool",
-    'copytool_template': "--quiet --update-interval %(report_interval)s --event-fifo %(event_fifo)s --archive %(archive_number)s %(hsm_arguments)s %(mountpoint)s"
+    "lustre_client_root": "/mnt/lustre_clients",
+    "copytool_fifo_directory": "/var/spool",
+    "copytool_template": "--quiet --update-interval %(report_interval)s --event-fifo %(event_fifo)s --archive %(archive_number)s %(hsm_arguments)s %(mountpoint)s",
 }
 
 PRODUCTION_CONFIG_STORE = "/var/lib/chroma"
 DEVEL_CONFIG_STORE = os.path.join(os.path.dirname(__file__), ".dev_config_store")
 from config_store import ConfigStore
+
 try:
     config = ConfigStore(PRODUCTION_CONFIG_STORE)
 except OSError as e:
@@ -25,6 +26,7 @@ except OSError as e:
 
 try:
     from scm_version import VERSION, PACKAGE_VERSION, IS_RELEASE, BUILD
+
     __version__ = VERSION
     __package_version__ = PACKAGE_VERSION
     __build__ = BUILD
@@ -32,7 +34,7 @@ try:
 except ImportError:
     from pkginfo import UnpackedSDist
 
-    pkg = UnpackedSDist('.')
+    pkg = UnpackedSDist(".")
     __version__ = pkg.version
     __package_version__ = __version__
     __build__ = 1

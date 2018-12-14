@@ -2,15 +2,22 @@ import tempfile
 import os
 import shutil
 import chroma_agent.device_plugins.audit.lustre
-from chroma_agent.device_plugins.audit.lustre import LnetAudit, MdtAudit, MgsAudit, LustreAudit
+from chroma_agent.device_plugins.audit.lustre import (
+    LnetAudit,
+    MdtAudit,
+    MgsAudit,
+    LustreAudit,
+)
 
 from tests.test_utils import PatchedContextTestCase
 
 
 class TestLustreAuditClassMethods(PatchedContextTestCase):
     def setUp(self):
-        tests = os.path.join(os.path.dirname(__file__), '..')
-        self.test_root = os.path.join(tests, "data/lustre_versions/2.9.58_86_g2383a62/mds_mgs")
+        tests = os.path.join(os.path.dirname(__file__), "..")
+        self.test_root = os.path.join(
+            tests, "data/lustre_versions/2.9.58_86_g2383a62/mds_mgs"
+        )
         super(TestLustreAuditClassMethods, self).setUp()
 
     def test_kmod_is_loaded(self):
@@ -28,18 +35,24 @@ class TestLustreAuditClassMethods(PatchedContextTestCase):
 
 class TestLustreAuditScanner(PatchedContextTestCase):
     def test_2x_audit_scanner(self):
-        tests = os.path.join(os.path.dirname(__file__), '..')
-        self.test_root = os.path.join(tests, "data/lustre_versions/2.9.58_86_g2383a62/mds_mgs")
+        tests = os.path.join(os.path.dirname(__file__), "..")
+        self.test_root = os.path.join(
+            tests, "data/lustre_versions/2.9.58_86_g2383a62/mds_mgs"
+        )
         super(TestLustreAuditScanner, self).setUp()
-        list = [cls.__name__ for cls in
-                chroma_agent.device_plugins.audit.lustre.local_audit_classes()]
-        self.assertEqual(list, ['LnetAudit', 'MdtAudit', 'MgsAudit'])
+        list = [
+            cls.__name__
+            for cls in chroma_agent.device_plugins.audit.lustre.local_audit_classes()
+        ]
+        self.assertEqual(list, ["LnetAudit", "MdtAudit", "MgsAudit"])
 
 
 class TestLustreAudit(PatchedContextTestCase):
     def setUp(self):
-        tests = os.path.join(os.path.dirname(__file__), '..')
-        self.test_root = os.path.join(tests, "data/lustre_versions/2.9.58_86_g2383a62/mds_mgs")
+        tests = os.path.join(os.path.dirname(__file__), "..")
+        self.test_root = os.path.join(
+            tests, "data/lustre_versions/2.9.58_86_g2383a62/mds_mgs"
+        )
         super(TestLustreAudit, self).setUp()
         self.audit = LustreAudit()
 
@@ -47,14 +60,15 @@ class TestLustreAudit(PatchedContextTestCase):
         self.assertEqual(self.audit.version, "2.9.58_86_g2383a62")
 
     def test_version_info(self):
-        self.assertEqual(self.audit.version_info,
-                         self.audit.LustreVersion(2, 9, 58))
+        self.assertEqual(self.audit.version_info, self.audit.LustreVersion(2, 9, 58))
 
 
 class TestGitLustreVersion(PatchedContextTestCase):
     def setUp(self):
-        tests = os.path.join(os.path.dirname(__file__), '..')
-        self.test_root = os.path.join(tests, "data/lustre_versions/2.9.58_86_g2383a62/mds_mgs")
+        tests = os.path.join(os.path.dirname(__file__), "..")
+        self.test_root = os.path.join(
+            tests, "data/lustre_versions/2.9.58_86_g2383a62/mds_mgs"
+        )
         super(TestGitLustreVersion, self).setUp()
         self.audit = LustreAudit()
 
@@ -62,13 +76,12 @@ class TestGitLustreVersion(PatchedContextTestCase):
         self.assertEqual(self.audit.version, "2.9.58_86_g2383a62")
 
     def test_version_info(self):
-        self.assertEqual(self.audit.version_info,
-                         self.audit.LustreVersion(2, 9, 58))
+        self.assertEqual(self.audit.version_info, self.audit.LustreVersion(2, 9, 58))
 
 
 class TestMisformedLustreVersion(PatchedContextTestCase):
     def setUp(self):
-        tests = os.path.join(os.path.dirname(__file__), '..')
+        tests = os.path.join(os.path.dirname(__file__), "..")
         self.test_root = os.path.join(tests, "data/lustre_versions/2.bad/mds_mgs")
         super(TestMisformedLustreVersion, self).setUp()
         self.audit = LustreAudit()
@@ -82,6 +95,7 @@ class TestMisformedLustreVersion(PatchedContextTestCase):
 
 class TestMissingLustreVersion(PatchedContextTestCase):
     """No idea how this might happen, but it shouldn't crash the audit."""
+
     def setUp(self):
         self.test_root = tempfile.mkdtemp()
         super(TestMissingLustreVersion, self).setUp()

@@ -15,15 +15,15 @@ from toolz.functoolz import pipe, curry
 from chroma_agent.lib.shell import AgentShell
 from iml_common.blockdevices.blockdevice import BlockDevice
 
-DeviceMaps = namedtuple('device_maps', 'block_devices zfspools')
+DeviceMaps = namedtuple("device_maps", "block_devices zfspools")
 
 # Python errno doesn't include this code
 errno.NO_MEDIA_ERRNO = 123
 
-DEV_PATH = re.compile('^/dev/[^/]+$')
-DISK_BY_ID_PATH = re.compile('^/dev/disk/by-id/')
-DISK_BY_PATH_PATH = re.compile('^/dev/disk/by-path/')
-MAPPER_PATH = re.compile('^/dev/mapper/')
+DEV_PATH = re.compile("^/dev/[^/]+$")
+DISK_BY_ID_PATH = re.compile("^/dev/disk/by-id/")
+DISK_BY_PATH_PATH = re.compile("^/dev/disk/by-path/")
+MAPPER_PATH = re.compile("^/dev/mapper/")
 
 
 def scanner_cmd(cmd):
@@ -37,7 +37,7 @@ def scanner_cmd(cmd):
     client.connect_ex("/var/run/device-scanner.sock")
     client.sendall(json.dumps(cmd) + "\n")
 
-    out = ''
+    out = ""
 
     while True:
         out += client.recv(1024)
@@ -56,37 +56,37 @@ def get_default(prop, default_value, x):
 
 
 def get_major_minor(x):
-    return "%s:%s" % (x.get('major'), x.get('minor'))
+    return "%s:%s" % (x.get("major"), x.get("minor"))
 
 
 def as_device(x):
-    paths = get_default('paths', [], x)
+    paths = get_default("paths", [], x)
     path = next(iter(paths), None)
 
     return {
-        'major_minor': get_major_minor(x),
-        'path': path,
-        'paths': paths,
-        'serial_80': x.get('scsi80'),
-        'serial_83': x.get('scsi83'),
-        'size': int(get_default('size', 0, x)),
-        'filesystem_type': x.get('idFsType'),
-        'filesystem_usage': x.get('idFsUsage'),
-        'device_type': x.get('devType'),
-        'device_path': x.get('devPath'),
-        'partition_number': x.get('idPartEntryNumber'),
-        'is_ro': x.get('isReadOnly'),
-        'parent': None,
-        'dm_multipath': x.get('dmMultipathDevicePath'),
-        'dm_lv': x.get('dmLvName'),
-        'dm_vg': x.get('dmVgName'),
-        'lv_uuid': x.get('lvUuid'),
-        'vg_uuid': x.get('vgUuid'),
-        'dm_slave_mms': get_default('dmSlaveMms', [], x),
-        'dm_vg_size': x.get('dmVgSize'),
-        'md_uuid': x.get('mdUuid'),
-        'md_device_paths': x.get('mdDevices'),
-        'is_mpath': get_default('isMpath', False, x),
+        "major_minor": get_major_minor(x),
+        "path": path,
+        "paths": paths,
+        "serial_80": x.get("scsi80"),
+        "serial_83": x.get("scsi83"),
+        "size": int(get_default("size", 0, x)),
+        "filesystem_type": x.get("idFsType"),
+        "filesystem_usage": x.get("idFsUsage"),
+        "device_type": x.get("devType"),
+        "device_path": x.get("devPath"),
+        "partition_number": x.get("idPartEntryNumber"),
+        "is_ro": x.get("isReadOnly"),
+        "parent": None,
+        "dm_multipath": x.get("dmMultipathDevicePath"),
+        "dm_lv": x.get("dmLvName"),
+        "dm_vg": x.get("dmVgName"),
+        "lv_uuid": x.get("lvUuid"),
+        "vg_uuid": x.get("vgUuid"),
+        "dm_slave_mms": get_default("dmSlaveMms", [], x),
+        "dm_vg_size": x.get("dmVgSize"),
+        "md_uuid": x.get("mdUuid"),
+        "md_device_paths": x.get("mdDevices"),
+        "is_mpath": get_default("isMpath", False, x),
     }
 
 
@@ -95,61 +95,61 @@ def get_parent_path(p):
 
 
 def find_device_by_device_path(p, xs):
-    return next((d for d in xs if d['device_path'] == p), None)
+    return next((d for d in xs if d["device_path"] == p), None)
 
 
 def mutate_parent_prop(xs):
-    disks = [x for x in xs if x['device_type'] == 'disk']
-    partitions = [x for x in xs if x['device_type'] == 'partition']
+    disks = [x for x in xs if x["device_type"] == "disk"]
+    partitions = [x for x in xs if x["device_type"] == "partition"]
 
     for x in partitions:
-        parent_path = get_parent_path(x['device_path'])
+        parent_path = get_parent_path(x["device_path"])
         device = find_device_by_device_path(parent_path, disks)
 
         if device:
-            x['parent'] = device['major_minor']
+            x["parent"] = device["major_minor"]
 
 
 def filter_device(x):
     # Exclude zero-sized devices
-    if x['size'] == 0 or x['is_ro']:
+    if x["size"] == 0 or x["is_ro"]:
         return False
 
     return True
 
 
 def create_device_list(device_dict):
-    return pipe(device_dict.itervalues(), cmap(as_device),
-                cfilter(filter_device), list)
+    return pipe(device_dict.itervalues(), cmap(as_device), cfilter(filter_device), list)
 
 
 def lvm_populate(device):
     """ Create vg and lv entries for devices with dm attributes """
-    vg_name, vg_size, lv_name, lv_uuid, vg_uuid, lv_size, lv_mm, lv_slave_mms = \
-        map(device.get,
-            ('dm_vg', 'dm_vg_size', 'dm_lv', 'lv_uuid', 'vg_uuid', 'size', 'major_minor', 'dm_slave_mms'))
+    vg_name, vg_size, lv_name, lv_uuid, vg_uuid, lv_size, lv_mm, lv_slave_mms = map(
+        device.get,
+        (
+            "dm_vg",
+            "dm_vg_size",
+            "dm_lv",
+            "lv_uuid",
+            "vg_uuid",
+            "size",
+            "major_minor",
+            "dm_slave_mms",
+        ),
+    )
 
-    vg = {
-        'name': vg_name,
-        'uuid': vg_uuid,
-        'size': int(vg_size),
-        'pvs_major_minor': []
-    }
+    vg = {"name": vg_name, "uuid": vg_uuid, "size": int(vg_size), "pvs_major_minor": []}
 
     [
-        vg['pvs_major_minor'].append(mm) for mm in lv_slave_mms
-        if mm not in vg['pvs_major_minor']
+        vg["pvs_major_minor"].append(mm)
+        for mm in lv_slave_mms
+        if mm not in vg["pvs_major_minor"]
     ]
 
     # Do this to cache the device, type see blockdevice and filesystem for info.
-    BlockDevice('lvm_volume', '/dev/mapper/%s-%s' % (vg_name, lv_name))
+    BlockDevice("lvm_volume", "/dev/mapper/%s-%s" % (vg_name, lv_name))
 
-    lv = {
-        'name': lv_name,
-        'uuid': lv_uuid,
-        'size': lv_size,
-        'block_device': lv_mm
-    }
+    lv = {"name": lv_name, "uuid": lv_uuid, "size": lv_size, "block_device": lv_mm}
 
     return vg, lv
 
@@ -157,25 +157,25 @@ def lvm_populate(device):
 @curry
 def link_dm_slaves(block_device_nodes, ndt, x):
     """ link dm slave devices back to the mapper devices using mm to look up path """
-    for slave_mm in x.get('dm_slave_mms', []):
+    for slave_mm in x.get("dm_slave_mms", []):
         ndt.add_normalized_devices(
-            filter(DISK_BY_ID_PATH.match,
-                   block_device_nodes[slave_mm]['paths']),
-            filter(MAPPER_PATH.match, x.get('paths')))
+            filter(DISK_BY_ID_PATH.match, block_device_nodes[slave_mm]["paths"]),
+            filter(MAPPER_PATH.match, x.get("paths")),
+        )
 
 
 def parse_dm_devs(xs, block_device_nodes, ndt):
     vgs = {}
     lvs = defaultdict(dict)
 
-    results = [lvm_populate(x) for x in xs if x.get('dm_lv') is not None]
+    results = [lvm_populate(x) for x in xs if x.get("dm_lv") is not None]
 
     for vg, lv in results:
-        vgs[vg['name']] = vg
-        lvs[vg['name']][lv['name']] = lv
+        vgs[vg["name"]] = vg
+        lvs[vg["name"]][lv["name"]] = lv
 
     c_link_dm_slaves = link_dm_slaves(block_device_nodes, ndt)
-    map(c_link_dm_slaves, filter(lambda x: x['is_mpath'], xs))
+    map(c_link_dm_slaves, filter(lambda x: x["is_mpath"], xs))
 
     return ndt, vgs, lvs
 
@@ -184,22 +184,21 @@ def parse_mdraid_devs(xs, node_block_devices, ndt):
     mds = {}
 
     for x in xs:
-        mds[x['md_uuid']] = {
-            'path':
-            x['path'],
-            'block_device':
-            x['major_minor'],
-            'drives':
-            paths_to_major_minors(node_block_devices, ndt,
-                                  x['md_device_paths'])
+        mds[x["md_uuid"]] = {
+            "path": x["path"],
+            "block_device": x["major_minor"],
+            "drives": paths_to_major_minors(
+                node_block_devices, ndt, x["md_device_paths"]
+            ),
         }
 
         # Finally add these devices to the canonical path list.
         ndt.add_normalized_devices(
-            filter(DISK_BY_ID_PATH.match, x['paths']),
-            filter(DEV_PATH.match, x['paths']))
+            filter(DISK_BY_ID_PATH.match, x["paths"]),
+            filter(DEV_PATH.match, x["paths"]),
+        )
 
-        ndt.add_normalized_devices(x['md_device_paths'], [x['path']])
+        ndt.add_normalized_devices(x["md_device_paths"], [x["path"]])
 
     return ndt, mds
 
@@ -211,7 +210,7 @@ class NormalizedDeviceTable(object):
         map(self.build_normalized_table_from_device, xs)
 
     def build_normalized_table_from_device(self, x):
-        paths = x['paths']
+        paths = x["paths"]
 
         dev_paths = filter(DEV_PATH.match, paths)
         disk_by_id_paths = filter(DISK_BY_ID_PATH.match, paths)
@@ -233,7 +232,7 @@ class NormalizedDeviceTable(object):
             self.table[from_path] = to_path
 
     def find_normalized_start(self, device_fullpath):
-        '''
+        """
         :param device_fullpath: The device_path being search for
         :return: Given /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_WD-WMAP3333333
                 returns
@@ -241,11 +240,10 @@ class NormalizedDeviceTable(object):
                 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_WD-WMAP3333333-part1
                 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_WD-WMAP3333333-part9
                 etc.
-        '''
+        """
 
         return [
-            value for value in self.table.values()
-            if value.startswith(device_fullpath)
+            value for value in self.table.values() if value.startswith(device_fullpath)
         ]
 
     def normalized_device_path(self, device_path):
@@ -268,8 +266,7 @@ class NormalizedDeviceTable(object):
         # it repeats.
         visited = set()
 
-        while (normalized_path not in visited) and (
-                normalized_path in self.table):
+        while (normalized_path not in visited) and (normalized_path in self.table):
             visited.add(normalized_path)
             normalized_path = self.table[normalized_path]
 
@@ -277,25 +274,25 @@ class NormalizedDeviceTable(object):
 
 
 def parse_sys_block(device_map):
-    xs = create_device_list(device_map['blockDevices'])
+    xs = create_device_list(device_map["blockDevices"])
 
     mutate_parent_prop(xs)
 
     node_block_devices = reduce(
-        lambda d, x: dict(d, **{x['path']: x['major_minor']}), xs, {})
+        lambda d, x: dict(d, **{x["path"]: x["major_minor"]}), xs, {}
+    )
 
-    block_device_nodes = reduce(lambda d, x: dict(d, **{x['major_minor']: x}),
-                                xs, {})
+    block_device_nodes = reduce(lambda d, x: dict(d, **{x["major_minor"]: x}), xs, {})
 
     ndt = NormalizedDeviceTable(xs)
 
     (ndt, _, _) = parse_dm_devs(
-        filter(lambda x: x.get('lv_uuid') is not None, xs), block_device_nodes,
-        ndt)
+        filter(lambda x: x.get("lv_uuid") is not None, xs), block_device_nodes, ndt
+    )
 
     (ndt, _) = parse_mdraid_devs(
-        filter(lambda x: x.get('md_uuid') is not None, xs), node_block_devices,
-        ndt)
+        filter(lambda x: x.get("md_uuid") is not None, xs), node_block_devices, ndt
+    )
 
     return ndt
 
@@ -311,11 +308,11 @@ def parse_local_mounts(xs):
     """ process block device info returned by device-scanner to produce
         a legacy version of local mounts
     """
-    return [(d['source'], d['target'], d['fstype']) for d in xs]
+    return [(d["source"], d["target"], d["fstype"]) for d in xs]
 
 
 def get_local_mounts():
-    xs = scanner_cmd("Stream")['localMounts']
+    xs = scanner_cmd("Stream")["localMounts"]
     return parse_local_mounts(xs)
 
 

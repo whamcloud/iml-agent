@@ -5,19 +5,23 @@ import errno
 from jinja2 import Environment, PackageLoader
 from chroma_agent.lib.shell import AgentShell
 
-env = Environment(loader=PackageLoader('chroma_agent', 'templates'))
+env = Environment(loader=PackageLoader("chroma_agent", "templates"))
 
 NM_STOPPED_RC = 8  # network manager stopped
 
 
 def write_ifcfg(device, mac_address, ipv4_address, ipv4_netmask):
-    ifcfg_tmpl = env.get_template('ifcfg-nic')
+    ifcfg_tmpl = env.get_template("ifcfg-nic")
     ifcfg_path = "/etc/sysconfig/network-scripts/ifcfg-%s" % device
     with open(ifcfg_path, "w") as f:
-        f.write(ifcfg_tmpl.render(device=device,
-                                  mac_address=mac_address,
-                                  ipv4_address=ipv4_address,
-                                  ipv4_netmask=ipv4_netmask))
+        f.write(
+            ifcfg_tmpl.render(
+                device=device,
+                mac_address=mac_address,
+                ipv4_address=ipv4_address,
+                ipv4_netmask=ipv4_netmask,
+            )
+        )
 
     return ifcfg_path
 
@@ -33,7 +37,7 @@ def unmanage_network(device, mac_address):
 
     if ifcfg_path:
         try:
-            AgentShell.try_run(['nmcli', 'con', 'load', ifcfg_path])
+            AgentShell.try_run(["nmcli", "con", "load", ifcfg_path])
         except OSError as e:
             if e.errno != errno.ENOENT:
                 raise e

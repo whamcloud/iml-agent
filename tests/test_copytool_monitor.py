@@ -13,18 +13,25 @@ class CopytoolTestCase(unittest.TestCase):
         super(CopytoolTestCase, self).setUp()
 
         from chroma_agent.config_store import ConfigStore
-        self.mock_config = ConfigStore(tempfile.mkdtemp())
-        patch('chroma_agent.copytool_monitor.config', self.mock_config).start()
 
-        self.ct_id = '42'
-        self.ct_bin_path = '/usr/sbin/lhsmtool_foo'
-        self.ct_filesystem = 'testfs'
-        self.ct_mountpoint = '/mnt/testfs'
+        self.mock_config = ConfigStore(tempfile.mkdtemp())
+        patch("chroma_agent.copytool_monitor.config", self.mock_config).start()
+
+        self.ct_id = "42"
+        self.ct_bin_path = "/usr/sbin/lhsmtool_foo"
+        self.ct_filesystem = "testfs"
+        self.ct_mountpoint = "/mnt/testfs"
         self.ct_archive = 2
         self.ct_index = 0
-        self.ct = Copytool(self.ct_id, self.ct_index, self.ct_bin_path,
-                           self.ct_archive, self.ct_filesystem,
-                           self.ct_mountpoint, "")
+        self.ct = Copytool(
+            self.ct_id,
+            self.ct_index,
+            self.ct_bin_path,
+            self.ct_archive,
+            self.ct_filesystem,
+            self.ct_mountpoint,
+            "",
+        )
 
         self.addCleanup(patch.stopall)
 
@@ -34,20 +41,24 @@ class CopytoolTestCase(unittest.TestCase):
         shutil.rmtree(self.mock_config.path)
 
     def test_copytool_event_fifo(self):
-        self.mock_config.set('settings', 'agent',
-                             {'copytool_fifo_directory': '/var/spool'})
-        self.assertEqual(self.ct.event_fifo,
-                         '/var/spool/%s-events' % self.ct)
+        self.mock_config.set(
+            "settings", "agent", {"copytool_fifo_directory": "/var/spool"}
+        )
+        self.assertEqual(self.ct.event_fifo, "/var/spool/%s-events" % self.ct)
 
     def test_copytool_as_dict(self):
-        self.assertDictEqual(self.ct.as_dict(),
-                             dict(id = self.ct.id,
-                                  index = self.ct.index,
-                                  bin_path = self.ct.bin_path,
-                                  archive_number = self.ct.archive_number,
-                                  filesystem = self.ct.filesystem,
-                                  mountpoint = self.ct.mountpoint,
-                                  hsm_arguments = self.ct.hsm_arguments))
+        self.assertDictEqual(
+            self.ct.as_dict(),
+            dict(
+                id=self.ct.id,
+                index=self.ct.index,
+                bin_path=self.ct.bin_path,
+                archive_number=self.ct.archive_number,
+                filesystem=self.ct.filesystem,
+                mountpoint=self.ct.mountpoint,
+                hsm_arguments=self.ct.hsm_arguments,
+            ),
+        )
 
 
 def raise_exception(e):
@@ -61,44 +72,39 @@ class CopytoolMonitorTestCase(unittest.TestCase):
         self.client = Mock()
 
         self.copytool = Mock()
-        self.copytool.event_fifo = '/var/spool/test-fifo'
+        self.copytool.event_fifo = "/var/spool/test-fifo"
 
         self.monitor = CopytoolMonitor(self.client, self.copytool)
 
         self.addCleanup(patch.stopall)
 
-    @patch('chroma_agent.copytool_monitor.lsof')
-    @patch('os.mkfifo')
-    @patch('os.open')
+    @patch("chroma_agent.copytool_monitor.lsof")
+    @patch("os.mkfifo")
+    @patch("os.open")
     def test_open_fifo_normal(self, m_open, m_mkfifo, m_lsof):
         self.monitor.open_fifo()
 
         m_mkfifo.assert_called_with(self.copytool.event_fifo)
         m_lsof.assert_called_with(file=self.copytool.event_fifo)
-        m_open.assert_called_with(self.copytool.event_fifo,
-                                  os.O_RDONLY | os.O_NONBLOCK)
+        m_open.assert_called_with(self.copytool.event_fifo, os.O_RDONLY | os.O_NONBLOCK)
 
-    @patch('chroma_agent.copytool_monitor.lsof')
-    @patch('os.mkfifo', side_effect=lambda x: raise_exception(OSError(17, "foo")))
-    @patch('os.open')
+    @patch("chroma_agent.copytool_monitor.lsof")
+    @patch("os.mkfifo", side_effect=lambda x: raise_exception(OSError(17, "foo")))
+    @patch("os.open")
     def test_open_fifo_exists(self, m_open, m_mkfifo, m_lsof):
         self.monitor.open_fifo()
 
         m_mkfifo.assert_called_with(self.copytool.event_fifo)
 
-    @patch('os.mkfifo')
-    @patch('os.open')
+    @patch("os.mkfifo")
+    @patch("os.open")
     def test_open_fifo_reader_conflict(self, *mocks):
         def fake_lsof(**kwargs):
-            return {
-                '1234': {
-                    self.copytool.event_fifo: {
-                        'mode': 'r'
-                    }
-                }
-            }
-        with patch('chroma_agent.copytool_monitor.lsof', fake_lsof):
+            return {"1234": {self.copytool.event_fifo: {"mode": "r"}}}
+
+        with patch("chroma_agent.copytool_monitor.lsof", fake_lsof):
             from chroma_agent.copytool_monitor import FifoReaderConflict
+
             with self.assertRaises(FifoReaderConflict):
                 self.monitor.open_fifo()
 
@@ -108,13 +114,13 @@ class CopytoolEventRelayTestCase(unittest.TestCase):
         super(CopytoolEventRelayTestCase, self).setUp()
 
         self.client = Mock()
-        self.client.fqdn = 'fake-client'
+        self.client.fqdn = "fake-client"
 
         self.copytool = Mock()
-        self.copytool.id = '42'
+        self.copytool.id = "42"
         self.copytool.index = 0
-        self.copytool.bin_path = '/usr/sbin/lhsmtool_foo'
-        self.copytool.filesystem = 'testfs'
+        self.copytool.bin_path = "/usr/sbin/lhsmtool_foo"
+        self.copytool.filesystem = "testfs"
         self.copytool.archive_number = 1
 
         self.relay = CopytoolEventRelay(self.copytool, self.client)
@@ -127,15 +133,17 @@ class CopytoolEventRelayTestCase(unittest.TestCase):
         #    for relay to the manager.
         # 2. That the event time is converted to UTC.
         expected_envelope = dict(
-            events = [
-                dict(uuid = 'ea370e22-b5ac-ab98-71bb-605d217071f7',
-                     mount_point = '/mnt/testfs',
-                     event_type = 'REGISTER',
-                     event_time = '2013-09-27 21:26:32+00:00',
-                     archive = 1)
+            events=[
+                dict(
+                    uuid="ea370e22-b5ac-ab98-71bb-605d217071f7",
+                    mount_point="/mnt/testfs",
+                    event_type="REGISTER",
+                    event_time="2013-09-27 21:26:32+00:00",
+                    archive=1,
+                )
             ],
-            fqdn = self.client.fqdn,
-            copytool = self.copytool.id
+            fqdn=self.client.fqdn,
+            copytool=self.copytool.id,
         )
 
         self.relay.put(self.test_event)
@@ -149,13 +157,13 @@ class CopytoolEventRelayTestCase(unittest.TestCase):
         from chroma_agent.agent_client import HttpError, MIN_SESSION_BACKOFF
 
         def raise_error(self):
-            raise HttpError('blam')
+            raise HttpError("blam")
 
         # Establish that we're polling as usual to begin with.
         self.assertEqual(self.relay.poll_interval, RELAY_POLL_INTERVAL)
 
         # Inject a failure to POST.
-        with patch.object(self.client, 'post', side_effect=raise_error):
+        with patch.object(self.client, "post", side_effect=raise_error):
             self.relay.put(self.test_event)
             self.relay.send()
             self.assertEqual(self.relay.send_queue.qsize(), 0)
@@ -189,13 +197,17 @@ class CopytoolEventRelayTestCase(unittest.TestCase):
 
         self.relay.put(start_event)
         start_map = {"0x200000400:0x13:0x0": 1142}
-        with patch.object(self.relay.client, 'post', return_value={'active_operations': start_map}):
+        with patch.object(
+            self.relay.client, "post", return_value={"active_operations": start_map}
+        ):
             self.relay.send()
         self.assertDictEqual(self.relay.active_operations, start_map)
 
         self.relay.put(running_event)
         swapped_map = {"0x200000401:0x1:0x0": 1142}
-        with patch.object(self.relay.client, 'post', return_value={'active_operations': swapped_map}):
+        with patch.object(
+            self.relay.client, "post", return_value={"active_operations": swapped_map}
+        ):
             self.relay.send()
         self.assertDictEqual(self.relay.active_operations, swapped_map)
 

@@ -13,7 +13,7 @@ from iml_common.lib.agent_rpc import agent_error, agent_result_ok
 from iml_common.blockdevices.blockdevice import BlockDevice
 
 
-def device_plugin(plugin = None):
+def device_plugin(plugin=None):
     """
     Invoke a device plugin once to obtain a snapshot of what it
     is monitoring
@@ -51,7 +51,9 @@ def trigger_plugin_update(agent_daemon_context, plugin_names):
         plugin_names = agent_daemon_context.plugin_sessions.keys()
 
     for plugin_name in plugin_names:
-        agent_daemon_context.plugin_sessions[plugin_name]._plugin.trigger_plugin_update = True
+        agent_daemon_context.plugin_sessions[
+            plugin_name
+        ]._plugin.trigger_plugin_update = True
 
 
 @agent_daemon_startup_function()
@@ -86,5 +88,10 @@ def terminate_block_device_drivers():
     return agent_result_ok
 
 
-ACTIONS = [device_plugin, trigger_plugin_update, initialise_block_device_drivers, terminate_block_device_drivers]
+ACTIONS = [
+    device_plugin,
+    trigger_plugin_update,
+    initialise_block_device_drivers,
+    terminate_block_device_drivers,
+]
 CAPABILITIES = []

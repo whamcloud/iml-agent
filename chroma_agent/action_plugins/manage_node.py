@@ -32,7 +32,7 @@ def stonith(node):
     p_cfg.get_node(node).fence_reboot()
 
 
-def shutdown_server(halt = True, at_time = "now"):
+def shutdown_server(halt=True, at_time="now"):
     def _shutdown():
         console_log.info("Initiating server shutdown per manager request")
         # This will initiate a "nice" shutdown with a wall from root, etc.
@@ -44,7 +44,7 @@ def shutdown_server(halt = True, at_time = "now"):
     raise CallbackAfterResponse(None, _shutdown)
 
 
-def reboot_server(at_time = "now"):
+def reboot_server(at_time="now"):
     def _reboot():
         console_log.info("Initiating server reboot per manager request")
         # reboot(8) just calls shutdown anyhow.
@@ -54,5 +54,6 @@ def reboot_server(at_time = "now"):
         os._exit(0)
 
     raise CallbackAfterResponse(None, _reboot)
+
 
 ACTIONS = [reboot_server, shutdown_server, fail_node, stonith]

@@ -20,50 +20,62 @@ class FenceAgent(object):
         self.base_cmd = base_cmd
 
     def toggle_outlet(self, state):
-        AgentShell.try_run(self.base_cmd + ['-n', self.plug, '-o', state])
+        AgentShell.try_run(self.base_cmd + ["-n", self.plug, "-o", state])
 
     def list(self):
         if platform_info.distro_version >= 7.0:
-            AgentShell.try_run(self.base_cmd + ['-n', self.plug, '-o', 'list-status'])
+            AgentShell.try_run(self.base_cmd + ["-n", self.plug, "-o", "list-status"])
         else:
-            AgentShell.try_run(self.base_cmd + ['-a', 'list'])
+            AgentShell.try_run(self.base_cmd + ["-a", "list"])
 
     def status(self):
-        AgentShell.try_run(self.base_cmd + ['-n', self.plug, '-o', 'status'])
+        AgentShell.try_run(self.base_cmd + ["-n", self.plug, "-o", "status"])
 
     def off(self):
-        self.toggle_outlet('off')
+        self.toggle_outlet("off")
 
     def on(self):
-        self.toggle_outlet('on')
+        self.toggle_outlet("on")
 
     def reboot(self):
-        self.toggle_outlet('reboot')
+        self.toggle_outlet("reboot")
 
 
 class fence_apc(FenceAgent):
     def __init__(self, agent, login, password, ipaddr, plug, ipport=23):
-        super(fence_apc, self).__init__(plug,
-                                        [agent, '-a', ipaddr, '-u', str(ipport), '-l', login, '-p', password])
+        super(fence_apc, self).__init__(
+            plug, [agent, "-a", ipaddr, "-u", str(ipport), "-l", login, "-p", password]
+        )
 
 
 class fence_apc_snmp(FenceAgent):
     def __init__(self, agent, login, password, ipaddr, plug, ipport=161):
-        super(fence_apc_snmp, self).__init__(plug,
-                                             [agent, '-a', ipaddr, '-u', str(ipport), '-l', login, '-p', password])
+        super(fence_apc_snmp, self).__init__(
+            plug, [agent, "-a", ipaddr, "-u", str(ipport), "-l", login, "-p", password]
+        )
 
 
 class fence_virsh(FenceAgent):
-    def __init__(self, agent, login, plug, ipaddr, ipport=22, password=None, identity_file="%s/.ssh/id_rsa" % expanduser("~")):
+    def __init__(
+        self,
+        agent,
+        login,
+        plug,
+        ipaddr,
+        ipport=22,
+        password=None,
+        identity_file="%s/.ssh/id_rsa" % expanduser("~"),
+    ):
         if identity_file and isfile(identity_file):
-            auth = ['-k', identity_file]
+            auth = ["-k", identity_file]
         elif password:
-            auth = ['-p', password]
+            auth = ["-p", password]
         else:
             raise RuntimeError("Neither password nor identity_file were supplied")
 
-        super(fence_virsh, self).__init__(plug,
-                                          [agent, '-a', ipaddr, '-u', str(ipport), '-l', login, '-x'] + auth)
+        super(fence_virsh, self).__init__(
+            plug, [agent, "-a", ipaddr, "-u", str(ipport), "-l", login, "-x"] + auth
+        )
 
     def on(self):
         """Override super.on to wait 15 seconds then process as usual.
@@ -81,16 +93,26 @@ class fence_virsh(FenceAgent):
 
 
 class fence_vbox(FenceAgent):
-    def __init__(self, agent, login, plug, ipaddr, ipport=22, password=None, identity_file="%s/.ssh/id_rsa" % expanduser("~")):
+    def __init__(
+        self,
+        agent,
+        login,
+        plug,
+        ipaddr,
+        ipport=22,
+        password=None,
+        identity_file="%s/.ssh/id_rsa" % expanduser("~"),
+    ):
         if password:
-            auth = ['-p', password]
+            auth = ["-p", password]
         elif identity_file and isfile(identity_file):
-            auth = ['-k', identity_file]
+            auth = ["-k", identity_file]
         else:
             raise RuntimeError("Neither password nor identity_file were supplied")
 
-        super(fence_vbox, self).__init__(plug,
-                                          [agent, '-a', ipaddr, '-u', str(ipport), '-l', login, '-x'] + auth)
+        super(fence_vbox, self).__init__(
+            plug, [agent, "-a", ipaddr, "-u", str(ipport), "-l", login, "-x"] + auth
+        )
 
     def on(self):
         """Override super.on to wait 15 seconds then process as usual.
@@ -110,12 +132,11 @@ class fence_vbox(FenceAgent):
 class fence_ipmilan(FenceAgent):
     def __init__(self, agent, login, password, ipaddr, lanplus=False):
         if lanplus:
-            base_cmd = [agent, '-P', '-a', ipaddr, '-l', login, '-p', password]
+            base_cmd = [agent, "-P", "-a", ipaddr, "-l", login, "-p", password]
         else:
-            base_cmd = [agent, '-a', ipaddr, '-l', login, '-p', password]
+            base_cmd = [agent, "-a", ipaddr, "-l", login, "-p", password]
 
-        super(fence_ipmilan, self).__init__("",
-                                            base_cmd)
+        super(fence_ipmilan, self).__init__("", base_cmd)
 
     def toggle_outlet(self, state):
-        AgentShell.try_run(self.base_cmd + ['-o', state])
+        AgentShell.try_run(self.base_cmd + ["-o", state])

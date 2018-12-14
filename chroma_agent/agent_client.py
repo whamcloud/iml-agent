@@ -11,7 +11,11 @@ import threading
 import traceback
 import datetime
 import sys
-from chroma_agent.plugin_manager import DevicePluginMessageCollection, DevicePluginMessage, PRIO_HIGH
+from chroma_agent.plugin_manager import (
+    DevicePluginMessageCollection,
+    DevicePluginMessage,
+    PRIO_HIGH,
+)
 import requests
 from chroma_agent import version
 from chroma_agent.log import daemon_log, console_log, logging_in_debug_mode
@@ -20,8 +24,8 @@ from iml_common.lib.util import ExceptionThrowingThread
 
 MAX_BYTES_PER_POST = 8 * 1024 ** 2  # 8MiB, should be <= SSLRenegBufferSize
 
-MIN_SESSION_BACKOFF = datetime.timedelta(seconds = 10)
-MAX_SESSION_BACKOFF = datetime.timedelta(seconds = 60)
+MIN_SESSION_BACKOFF = datetime.timedelta(seconds=10)
+MAX_SESSION_BACKOFF = datetime.timedelta(seconds=60)
 
 GET_REQUEST_TIMEOUT = 60.0
 
@@ -37,27 +41,32 @@ class CryptoClient(object):
             self.fqdn = socket.getfqdn()
 
     def get(self, **kwargs):
-        kwargs['timeout'] = GET_REQUEST_TIMEOUT
-        return self.request('get', **kwargs)
+        kwargs["timeout"] = GET_REQUEST_TIMEOUT
+        return self.request("get", **kwargs)
 
     def post(self, data, **kwargs):
-        return self.request('post', data = json.dumps(data), **kwargs)
+        return self.request("post", data=json.dumps(data), **kwargs)
 
     def request(self, method, **kwargs):
         cert, key = self._crypto.certificate_file, self._crypto.private_key_file
         if cert:
-            kwargs['cert'] = (cert, key)
+            kwargs["cert"] = (cert, key)
 
         try:
-            response = requests.request(method, self.url,
+            response = requests.request(
+                method,
+                self.url,
                 # FIXME: set verify to true if we have a CA bundle
-                verify = False,
-                headers = {"Content-Type": "application/json"},
-                **kwargs)
-        except (socket.error,
-                requests.exceptions.ConnectionError,
-                requests.exceptions.ReadTimeout,
-                requests.exceptions.SSLError) as e:
+                verify=False,
+                headers={"Content-Type": "application/json"},
+                **kwargs
+            )
+        except (
+            socket.error,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ReadTimeout,
+            requests.exceptions.SSLError,
+        ) as e:
             daemon_log.error("Error connecting to %s: %s" % (self.url, e))
             raise HttpError()
         except Exception as e:
@@ -72,7 +81,9 @@ class CryptoClient(object):
             raise HttpError()
 
         if not response.ok:
-            daemon_log.error("Bad status %s from %s to %s" % (response.status_code, method, self.url))
+            daemon_log.error(
+                "Bad status %s from %s to %s" % (response.status_code, method, self.url)
+            )
             if response.status_code == 413:
                 daemon_log.error("Oversized request: %s" % json.dumps(kwargs, indent=2))
             raise HttpError()
@@ -87,6 +98,7 @@ class AgentDaemonContext(object):
     Simple class that may be expanded in the future to allow more AgentDaemon context to be passed to action_plugins
     (and potentially others)
     """
+
     def __init__(self, plugin_sessions):
         """
         :param plugin_sessions: A dictionary of plugin sessions, the key is the name of the plugin 'linux' for example.
@@ -124,25 +136,27 @@ class AgentClient(CryptoClient):
 
     def join(self):
         daemon_log.debug("Client joining...")
-        #self.reader.join()
+        # self.reader.join()
         self.writer.join()
         self.sessions.terminate_all()
         daemon_log.debug("Client joined")
 
-    def register(self, address = None):
+    def register(self, address=None):
         # FIXME: At this time the 'capabilities' attribute is unused on the manager
         data = {
-            'address': address,
-            'fqdn': self._fqdn,
-            'nodename': self._nodename,
-            'capabilities': self.action_plugins.capabilities,
-            'version': version(),
-            'csr': self._crypto.generate_csr(self._fqdn)
+            "address": address,
+            "fqdn": self._fqdn,
+            "nodename": self._nodename,
+            "capabilities": self.action_plugins.capabilities,
+            "version": version(),
+            "csr": self._crypto.generate_csr(self._fqdn),
         }
 
-        if self._fqdn == 'localhost.localdomain':
+        if self._fqdn == "localhost.localdomain":
             console_log.error("Registration failed, FQDN is localhost.localdomain")
-            raise RuntimeError("Name resolution error, FQDN resolves to localhost.localdomain")
+            raise RuntimeError(
+                "Name resolution error, FQDN resolves to localhost.localdomain"
+            )
 
         # TODO: during registration, we should already have the authority certificate
         # so we should establish an HTTPS connection (no client cert) with the
@@ -152,17 +166,21 @@ class AgentClient(CryptoClient):
         try:
             result = self.post(data)
         except HttpError:
-            console_log.error("Registration failed to %s with request %s" % (self.url, data))
+            console_log.error(
+                "Registration failed to %s with request %s" % (self.url, data)
+            )
             raise
         else:
             return result
 
 
-MESSAGE_TYPES = ["SESSION_CREATE_REQUEST",
-                 "SESSION_CREATE_RESPONSE",
-                 "SESSION_TERMINATE",
-                 "DATA",
-                 "SESSION_TERMINATE_ALL"]
+MESSAGE_TYPES = [
+    "SESSION_CREATE_REQUEST",
+    "SESSION_CREATE_RESPONSE",
+    "SESSION_TERMINATE",
+    "DATA",
+    "SESSION_TERMINATE_ALL",
+]
 
 
 class Message(object):
@@ -173,7 +191,15 @@ class Message(object):
         prio_other = other.body.priority if other.body is not None else PRIO_HIGH
         return cmp(prio_self, prio_other)
 
-    def __init__(self, type = None, plugin_name = None, body = None, session_id = None, session_seq = None, callback = None):
+    def __init__(
+        self,
+        type=None,
+        plugin_name=None,
+        body=None,
+        session_id=None,
+        session_seq=None,
+        callback=None,
+    ):
         if type is not None:
             assert type in MESSAGE_TYPES
             self.type = type
@@ -184,12 +210,12 @@ class Message(object):
             self.callback = callback
 
     def parse(self, data):
-        assert data['type'] in MESSAGE_TYPES
-        self.type = data['type']
-        self.plugin_name = data['plugin']
-        self.body = data['body']
-        self.session_id = data['session_id']
-        self.session_seq = data['session_seq']
+        assert data["type"] in MESSAGE_TYPES
+        self.type = data["type"]
+        self.plugin_name = data["plugin"]
+        self.body = data["body"]
+        self.session_id = data["session_id"]
+        self.session_seq = data["session_seq"]
 
     def dump(self, fqdn):
         if isinstance(self.body, DevicePluginMessage):
@@ -198,12 +224,12 @@ class Message(object):
             body = self.body
 
         return {
-            'type': self.type,
-            'plugin': self.plugin_name,
-            'session_id': self.session_id,
-            'session_seq': self.session_seq,
-            'body': body,
-            'fqdn': fqdn
+            "type": self.type,
+            "plugin": self.plugin_name,
+            "session_id": self.session_id,
+            "session_seq": self.session_seq,
+            "body": body,
+            "fqdn": fqdn,
         }
 
 
@@ -222,7 +248,9 @@ class Session(object):
 
     def poll(self):
         now = datetime.datetime.now()
-        if self._last_poll is None or now - self._last_poll > datetime.timedelta(seconds = self.POLL_PERIOD):
+        if self._last_poll is None or now - self._last_poll > datetime.timedelta(
+            seconds=self.POLL_PERIOD
+        ):
             self._last_poll = now
             try:
                 self._poll_counter += 1
@@ -233,9 +261,13 @@ class Session(object):
             except NotImplementedError:
                 return None
 
-    def send_message(self, body, callback = None):
+    def send_message(self, body, callback=None):
         daemon_log.info("Session.send_message %s/%s" % (self._plugin_name, self.id))
-        self._writer.put(Message("DATA", self._plugin_name, body, self.id, self._seq, callback = callback))
+        self._writer.put(
+            Message(
+                "DATA", self._plugin_name, body, self.id, self._seq, callback=callback
+            )
+        )
         self._seq += 1
 
     def receive_message(self, body):
@@ -248,6 +280,7 @@ class Session(object):
 
 class SessionTable(object):
     """Collection of sessions for each DevicePlugin, updated by HttpControl"""
+
     def __init__(self, client):
         # Map of plugin name to session object
         self._sessions = {}
@@ -264,7 +297,7 @@ class SessionTable(object):
         self._backoffs.pop(plugin_name, None)
         self._sessions[plugin_name] = Session(self._client, id, plugin_name)
 
-    def get(self, plugin_name, id = None):
+    def get(self, plugin_name, id=None):
         session = self._sessions[plugin_name]
         if id is not None and session.id != id:
             raise KeyError()
@@ -295,8 +328,11 @@ class ExceptionCatchingThread(threading.Thread):
         try:
             self._run()
         except Exception:
-            backtrace = '\n'.join(traceback.format_exception(*(sys.exc_info())))
-            daemon_log.error("Unhandled error in thread %s: %s" % (self.__class__.__name__, backtrace))
+            backtrace = "\n".join(traceback.format_exception(*(sys.exc_info())))
+            daemon_log.error(
+                "Unhandled error in thread %s: %s"
+                % (self.__class__.__name__, backtrace)
+            )
             sys.exit(-1)
 
 
@@ -328,14 +364,19 @@ class HttpWriter(ExceptionCatchingThread):
             self.poll(plugin_name)
 
             # Ensure that we poll at most every POLL_PERIOD
-            self._stopping.wait(timeout=max(0, POLL_PERIOD - (datetime.datetime.now() - started_at).seconds))
+            self._stopping.wait(
+                timeout=max(
+                    0, POLL_PERIOD - (datetime.datetime.now() - started_at).seconds
+                )
+            )
 
     def _run(self):
         threads = []
 
         for plugin_name in self._client.device_plugins.get_plugins():
-            thread = ExceptionThrowingThread(target=self._run_plugin,
-                                             args=(plugin_name,))
+            thread = ExceptionThrowingThread(
+                target=self._run_plugin, args=(plugin_name,)
+            )
             threads.append(thread)
             thread.start()
 
@@ -350,7 +391,7 @@ class HttpWriter(ExceptionCatchingThread):
 
     def stop(self):
         self._stopping.set()
-        self._messages_waiting.set()       # Trigger this to cause  _run to loop spin and see that _stopping is set.
+        self._messages_waiting.set()  # Trigger this to cause  _run to loop spin and see that _stopping is set.
 
     def send(self):
         """Return True if the POST succeeds, else False"""
@@ -358,9 +399,9 @@ class HttpWriter(ExceptionCatchingThread):
         completion_callbacks = []
 
         post_envelope = {
-            'messages': [],
-            'server_boot_time': self._client.boot_time.isoformat() + "Z",
-            'client_start_time': self._client.start_time.isoformat() + "Z"
+            "messages": [],
+            "server_boot_time": self._client.boot_time.isoformat() + "Z",
+            "client_start_time": self._client.start_time.isoformat() + "Z",
         }
 
         # Any message we drop will need its session killed
@@ -383,15 +424,27 @@ class HttpWriter(ExceptionCatchingThread):
             message_length = len(json.dumps(message.dump(self._client._fqdn)))
 
             if message_length > MAX_BYTES_PER_POST:
-                daemon_log.warning("Oversized message %s/%s: %s" % (message_length, MAX_BYTES_PER_POST, message.dump(self._client._fqdn)))
+                daemon_log.warning(
+                    "Oversized message %s/%s: %s"
+                    % (
+                        message_length,
+                        MAX_BYTES_PER_POST,
+                        message.dump(self._client._fqdn),
+                    )
+                )
 
             if messages and message_length > MAX_BYTES_PER_POST - messages_bytes:
                 # This message will not fit into this POST: pop it back into the queue
                 daemon_log.info(
                     "HttpWriter message %s overflowed POST %s/%s (%d "
-                    "messages), enqueuing" % (
-                    message.dump(self._client._fqdn), message_length,
-                    MAX_BYTES_PER_POST, len(messages)))
+                    "messages), enqueuing"
+                    % (
+                        message.dump(self._client._fqdn),
+                        message_length,
+                        MAX_BYTES_PER_POST,
+                        len(messages),
+                    )
+                )
                 self._retry_messages.put(message)
                 break
 
@@ -400,13 +453,13 @@ class HttpWriter(ExceptionCatchingThread):
 
         daemon_log.debug("HttpWriter sending %s messages" % len(messages))
         try:
-            post_envelope['messages'] = [m.dump(self._client._fqdn) for m in messages]
+            post_envelope["messages"] = [m.dump(self._client._fqdn) for m in messages]
             self._client.post(post_envelope)
         except HttpError:
             daemon_log.warning("HttpWriter: request failed")
             # Terminate any sessions which we've just droppped messages for
             for message in messages:
-                if message.type == 'DATA':
+                if message.type == "DATA":
                     kill_sessions.add(message.plugin_name)
             for plugin_name in kill_sessions:
                 self._client.sessions.terminate(plugin_name)
@@ -432,13 +485,21 @@ class HttpWriter(ExceptionCatchingThread):
             # Request to open a session
             #
             if plugin_name in self._client.sessions._requested_at:
-                next_request_at = self._client.sessions._requested_at[plugin_name] + self._client.sessions._backoffs[plugin_name]
+                next_request_at = (
+                    self._client.sessions._requested_at[plugin_name]
+                    + self._client.sessions._backoffs[plugin_name]
+                )
                 if now < next_request_at:
                     # We're still in our backoff period, skip requesting a session
-                    daemon_log.debug("Delaying session request until %s" % next_request_at)
+                    daemon_log.debug(
+                        "Delaying session request until %s" % next_request_at
+                    )
                     return
                 else:
-                    if self._client.sessions._backoffs[plugin_name] < MAX_SESSION_BACKOFF:
+                    if (
+                        self._client.sessions._backoffs[plugin_name]
+                        < MAX_SESSION_BACKOFF
+                    ):
                         self._client.sessions._backoffs[plugin_name] *= 2
 
             daemon_log.debug("Requesting session for plugin %s" % plugin_name)
@@ -448,7 +509,7 @@ class HttpWriter(ExceptionCatchingThread):
             try:
                 data = session.poll()
             except Exception:
-                backtrace = '\n'.join(traceback.format_exception(*(sys.exc_info())))
+                backtrace = "\n".join(traceback.format_exception(*(sys.exc_info())))
                 daemon_log.error("Error in plugin %s: %s" % (plugin_name, backtrace))
                 self._client.sessions.terminate(plugin_name)
                 self.put(Message("SESSION_CREATE_REQUEST", plugin_name))
@@ -456,7 +517,9 @@ class HttpWriter(ExceptionCatchingThread):
                 if data is not None:
                     if isinstance(data, DevicePluginMessageCollection):
                         for message in data:
-                            session.send_message(DevicePluginMessage(message, priority = data.priority))
+                            session.send_message(
+                                DevicePluginMessage(message, priority=data.priority)
+                            )
                     elif isinstance(data, DevicePluginMessage):
                         session.send_message(data)
                     else:
@@ -482,7 +545,9 @@ class HttpReader(ExceptionCatchingThread):
         for message in messages:
             m = Message()
             m.parse(message)
-            daemon_log.info("HttpReader: %s(%s, %s)" % (m.type, m.plugin_name, m.session_id))
+            daemon_log.info(
+                "HttpReader: %s(%s, %s)" % (m.type, m.plugin_name, m.session_id)
+            )
 
             try:
                 if m.type == "SESSION_CREATE_RESPONSE":
@@ -495,30 +560,38 @@ class HttpReader(ExceptionCatchingThread):
                     try:
                         session = self._client.sessions.get(m.plugin_name, m.session_id)
                     except KeyError:
-                        daemon_log.warning("Received a message for unknown session %s/%s" % (m.plugin_name, m.session_id))
+                        daemon_log.warning(
+                            "Received a message for unknown session %s/%s"
+                            % (m.plugin_name, m.session_id)
+                        )
                     else:
                         # We have successfully routed the message to the plugin instance
                         # for this session
                         try:
                             session.receive_message(m.body)
                         except:
-                            daemon_log.error("%s/%s raised an exception: %s" % (m.plugin_name, m.session_id, traceback.format_exc()))
+                            daemon_log.error(
+                                "%s/%s raised an exception: %s"
+                                % (m.plugin_name, m.session_id, traceback.format_exc())
+                            )
                             self._client.sessions.terminate(m.plugin_name)
                 else:
                     raise NotImplementedError(m.type)
             except Exception:
-                backtrace = '\n'.join(traceback.format_exception(*(sys.exc_info())))
-                daemon_log.error("Plugin exception handling data message: %s" % backtrace)
+                backtrace = "\n".join(traceback.format_exception(*(sys.exc_info())))
+                daemon_log.error(
+                    "Plugin exception handling data message: %s" % backtrace
+                )
 
     def _run(self):
         get_args = {
-            'server_boot_time': self._client.boot_time.isoformat() + "Z",
-            'client_start_time': self._client.start_time.isoformat() + "Z"
+            "server_boot_time": self._client.boot_time.isoformat() + "Z",
+            "client_start_time": self._client.start_time.isoformat() + "Z",
         }
         while not self._stopping.is_set():
             daemon_log.info("HttpReader: get")
             try:
-                body = self._client.get(params = get_args)
+                body = self._client.get(params=get_args)
             except HttpError:
                 daemon_log.warning("HttpReader: request failed")
                 # We potentially dropped TX messages if this happened, which could include
@@ -527,14 +600,16 @@ class HttpReader(ExceptionCatchingThread):
                 # no need to do the teardown if we didn't even get a TCP connection to the manager.
                 self._client.sessions.terminate_all()
 
-                self._stopping.wait(timeout = self.HTTP_RETRY_PERIOD)
+                self._stopping.wait(timeout=self.HTTP_RETRY_PERIOD)
                 continue
             else:
-                self._handle_messages(body['messages'])
+                self._handle_messages(body["messages"])
         daemon_log.info("HttpReader: stopping")
 
     def stop(self):
         self._stopping.set()
+
+
 #
 #    def join(self, *args, **kwargs):
 #        # Clean timely teardown isn't possible because of blocking IO in HTTP long poll,

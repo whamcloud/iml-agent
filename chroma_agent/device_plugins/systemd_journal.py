@@ -6,7 +6,11 @@
 import Queue
 import threading
 from chroma_agent.log import console_log
-from chroma_agent.plugin_manager import DevicePlugin, DevicePluginMessageCollection, PRIO_LOW
+from chroma_agent.plugin_manager import (
+    DevicePlugin,
+    DevicePluginMessageCollection,
+    PRIO_LOW,
+)
 
 import datetime
 import pytz
@@ -31,14 +35,18 @@ def parse_journal(data):
        forwarding protocol is being used.
     """
 
-    utc_dt = get_localzone().localize(data['__REALTIME_TIMESTAMP'], is_dst=None).astimezone(pytz.utc)
+    utc_dt = (
+        get_localzone()
+        .localize(data["__REALTIME_TIMESTAMP"], is_dst=None)
+        .astimezone(pytz.utc)
+    )
 
     return {
-        'datetime': datetime.datetime.isoformat(utc_dt),
-        'severity': data['PRIORITY'],
-        'facility': data.get('SYSLOG_FACILITY', 3),
-        'source': data.get('SYSLOG_IDENTIFIER', 'unknown'),
-        'message': data['MESSAGE']
+        "datetime": datetime.datetime.isoformat(utc_dt),
+        "severity": data["PRIORITY"],
+        "facility": data.get("SYSLOG_FACILITY", 3),
+        "source": data.get("SYSLOG_IDENTIFIER", "unknown"),
+        "message": data["MESSAGE"],
     }
 
 
@@ -53,7 +61,7 @@ class SystemdJournalListener(threading.Thread):
         while self.should_run:
             if j.wait(1) == systemd.journal.APPEND:
                 for entry in j:
-                     _queue.put(parse_journal(entry))
+                    _queue.put(parse_journal(entry))
 
     def stop(self):
         console_log.debug("SystemdJournalListener.stop")
@@ -80,17 +88,20 @@ class SystemdJournalDevicePlugin(DevicePlugin):
         return self.update_session()
 
     def update_session(self):
-        messages = DevicePluginMessageCollection([], priority = PRIO_LOW)
+        messages = DevicePluginMessageCollection([], priority=PRIO_LOW)
         total_lines = 0
         while True:
             lines = self.poll()
             if lines:
                 total_lines += len(lines)
-                messages.append({'log_lines': lines})
+                messages.append({"log_lines": lines})
             else:
                 break
 
-        console_log.debug("SystemdJournalDevicePlugin: %s lines in %s messages" % (total_lines, len(messages)))
+        console_log.debug(
+            "SystemdJournalDevicePlugin: %s lines in %s messages"
+            % (total_lines, len(messages))
+        )
 
         if messages:
             return messages

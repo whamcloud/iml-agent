@@ -19,13 +19,13 @@ from iml_common.lib.agent_rpc import agent_ok_or_error
 
 PCS_TCP_PORT = 2224
 
-corosync_service = ServiceControl.create('corosync')
-pcsd_service = ServiceControl.create('pcsd')
+corosync_service = ServiceControl.create("corosync")
+pcsd_service = ServiceControl.create("pcsd")
 firewall_control = FirewallControl.create()
 
-PCS_USER = 'hacluster'
-PCS_CLUSTER_NAME = 'lustre-ha-cluster'
-COROSYNC_CONF_PATH = '/etc/corosync/corosync.conf'
+PCS_USER = "hacluster"
+PCS_CLUSTER_NAME = "lustre-ha-cluster"
+COROSYNC_CONF_PATH = "/etc/corosync/corosync.conf"
 
 
 def start_corosync2():
@@ -39,19 +39,25 @@ def stop_corosync2():
 def configure_corosync2_stage_1(mcast_port, pcs_password):
     # need to use user "hacluster" which is created on install of "pcs" package,
     # WARNING: clear text password
-    set_password_command = ['bash', '-c', 'echo %s | passwd --stdin %s' %
-                                          (pcs_password,
-                                           PCS_USER)]
+    set_password_command = [
+        "bash",
+        "-c",
+        "echo %s | passwd --stdin %s" % (pcs_password, PCS_USER),
+    ]
 
-    return agent_ok_or_error(AgentShell.run_canned_error_message(set_password_command) or
-                             firewall_control.add_rule(mcast_port, "udp", "corosync", persist=True) or
-                             firewall_control.add_rule(PCS_TCP_PORT, "tcp", "pcs", persist=True) or
-                             pcsd_service.start() or
-                             corosync_service.enable() or
-                             pcsd_service.enable())
+    return agent_ok_or_error(
+        AgentShell.run_canned_error_message(set_password_command)
+        or firewall_control.add_rule(mcast_port, "udp", "corosync", persist=True)
+        or firewall_control.add_rule(PCS_TCP_PORT, "tcp", "pcs", persist=True)
+        or pcsd_service.start()
+        or corosync_service.enable()
+        or pcsd_service.enable()
+    )
 
 
-def configure_corosync2_stage_2(ring0_name, ring1_name, new_node_fqdn, mcast_port, pcs_password, create_cluster):
+def configure_corosync2_stage_2(
+    ring0_name, ring1_name, new_node_fqdn, mcast_port, pcs_password, create_cluster
+):
     """Process configuration including peers and negotiated multicast port, no IP address
     information required
 
@@ -67,42 +73,77 @@ def configure_corosync2_stage_2(ring0_name, ring1_name, new_node_fqdn, mcast_por
     :return:
     """
 
-    interfaces = [InterfaceInfo(CorosyncRingInterface(name=ring0_name, ringnumber=0,
-                                                      mcastport=mcast_port), None, None),
-                  InterfaceInfo(CorosyncRingInterface(name=ring1_name, ringnumber=1,
-                                                      mcastport=mcast_port), None, None)]
+    interfaces = [
+        InterfaceInfo(
+            CorosyncRingInterface(name=ring0_name, ringnumber=0, mcastport=mcast_port),
+            None,
+            None,
+        ),
+        InterfaceInfo(
+            CorosyncRingInterface(name=ring1_name, ringnumber=1, mcastport=mcast_port),
+            None,
+            None,
+        ),
+    ]
 
     config_params = {
-        'token': '17000',
-        'fail_recv_const': '10',
-        'transport': 'udp',
-        'rrpmode': 'passive',
-        'addr0': interfaces[0].corosync_iface.bindnetaddr,
-        'addr1': interfaces[1].corosync_iface.bindnetaddr,
-        'mcast0': interfaces[0].corosync_iface.mcastaddr,
-        'mcast1': interfaces[1].corosync_iface.mcastaddr,
-        'mcastport0': interfaces[0].corosync_iface.mcastport,
-        'mcastport1': interfaces[1].corosync_iface.mcastport
+        "token": "17000",
+        "fail_recv_const": "10",
+        "transport": "udp",
+        "rrpmode": "passive",
+        "addr0": interfaces[0].corosync_iface.bindnetaddr,
+        "addr1": interfaces[1].corosync_iface.bindnetaddr,
+        "mcast0": interfaces[0].corosync_iface.mcastaddr,
+        "mcast1": interfaces[1].corosync_iface.mcastaddr,
+        "mcastport0": interfaces[0].corosync_iface.mcastport,
+        "mcastport1": interfaces[1].corosync_iface.mcastport,
     }
 
     # authenticate nodes in cluster
-    authenticate_nodes_in_cluster_command = ['pcs', 'cluster', 'auth', new_node_fqdn,
-                                             '-u', PCS_USER, '-p', pcs_password]
+    authenticate_nodes_in_cluster_command = [
+        "pcs",
+        "cluster",
+        "auth",
+        new_node_fqdn,
+        "-u",
+        PCS_USER,
+        "-p",
+        pcs_password,
+    ]
 
     # build command string for setup of cluster which will result in corosync.conf rather than
     # writing from template, note we don't start the cluster here as services are managed
     # independently
     if create_cluster:
-        cluster_setup_command = ['pcs', 'cluster', 'setup', '--name', PCS_CLUSTER_NAME, '--force'] + [new_node_fqdn]
-        for param in ['transport', 'rrpmode', 'addr0', 'mcast0', 'mcastport0', 'addr1', 'mcast1',
-                      'mcastport1', 'token', 'fail_recv_const']:
+        cluster_setup_command = [
+            "pcs",
+            "cluster",
+            "setup",
+            "--name",
+            PCS_CLUSTER_NAME,
+            "--force",
+        ] + [new_node_fqdn]
+        for param in [
+            "transport",
+            "rrpmode",
+            "addr0",
+            "mcast0",
+            "mcastport0",
+            "addr1",
+            "mcast1",
+            "mcastport1",
+            "token",
+            "fail_recv_const",
+        ]:
             # pull this value from the dictionary using parameter keyword
             cluster_setup_command.extend(["--" + param, str(config_params[param])])
     else:
-        cluster_setup_command = ['pcs', 'cluster', 'node', 'add', new_node_fqdn]
+        cluster_setup_command = ["pcs", "cluster", "node", "add", new_node_fqdn]
 
-    return agent_ok_or_error(AgentShell.run_canned_error_message(authenticate_nodes_in_cluster_command) or
-                             AgentShell.run_canned_error_message(cluster_setup_command))
+    return agent_ok_or_error(
+        AgentShell.run_canned_error_message(authenticate_nodes_in_cluster_command)
+        or AgentShell.run_canned_error_message(cluster_setup_command)
+    )
 
 
 def _nodes_in_cluster():
@@ -117,16 +158,16 @@ def _nodes_in_cluster():
     :return: a list of all nodes in cluster
     """
     nodes = []
-    result = AgentShell.run(['pcs', 'status', 'nodes', 'corosync'])
+    result = AgentShell.run(["pcs", "status", "nodes", "corosync"])
 
     if result.rc != 0:
         # log all command errors but always continue to remove node from cluster
         console_log.warning(result.stderr)
     else:
         # nodes are on the right side of lines separated with ':'
-        for line in result.stdout.split('\n'):
-            if line.find(':') > 0:
-                nodes.extend(line.split(':')[1].strip().split())
+        for line in result.stdout.split("\n"):
+            if line.find(":") > 0:
+                nodes.extend(line.split(":")[1].strip().split())
 
     return nodes
 
@@ -138,11 +179,18 @@ def change_mcast_port(old_mcast_port, new_mcast_port):
 
     Return: Value using simple return protocol
     """
-    file_edit_args = ['sed', '-i.bak', 's/mcastport:.*/mcastport: %s/g' % new_mcast_port, COROSYNC_CONF_PATH]
+    file_edit_args = [
+        "sed",
+        "-i.bak",
+        "s/mcastport:.*/mcastport: %s/g" % new_mcast_port,
+        COROSYNC_CONF_PATH,
+    ]
 
-    return agent_ok_or_error(firewall_control.remove_rule(old_mcast_port, "udp", "corosync", persist=True) or
-                             firewall_control.add_rule(new_mcast_port, "udp", "corosync", persist=True) or
-                             AgentShell.run_canned_error_message(file_edit_args))
+    return agent_ok_or_error(
+        firewall_control.remove_rule(old_mcast_port, "udp", "corosync", persist=True)
+        or firewall_control.add_rule(new_mcast_port, "udp", "corosync", persist=True)
+        or AgentShell.run_canned_error_message(file_edit_args)
+    )
 
 
 def unconfigure_corosync2(host_fqdn, mcast_port):
@@ -163,23 +211,30 @@ def unconfigure_corosync2(host_fqdn, mcast_port):
     # Detect if we are the only node in the cluster, we want to do this before next command removes conf file
     cluster_nodes = _nodes_in_cluster()
 
-    result = AgentShell.run(['pcs', '--force', 'cluster', 'node', 'remove', host_fqdn])
+    result = AgentShell.run(["pcs", "--force", "cluster", "node", "remove", host_fqdn])
 
     if result.rc != 0:
-        if 'No such file or directory' in result.stderr:
+        if "No such file or directory" in result.stderr:
             # we want to return successful if the configuration file does not exist
             console_log.warning(result.stderr)
-        elif 'Error: Unable to update any nodes' in result.stderr:
+        elif "Error: Unable to update any nodes" in result.stderr:
             # this error is expected when this is the last node in the cluster
             if len(cluster_nodes) != 1:
                 return agent_error(result.stderr)
         else:
             return agent_error(result.stderr)
 
-    return agent_ok_or_error(firewall_control.remove_rule(PCS_TCP_PORT, 'tcp', 'pcs', persist=True) or
-                             firewall_control.remove_rule(mcast_port, 'udp', 'corosync', persist=True))
+    return agent_ok_or_error(
+        firewall_control.remove_rule(PCS_TCP_PORT, "tcp", "pcs", persist=True)
+        or firewall_control.remove_rule(mcast_port, "udp", "corosync", persist=True)
+    )
 
 
-ACTIONS = [start_corosync2, stop_corosync2,
-           configure_corosync2_stage_1, configure_corosync2_stage_2,
-           change_mcast_port, unconfigure_corosync2]
+ACTIONS = [
+    start_corosync2,
+    stop_corosync2,
+    configure_corosync2_stage_1,
+    configure_corosync2_stage_2,
+    change_mcast_port,
+    unconfigure_corosync2,
+]

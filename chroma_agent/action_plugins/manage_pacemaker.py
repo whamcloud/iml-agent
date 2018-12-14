@@ -30,8 +30,8 @@ RSRC_FAIL_MIGRATION_COUNT = "3"
 
 PACEMAKER_CONFIGURE_TIMEOUT = 120
 
-pacemaker_service = ServiceControl.create('pacemaker')
-corosync_service = ServiceControl.create('corosync')
+pacemaker_service = ServiceControl.create("pacemaker")
+corosync_service = ServiceControl.create("corosync")
 
 
 def _get_cluster_size():
@@ -44,7 +44,7 @@ def _get_cluster_size():
         return 0
 
     n = 0
-    for line in stdout.rstrip().split('\n'):
+    for line in stdout.rstrip().split("\n"):
         node_id, name, status = line.split(" ")
         if status == "member" or status == "lost":
             n = n + 1
@@ -65,10 +65,10 @@ def enable_pacemaker():
 
 
 def configure_pacemaker():
-    '''
+    """
     Configure pacemaker
     :return: Error string on failure, None on success
-    '''
+    """
     # Corosync needs to be running for pacemaker -- if it's not, make
     # an attempt to get it going.
     if not corosync_service.running:
@@ -77,7 +77,12 @@ def configure_pacemaker():
         if error:
             return agent_error(error)
 
-    for action in [enable_pacemaker, stop_pacemaker, start_pacemaker, _configure_pacemaker]:
+    for action in [
+        enable_pacemaker,
+        stop_pacemaker,
+        start_pacemaker,
+        _configure_pacemaker,
+    ]:
         error = action()
 
         if error != agent_result_ok:
@@ -88,11 +93,11 @@ def configure_pacemaker():
 
 
 def _configure_pacemaker():
-    '''
+    """
     Configure pacemaker if this node is the dc.
 
     :return: agent_ok if no error else returns an agent_error
-    '''
+    """
     pc = PacemakerConfig()
 
     timeout_time = time.time() + PACEMAKER_CONFIGURE_TIMEOUT
@@ -100,19 +105,23 @@ def _configure_pacemaker():
 
     while (pc.configured is False) and (time.time() < timeout_time):
         if pc.is_dc:
-            daemon_log.info('Configuring (global) pacemaker configuration because I am the DC')
+            daemon_log.info(
+                "Configuring (global) pacemaker configuration because I am the DC"
+            )
 
             error = _do_configure_pacemaker(pc)
 
             if error:
                 return agent_error(error)
         else:
-            daemon_log.info('Not configuring (global) pacemaker configuration because I am not the DC')
+            daemon_log.info(
+                "Not configuring (global) pacemaker configuration because I am not the DC"
+            )
 
         time.sleep(10)
 
     if pc.configured is False:
-        error = 'Failed to configure (global) pacemaker configuration dc=%s' % pc.dc
+        error = "Failed to configure (global) pacemaker configuration dc=%s" % pc.dc
 
     return agent_ok_or_error(error)
 
@@ -132,35 +141,58 @@ def _do_configure_pacemaker(pc):
     # this could race with other cluster members to make sure
     # any errors are only due to it already existing
     try:
-        cibadmin(["--create", "-o", "resources", "-X",
-                  "<primitive class=\"stonith\" id=\"st-fencing\" type=\"fence_chroma\"/>"])
+        cibadmin(
+            [
+                "--create",
+                "-o",
+                "resources",
+                "-X",
+                '<primitive class="stonith" id="st-fencing" type="fence_chroma"/>',
+            ]
+        )
     except Exception as e:
-        rc, stdout, stderr = AgentShell.run_old(['crm_resource', '--locate',
-                                                 '--resource', "st-fencing"])
-        if rc == 0:                     # no need to do the rest if another member is already doing it
+        rc, stdout, stderr = AgentShell.run_old(
+            ["crm_resource", "--locate", "--resource", "st-fencing"]
+        )
+        if rc == 0:  # no need to do the rest if another member is already doing it
             return None
         else:
             return e.message
 
-    pc.create_update_properyset("cib-bootstrap-options",
-                                {"no-quorum-policy": no_quorum_policy,
-                                 "symmetric-cluster": "true",
-                                 "cluster-infrastructure": "openais",
-                                 "stonith-enabled": "true"})
+    pc.create_update_properyset(
+        "cib-bootstrap-options",
+        {
+            "no-quorum-policy": no_quorum_policy,
+            "symmetric-cluster": "true",
+            "cluster-infrastructure": "openais",
+            "stonith-enabled": "true",
+        },
+    )
 
     def set_rsc_default(name, value):
-        '''
+        """
 
         :param name: attribute to set
         :param value: value to set
         :return: None if an error else a canned error message
-        '''
-        return AgentShell.run_canned_error_message(["crm_attribute", "--type", "rsc_defaults",
-                                                    "--attr-name", name, "--attr-value", value])
+        """
+        return AgentShell.run_canned_error_message(
+            [
+                "crm_attribute",
+                "--type",
+                "rsc_defaults",
+                "--attr-name",
+                name,
+                "--attr-value",
+                value,
+            ]
+        )
 
-    return set_rsc_default("resource-stickiness", "1000") or \
-        set_rsc_default("failure-timeout", RSRC_FAIL_WINDOW) or \
-        set_rsc_default("migration-threshold", RSRC_FAIL_MIGRATION_COUNT)
+    return (
+        set_rsc_default("resource-stickiness", "1000")
+        or set_rsc_default("failure-timeout", RSRC_FAIL_WINDOW)
+        or set_rsc_default("migration-threshold", RSRC_FAIL_MIGRATION_COUNT)
+    )
 
 
 def configure_fencing(agents):
@@ -176,8 +208,7 @@ def configure_fencing(agents):
     for idx, agent in enumerate(agents):
         node.set_fence_attributes(idx, agent)
 
-    pc.create_update_properyset("cib-bootstrap-options",
-                                {"stonith-enabled": "true"})
+    pc.create_update_properyset("cib-bootstrap-options", {"stonith-enabled": "true"})
 
 
 def set_node_standby(node):
@@ -207,14 +238,20 @@ def unconfigure_pacemaker():
         # last node, nuke the CIB
         cibadmin(["-f", "-E"])
 
-    return agent_ok_or_error(pacemaker_service.stop() or
-                             pacemaker_service.disable())
+    return agent_ok_or_error(pacemaker_service.stop() or pacemaker_service.disable())
 
 
 def _unconfigure_fencing():
     try:
-        cibadmin(["--delete", "-o", "resources", "-X",
-                  "<primitive class=\"stonith\" id=\"st-fencing\" type=\"fence_chroma\"/>"])
+        cibadmin(
+            [
+                "--delete",
+                "-o",
+                "resources",
+                "-X",
+                '<primitive class="stonith" id="st-fencing" type="fence_chroma"/>',
+            ]
+        )
 
         return None
     except Exception as e:
@@ -235,17 +272,17 @@ def unconfigure_fencing():
 
 
 def delete_node(nodename):
-    rc, stdout, stderr = AgentShell.run_old(['crm_node', '-l'])
+    rc, stdout, stderr = AgentShell.run_old(["crm_node", "-l"])
     node_id = None
-    for line in stdout.split('\n'):
+    for line in stdout.split("\n"):
         node_id, name, status = line.split(" ")
         if name == nodename:
             break
-    AgentShell.try_run(['crm_node', '--force', '-R', node_id])
-    cibadmin(["--delete", "-o", "nodes", "-X",
-              "<node uname=\"%s\"/>" % nodename])
-    cibadmin(["--delete", "-o", "nodes", "--crm_xml",
-              "<node_state uname=\"%s\"/>" % nodename])
+    AgentShell.try_run(["crm_node", "--force", "-R", node_id])
+    cibadmin(["--delete", "-o", "nodes", "-X", '<node uname="%s"/>' % nodename])
+    cibadmin(
+        ["--delete", "-o", "nodes", "--crm_xml", '<node_state uname="%s"/>' % nodename]
+    )
 
 
 # This is a required due to a short coming in the state-machine which is that transient states are not supported.
@@ -281,8 +318,15 @@ class PreservePacemakerCorosyncState(object):
             PreservePacemakerCorosyncState.lock.release()
 
 
-ACTIONS = [start_pacemaker, stop_pacemaker,
-           enable_pacemaker, configure_pacemaker, unconfigure_pacemaker,
-           configure_fencing, unconfigure_fencing,
-           set_node_standby, set_node_online,
-           delete_node]
+ACTIONS = [
+    start_pacemaker,
+    stop_pacemaker,
+    enable_pacemaker,
+    configure_pacemaker,
+    unconfigure_pacemaker,
+    configure_fencing,
+    unconfigure_fencing,
+    set_node_standby,
+    set_node_online,
+    delete_node,
+]

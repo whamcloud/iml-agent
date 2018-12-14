@@ -16,6 +16,7 @@ def agent_daemon_startup_function():
             ...
 
     """
+
     def _decorator(func):
         agent_daemon_startup_functions.append(func)
         return func

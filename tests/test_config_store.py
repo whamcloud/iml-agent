@@ -8,7 +8,11 @@ from mock import patch
 
 from django.utils import unittest
 
-from chroma_agent.config_store import ConfigStore, ConfigKeyExistsError, InvalidConfigIdentifier
+from chroma_agent.config_store import (
+    ConfigStore,
+    ConfigKeyExistsError,
+    InvalidConfigIdentifier,
+)
 
 
 class ConfigStoreTests(unittest.TestCase):
@@ -17,9 +21,13 @@ class ConfigStoreTests(unittest.TestCase):
 
         self.config = ConfigStore(tempfile.mkdtemp())
 
-        self.data = {'foo': 1, 'bar': "1", 'baz': ['qux', 'quux', 'corge'],
-                     'grault': {'garply': "waldo", 'fred': ['plugh', 'xyzzy']},
-                     'thud': False}
+        self.data = {
+            "foo": 1,
+            "bar": "1",
+            "baz": ["qux", "quux", "corge"],
+            "grault": {"garply": "waldo", "fred": ["plugh", "xyzzy"]},
+            "thud": False,
+        }
 
     def tearDown(self):
         super(ConfigStoreTests, self).tearDown()
@@ -36,7 +44,7 @@ class ConfigStoreTests(unittest.TestCase):
     def test_update(self):
         self.config.set("barfy", "cow", self.data)
 
-        self.data['thud'] = True
+        self.data["thud"] = True
         self.config.update("barfy", "cow", self.data)
         self.assertEqual(self.data, self.config.get("barfy", "cow"))
 
@@ -60,8 +68,8 @@ class ConfigStoreTests(unittest.TestCase):
             self.config.get("barfy", "cow")
 
     def test_get_nonexistent_section(self):
-        self.assertListEqual([], self.config.get_section_keys('foo'))
-        self.assertDictEqual({}, self.config.get_section('foo'))
+        self.assertListEqual([], self.config.get_section_keys("foo"))
+        self.assertDictEqual({}, self.config.get_section("foo"))
 
     def test_sections(self):
         maladies = ["barfy", "gassy", "sad", "grumpy"]
@@ -73,20 +81,22 @@ class ConfigStoreTests(unittest.TestCase):
     def test_get_section(self):
         self.config.set("barfy", "cow", self.data)
 
-        self.assertDictEqual({'cow': self.data},
-                             self.config.get_section("barfy"))
+        self.assertDictEqual({"cow": self.data}, self.config.get_section("barfy"))
 
     def test_get_all(self):
         maladies = ["barfy", "gassy", "sad", "grumpy"]
         for malady in maladies:
             self.config.set(malady, "cow", self.data)
 
-        self.assertDictEqual({
-            'barfy': {'cow': self.data},
-            'gassy': {'cow': self.data},
-            'sad': {'cow': self.data},
-            'grumpy': {'cow': self.data}
-            }, self.config.get_all())
+        self.assertDictEqual(
+            {
+                "barfy": {"cow": self.data},
+                "gassy": {"cow": self.data},
+                "sad": {"cow": self.data},
+                "grumpy": {"cow": self.data},
+            },
+            self.config.get_all(),
+        )
 
     def test_clear(self):
         maladies = ["barfy", "gassy", "sad", "grumpy"]
@@ -99,19 +109,20 @@ class ConfigStoreTests(unittest.TestCase):
     def test_bad_identifiers(self):
         badkey = object()
         with self.assertRaises(InvalidConfigIdentifier):
-            self.config.set('whoops', badkey, "foobar")
+            self.config.set("whoops", badkey, "foobar")
         with self.assertRaises(InvalidConfigIdentifier):
-            self.config.set(badkey, 'whoops', "foobar")
+            self.config.set(badkey, "whoops", "foobar")
 
     def test_unicode_identifiers(self):
-        test_id = u'should work'
-        self.config.set('ok', test_id, self.data)
-        self.assertDictEqual(self.data, self.config.get('ok', test_id))
-        self.config.set(test_id, 'ok', self.data)
-        self.assertDictEqual(self.data, self.config.get(test_id, 'ok'))
+        test_id = u"should work"
+        self.config.set("ok", test_id, self.data)
+        self.assertDictEqual(self.data, self.config.get("ok", test_id))
+        self.config.set(test_id, "ok", self.data)
+        self.assertDictEqual(self.data, self.config.get(test_id, "ok"))
 
     def test_thread_safety(self):
         import Queue
+
         config = self.config
         data = self.data
         testcase = self
@@ -129,7 +140,9 @@ class ConfigStoreTests(unittest.TestCase):
                     with self.config.lock:
                         self.config.set("barfy", "cow", self.data)
                         time.sleep(1)
-                        self.testcase.assertDictEqual(self.data, self.config.get("barfy", "cow"))
+                        self.testcase.assertDictEqual(
+                            self.data, self.config.get("barfy", "cow")
+                        )
                 except Exception as e:
                     exceptions.put(e)
 
@@ -155,12 +168,14 @@ class ConfigStoreTests(unittest.TestCase):
         b.join()
 
         with self.assertRaises(Queue.Empty):
-            raise RuntimeError("Thread safety check failed: %s" %
-                               exceptions.get(block=False))
+            raise RuntimeError(
+                "Thread safety check failed: %s" % exceptions.get(block=False)
+            )
 
     def test_multiprocess_safety(self):
         from multiprocessing import Queue
         from Queue import Empty
+
         config = self.config
         data = self.data
         testcase = self
@@ -178,7 +193,9 @@ class ConfigStoreTests(unittest.TestCase):
                     with self.config.lock:
                         self.config.set("barfy", "cow", self.data)
                         time.sleep(1)
-                        self.testcase.assertDictEqual(self.data, self.config.get("barfy", "cow"))
+                        self.testcase.assertDictEqual(
+                            self.data, self.config.get("barfy", "cow")
+                        )
                 except Exception as e:
                     exceptions.put(e)
 
@@ -204,22 +221,23 @@ class ConfigStoreTests(unittest.TestCase):
         b.join()
 
         with self.assertRaises(Empty):
-            raise RuntimeError("Multi-process safety check failed: %s" %
-                               exceptions.get(block=False))
+            raise RuntimeError(
+                "Multi-process safety check failed: %s" % exceptions.get(block=False)
+            )
 
     def test_profile_managed_true(self):
-        self.config.set('settings', 'profile', {'managed': True})
+        self.config.set("settings", "profile", {"managed": True})
         self.assertEqual(self.config.profile_managed, True)
 
     def test_profile_managed_false(self):
-        self.config.set('settings', 'profile', {'managed': False})
+        self.config.set("settings", "profile", {"managed": False})
         self.assertEqual(self.config.profile_managed, False)
 
     def test_profile_managed_missing_false_section(self):
         self.assertEqual(self.config.profile_managed, False)
 
     def test_profile_managed_missing_false_ket(self):
-        self.config.set('settings', 'profile', {'trevor': 'andy'})
+        self.config.set("settings", "profile", {"trevor": "andy"})
         self.assertEqual(self.config.profile_managed, False)
 
 
@@ -228,8 +246,8 @@ class AgentStoreConversionTests(unittest.TestCase):
         super(AgentStoreConversionTests, self).setUp()
 
         self.env_path_patch = patch(
-            'chroma_agent.conf.ENV_PATH',
-            new=tempfile.mkdtemp())
+            "chroma_agent.conf.ENV_PATH", new=tempfile.mkdtemp()
+        )
         self.env_path = self.env_path_patch.start()
         self.config = ConfigStore(tempfile.mkdtemp())
 
@@ -245,35 +263,38 @@ class AgentStoreConversionTests(unittest.TestCase):
         import json
         import string
 
-        self.old_server_conf = {'url': 'http://foo.bar.baz/'}
+        self.old_server_conf = {"url": "http://foo.bar.baz/"}
 
-        with open(os.path.join(self.config.path, 'server_conf'), 'w') as f:
+        with open(os.path.join(self.config.path, "server_conf"), "w") as f:
             json.dump(self.old_server_conf, f)
 
         self.old_target_configs = {}
         for i in xrange(0, 15):
-            bdev = '/dev/sd%s' % string.ascii_lowercase[i]
-            mntpt = '/mnt/target%04d' % i
+            bdev = "/dev/sd%s" % string.ascii_lowercase[i]
+            mntpt = "/mnt/target%04d" % i
             uuid_str = str(uuid.uuid4())
-            target_config = dict(bdev = bdev, mntpt = mntpt)
-            with open(os.path.join(self.config.path, uuid_str), 'w') as f:
+            target_config = dict(bdev=bdev, mntpt=mntpt)
+            with open(os.path.join(self.config.path, uuid_str), "w") as f:
                 json.dump(target_config, f)
             self.old_target_configs[uuid_str] = target_config
 
     def test_agentstore_conversion(self):
         with patch(
-                'chroma_agent.action_plugins.settings_management.config',
-                new=self.config):
+            "chroma_agent.action_plugins.settings_management.config", new=self.config
+        ):
             self._create_agentstore_config()
 
-            from chroma_agent.action_plugins.settings_management import _convert_agentstore_config
+            from chroma_agent.action_plugins.settings_management import (
+                _convert_agentstore_config,
+            )
+
             _convert_agentstore_config()
 
-            with open(os.path.join(self.env_path, 'manager-url.conf'),
-                      'r') as f:
-                self.assertEqual(f.read(), "IML_MANAGER_URL={}\n".format(
-                    self.old_server_conf.get('url')))
+            with open(os.path.join(self.env_path, "manager-url.conf"), "r") as f:
+                self.assertEqual(
+                    f.read(),
+                    "IML_MANAGER_URL={}\n".format(self.old_server_conf.get("url")),
+                )
 
             for uuid, old_target_conf in self.old_target_configs.items():
-                self.assertDictEqual(
-                    self.config.get('targets', uuid), old_target_conf)
+                self.assertDictEqual(self.config.get("targets", uuid), old_target_conf)

@@ -6,19 +6,22 @@
 from datetime import datetime
 
 from chroma_agent.lib.shell import AgentShell
-from chroma_agent.device_plugins.block_devices import get_normalized_device_table, get_local_mounts
+from chroma_agent.device_plugins.block_devices import (
+    get_normalized_device_table,
+    get_local_mounts,
+)
 from iml_common.blockdevices.blockdevice import BlockDevice
 from chroma_agent.log import daemon_log
 from chroma_agent import config
 
 
 class LocalTargets(object):
-    '''
+    """
     Allows local targets to be examined.
     Note the targets are only examined once with the results cached.
     Detecting change therefore requires a new instance
     to be created and queried.
-    '''
+    """
 
     def __init__(self, target_devices):
         # Working set: accumulate device paths for each (uuid, name).  This is
@@ -33,38 +36,47 @@ class LocalTargets(object):
 
             # If the target_device has no uuid then it doesn't have a filesystem and is of no use to use, but
             # for now let's fill it in an see what happens.
-            if device['uuid'] == None:
+            if device["uuid"] == None:
                 try:
-                    device['uuid'] = block_device.uuid
+                    device["uuid"] = block_device.uuid
                 except AgentShell.CommandExecutionError:
                     pass
 
             # OK, so we really don't have a uuid for this, so we won't find a lustre filesystem on it.
-            if device['uuid'] == None:
-                daemon_log.info("Device %s had no UUID and so will not be examined for Lustre" % device['path'])
+            if device["uuid"] == None:
+                daemon_log.info(
+                    "Device %s had no UUID and so will not be examined for Lustre"
+                    % device["path"]
+                )
                 continue
 
             targets = block_device.targets(uuid_name_to_target, device, daemon_log)
 
             ndp = get_normalized_device_table()
 
-            mounted = ndp.normalized_device_path(device['path']) in set([ndp.normalized_device_path(path)
-                                                                         for path, _, _ in get_local_mounts()])
+            mounted = ndp.normalized_device_path(device["path"]) in set(
+                [ndp.normalized_device_path(path) for path, _, _ in get_local_mounts()]
+            )
 
             for name in targets.names:
-                daemon_log.info("Device %s contained name:%s and is %smounted" % (device['path'], name, "" if mounted else "un"))
+                daemon_log.info(
+                    "Device %s contained name:%s and is %smounted"
+                    % (device["path"], name, "" if mounted else "un")
+                )
 
                 try:
-                    target_dict = uuid_name_to_target[(device['uuid'], name)]
-                    target_dict['devices'].append(device)
+                    target_dict = uuid_name_to_target[(device["uuid"], name)]
+                    target_dict["devices"].append(device)
                 except KeyError:
-                    target_dict = {"name": name,
-                                   "uuid": device['uuid'],
-                                   "params": targets.params,
-                                   "device_paths": [device['path']],
-                                   "mounted": mounted,
-                                   'type': device['type']}
-                    uuid_name_to_target[(device['uuid'], name)] = target_dict
+                    target_dict = {
+                        "name": name,
+                        "uuid": device["uuid"],
+                        "params": targets.params,
+                        "device_paths": [device["path"]],
+                        "mounted": mounted,
+                        "type": device["type"],
+                    }
+                    uuid_name_to_target[(device["uuid"], name)] = target_dict
 
         self.targets = uuid_name_to_target.values()
 
@@ -79,13 +91,15 @@ class MgsTargets(object):
         mgs_target = None
 
         for t in local_targets:
-            if t["name"] == "MGS" and t['mounted']:
+            if t["name"] == "MGS" and t["mounted"]:
                 mgs_target = t
 
         if mgs_target:
             daemon_log.info("Searching Lustre logs for filesystems")
 
-            block_device = BlockDevice(mgs_target["type"], mgs_target["device_paths"][0])
+            block_device = BlockDevice(
+                mgs_target["type"], mgs_target["device_paths"][0]
+            )
 
             self.filesystems = block_device.mgs_targets(daemon_log)
 
@@ -100,17 +114,23 @@ def detect_scan(target_devices=None):
     right_now = str(datetime.now())
 
     if target_devices is not None:
-        target_devices_time_stamped = dict(timestamp=right_now, target_devices=target_devices)
-        config.update('settings', 'last_detect_scan_target_devices', target_devices_time_stamped)
+        target_devices_time_stamped = dict(
+            timestamp=right_now, target_devices=target_devices
+        )
+        config.update(
+            "settings", "last_detect_scan_target_devices", target_devices_time_stamped
+        )
 
     try:
         # Recall the last target_devices used in this method
-        settings = config.get('settings', 'last_detect_scan_target_devices')
+        settings = config.get("settings", "last_detect_scan_target_devices")
     except KeyError:
         # This method was never called with a non-null target_devices
         # or the setting file holding the device record is not found.
-        daemon_log.warn("detect_scan improperly called without target_devices "
-                        "and without a previous call's target_devices to use.")
+        daemon_log.warn(
+            "detect_scan improperly called without target_devices "
+            "and without a previous call's target_devices to use."
+        )
 
         # TODO: Consider an exception here. But, since this is a rare case, it seems reasonable to return emptiness
         # TODO: If this raised an exception, it should be a handled one in any client, and that seems too heavy
@@ -119,15 +139,20 @@ def detect_scan(target_devices=None):
 
     else:
         # Have target devices, so process them
-        timestamp = settings['timestamp']
-        daemon_log.info("detect_scan called at %s with target_devices saved on %s" % (str(datetime.now()), timestamp))
-        local_targets = LocalTargets(settings['target_devices'])
+        timestamp = settings["timestamp"]
+        daemon_log.info(
+            "detect_scan called at %s with target_devices saved on %s"
+            % (str(datetime.now()), timestamp)
+        )
+        local_targets = LocalTargets(settings["target_devices"])
 
     # Return the discovered Lustre components on the target devices, may return emptiness.
     mgs_targets = MgsTargets(local_targets.targets)
-    return {"target_devices_saved_timestamp": timestamp,
-            "local_targets": local_targets.targets,
-            "mgs_targets": mgs_targets.filesystems}
+    return {
+        "target_devices_saved_timestamp": timestamp,
+        "local_targets": local_targets.targets,
+        "mgs_targets": mgs_targets.filesystems,
+    }
 
 
 ACTIONS = [detect_scan]

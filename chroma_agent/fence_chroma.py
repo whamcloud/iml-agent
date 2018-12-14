@@ -44,21 +44,35 @@ Arguments read from standard input take the form of:
 
   action                Action to perform (%s)
   port                  Name of node on which to perform action
-""" % ", ".join(VALID_ACTIONS)
+""" % ", ".join(
+        VALID_ACTIONS
+    )
 
-    parser = ArgumentParser(description="Chroma Fence Agent",
-                            formatter_class=RawDescriptionHelpFormatter,
-                            epilog=epilog)
+    parser = ArgumentParser(
+        description="Chroma Fence Agent",
+        formatter_class=RawDescriptionHelpFormatter,
+        epilog=epilog,
+    )
 
-    parser.add_argument("-o", "--option", "--action", dest="action", choices=VALID_ACTIONS)
-    parser.add_argument("-n", "--plug", "--nodename", "--port", dest="port", help="Name of node on which to perform action")
+    parser.add_argument(
+        "-o", "--option", "--action", dest="action", choices=VALID_ACTIONS
+    )
+    parser.add_argument(
+        "-n",
+        "--plug",
+        "--nodename",
+        "--port",
+        dest="port",
+        help="Name of node on which to perform action",
+    )
     ns = parser.parse_args(args)
 
     if not ns.action and not ns.port:
         ns = parser.parse_args(stdin_to_args())
 
     if ns.action == "metadata":
-        print """<?xml version="1.0" ?>
+        print(
+            """<?xml version="1.0" ?>
 <resource-agent name="fence_chroma" shortdesc="Fence agent for Integrated Manager for Lustre software Storage Servers">
 <longdesc>fence_chroma is an I/O Fencing agent which can be used with Integrated Manager for Lustre software Storage Servers.</longdesc>
 <vendor-url>http://www.whamcloud.com</vendor-url>
@@ -83,7 +97,9 @@ Arguments read from standard input take the form of:
     <action name="monitor" />
 </actions>
 </resource-agent>
-""" % ", ".join(VALID_ACTIONS)
+"""
+            % ", ".join(VALID_ACTIONS)
+        )
     elif ns.action in ["on", "off"]:
         node = PacemakerConfig().get_node(ns.port)
         getattr(node, "fence_%s" % ns.action)()
@@ -91,7 +107,7 @@ Arguments read from standard input take the form of:
         manage_node.stonith(ns.port)
     elif ns.action == "list":
         for node in PacemakerConfig().fenceable_nodes:
-            print "%s," % node.name
+            print("%s," % node.name)
     elif ns.action == "monitor":
         # TODO: What does "monitor" mean for this agent? We have to have it
         # to keep pacemaker happy, but longer-term it might make sense to

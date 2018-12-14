@@ -1,57 +1,63 @@
 language: python
-python: '2.7'
+python: "2.7"
 sudo: required
 services:
-  - docker
+    - docker
 addons:
-  apt:
-    packages:
-    - libpcap0.8-dev
+    apt:
+        packages:
+            - libpcap0.8-dev
 jobs:
-  include:
-  - stage: test
-    env: Type='module test'
-    script:
-    - nosetests
-  - stage: test
-    env: Type='mock build test'
-    script:
-    - ./include/travis/run_in_centos7_docker.sh include/travis/mock_build_test.sh
-  - stage: cd
-    git:
-      depth: 999999
-    env: Type='Continuous Deployment'
-    script:
-      - include/travis/copr-deploy.sh prepare
-      - ./travis_wait "./include/travis/run_in_centos7_docker.sh include/travis/copr-deploy.sh build_srpm"
-  - stage: deploy-pypi
-    env: Type='PyPi deploy'
-    script: skip
-    deploy:
-      provider: pypi
-      user: iml
-      password:
-        secure: QznryPOPomArAOyHl0qTC8JBR7qAmp81SAD6jnUwYzd1JO5lk7nIw25PMA2sU24uaTSEKp37Dx+qLeYIECz/HATFP0FlXDwgfDHgLinasz0+xaKlbhzhuWkAQwHe3Jc8pjdl7npm1Kh1xJU0Rsiwm2bnhfqGT3czsvOZoVoRdOKB0oW8sex6u3evXOa9NoFLX8WUkUIEUntT3HgOrxygY9pPAyu8qo0wluL4YRDY8nYaaeTOX8hPfa883ctYiMiiGxyvqGnfE264h4JlX7OYoBr5rF0ZS0wcqekLjnLLQwh+sEsdP9PNIlh+I4Hfkku6errhbD96w2YW6WySGcngiRSal7cHOa/lOAWm74M3nMoFLl7zFuX5BkVwSoRcyjibJogXyiladEs20eVmLcKcAHfj1OA//pQwvbNow3xcUci1mjmgV/v7VmfK1bPo9cziK6SNE1k96FI92BlqpuxrhQEy+hprq/SOGB8QJ6jo5/lvXwPFrsn4DHxUlGQPFk1hCo7TPRq+a//uVRuLmz4eXvDVrEoB+MR4oo9ltPpnXI7ylVnmavGR/vgw7y23tTucGkPHlFK9ubqv2cydTqxyJfkF00iDlr1ZNWjt1LUBWCdlgyor9AM4KqiVamc3jDaHj4z//l65JNEwxPOJ18tmCX5n29cY3ibLLO5kfFkVVVI=
-      on:
-        all_branches: true
-        distributions: sdist bdist_wheel
-    skip_upload_docs: true
-  - stage: deploy-copr
-    env: Type='Copr deploy'
-    script: skip
-    before_deploy:
-    - include/travis/copr-deploy.sh prepare
-    deploy:
-      skip_cleanup: true
-      provider: script
-      script: ./travis_wait "./include/travis/run_in_centos7_docker.sh include/travis/copr-deploy.sh build"
-      on:
-        all_branches: true
+    include:
+        - stage: test
+          name: "module test"
+          script:
+              - nosetests
+        - stage: test
+          name: "mock build test"
+          script:
+              - ./include/travis/run_in_centos7_docker.sh include/travis/mock_build_test.sh
+        - stage: test
+          name: "Format Check"
+          python: "3.7"
+          script:
+              - pip install black
+              - black --check ./
+        - stage: cd
+          git:
+              depth: 999999
+          name: "Continuous Deployment"
+          script:
+              - include/travis/copr-deploy.sh prepare
+              - ./travis_wait "./include/travis/run_in_centos7_docker.sh include/travis/copr-deploy.sh build_srpm"
+        - stage: deploy-pypi
+          name: "PyPi deploy"
+          script: skip
+          deploy:
+              provider: pypi
+              user: iml
+              password:
+                  secure: QznryPOPomArAOyHl0qTC8JBR7qAmp81SAD6jnUwYzd1JO5lk7nIw25PMA2sU24uaTSEKp37Dx+qLeYIECz/HATFP0FlXDwgfDHgLinasz0+xaKlbhzhuWkAQwHe3Jc8pjdl7npm1Kh1xJU0Rsiwm2bnhfqGT3czsvOZoVoRdOKB0oW8sex6u3evXOa9NoFLX8WUkUIEUntT3HgOrxygY9pPAyu8qo0wluL4YRDY8nYaaeTOX8hPfa883ctYiMiiGxyvqGnfE264h4JlX7OYoBr5rF0ZS0wcqekLjnLLQwh+sEsdP9PNIlh+I4Hfkku6errhbD96w2YW6WySGcngiRSal7cHOa/lOAWm74M3nMoFLl7zFuX5BkVwSoRcyjibJogXyiladEs20eVmLcKcAHfj1OA//pQwvbNow3xcUci1mjmgV/v7VmfK1bPo9cziK6SNE1k96FI92BlqpuxrhQEy+hprq/SOGB8QJ6jo5/lvXwPFrsn4DHxUlGQPFk1hCo7TPRq+a//uVRuLmz4eXvDVrEoB+MR4oo9ltPpnXI7ylVnmavGR/vgw7y23tTucGkPHlFK9ubqv2cydTqxyJfkF00iDlr1ZNWjt1LUBWCdlgyor9AM4KqiVamc3jDaHj4z//l65JNEwxPOJ18tmCX5n29cY3ibLLO5kfFkVVVI=
+              on:
+                  all_branches: true
+                  distributions: sdist bdist_wheel
+          skip_upload_docs: true
+        - stage: deploy-copr
+          name: "Copr deploy"
+          script: skip
+          before_deploy:
+              - include/travis/copr-deploy.sh prepare
+          deploy:
+              skip_cleanup: true
+              provider: script
+              script: ./travis_wait "./include/travis/run_in_centos7_docker.sh include/travis/copr-deploy.sh build"
+              on:
+                  all_branches: true
 stages:
-  - test
-  - name: cd
-    if: branch = master AND type = push AND fork = false
-  - name: deploy-pypi
-    if: branch =~ ^v\d+\.\d+\.\d+$
-  - name: deploy-copr
-    if: branch =~ ^v\d+\.\d+\.\d+$
+    - test
+    - name: cd
+      if: branch = master AND type = push AND fork = false
+    - name: deploy-pypi
+      if: branch =~ ^v\d+\.\d+\.\d+$
+    - name: deploy-copr
+      if: branch =~ ^v\d+\.\d+\.\d+$

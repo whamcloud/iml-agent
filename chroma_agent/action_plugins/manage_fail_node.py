@@ -12,5 +12,6 @@ def fail_node(args):
     AgentShell.try_run(["sync"])
     AgentShell.try_run(["init", "0"])
 
+
 ACTIONS = [fail_node]
 CAPABILITIES = []

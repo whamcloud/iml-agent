@@ -15,10 +15,14 @@ import re
 from iml_common.lib.service_control import ServiceControl
 from iml_common.lib.firewall_control import FirewallControl
 
-from chroma_agent.lib.corosync import CorosyncRingInterface, render_config, write_config_to_file
+from chroma_agent.lib.corosync import (
+    CorosyncRingInterface,
+    render_config,
+    write_config_to_file,
+)
 from iml_common.lib.agent_rpc import agent_error, agent_result_ok, agent_ok_or_error
 
-corosync_service = ServiceControl.create('corosync')
+corosync_service = ServiceControl.create("corosync")
 firewall_control = FirewallControl.create()
 
 
@@ -42,7 +46,8 @@ def check_corosync_enabled():
 def enable_corosync():
     return agent_ok_or_error(corosync_service.enable())
 
-InterfaceInfo = namedtuple("InterfaceInfo", ['corosync_iface', 'ipaddr', 'prefix'])
+
+InterfaceInfo = namedtuple("InterfaceInfo", ["corosync_iface", "ipaddr", "prefix"])
 
 
 def configure_corosync(ring0_name, ring1_name, old_mcast_port, new_mcast_port):
@@ -56,25 +61,39 @@ def configure_corosync(ring0_name, ring1_name, old_mcast_port, new_mcast_port):
     :return: Value using simple return protocol
     """
 
-    interfaces = [InterfaceInfo(CorosyncRingInterface(name=ring0_name, ringnumber=0, mcastport=new_mcast_port),
-                                None,
-                                None),
-                  InterfaceInfo(CorosyncRingInterface(name=ring1_name, ringnumber=1, mcastport=new_mcast_port),
-                                None,
-                                None)]
+    interfaces = [
+        InterfaceInfo(
+            CorosyncRingInterface(
+                name=ring0_name, ringnumber=0, mcastport=new_mcast_port
+            ),
+            None,
+            None,
+        ),
+        InterfaceInfo(
+            CorosyncRingInterface(
+                name=ring1_name, ringnumber=1, mcastport=new_mcast_port
+            ),
+            None,
+            None,
+        ),
+    ]
 
     config = render_config([interface.corosync_iface for interface in interfaces])
 
     write_config_to_file("/etc/corosync/corosync.conf", config)
 
     if old_mcast_port is not None:
-        error = firewall_control.remove_rule(old_mcast_port, "udp", "corosync", persist=True)
+        error = firewall_control.remove_rule(
+            old_mcast_port, "udp", "corosync", persist=True
+        )
 
         if error:
             return agent_error(error)
 
-    return agent_ok_or_error(firewall_control.add_rule(new_mcast_port, "udp", "corosync", persist=True) or
-                             corosync_service.enable())
+    return agent_ok_or_error(
+        firewall_control.add_rule(new_mcast_port, "udp", "corosync", persist=True)
+        or corosync_service.enable()
+    )
 
 
 def unconfigure_corosync():
@@ -98,7 +117,7 @@ def unconfigure_corosync():
 
     try:
         remove("/etc/corosync/corosync.conf")
-    except OSError, e:
+    except OSError as e:
         if e.errno != errno.ENOENT:
             return agent_error("Failed to remove corosync.conf")
     except:
@@ -112,5 +131,4 @@ def unconfigure_corosync():
     return agent_result_ok
 
 
-ACTIONS = [start_corosync, stop_corosync,
-           configure_corosync, unconfigure_corosync]
+ACTIONS = [start_corosync, stop_corosync, configure_corosync, unconfigure_corosync]

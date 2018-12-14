@@ -8,7 +8,7 @@ from iml_common.lib.agent_rpc import agent_ok_or_error
 from iml_common.lib.service_control import ServiceControl
 
 
-ntp_service = ServiceControl.create('ntpd')
+ntp_service = ServiceControl.create("ntpd")
 
 
 def unconfigure_ntp():
@@ -34,4 +34,4 @@ def configure_ntp(ntp_server):
 
 
 ACTIONS = [configure_ntp, unconfigure_ntp]
-CAPABILITIES = ['manage_ntp']
+CAPABILITIES = ["manage_ntp"]

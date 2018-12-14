@@ -23,6 +23,7 @@ class CallbackAfterResponse(Exception):
      3. Callback runs
 
     """
+
     def __init__(self, result, callback):
         """
          :param result: Response to send back to the manager
@@ -74,8 +75,17 @@ class ActionRunnerPlugin(DevicePlugin):
             del self._running_actions[id]
 
     def respond_with_callback(self, id, callback_after_response, subprocesses):
-        daemon_log.info("ActionRunner.respond_with_callback %s: %s" % (id, callback_after_response.result))
-        self._notify(id, callback_after_response.result, None, subprocesses, callback_after_response.callback)
+        daemon_log.info(
+            "ActionRunner.respond_with_callback %s: %s"
+            % (id, callback_after_response.result)
+        )
+        self._notify(
+            id,
+            callback_after_response.result,
+            None,
+            subprocesses,
+            callback_after_response.callback,
+        )
         with self._running_actions_lock:
             del self._running_actions[id]
 
@@ -95,18 +105,20 @@ class ActionRunnerPlugin(DevicePlugin):
             with self._running_actions_lock:
                 del self._running_actions[id]
 
-    def _notify(self, id, result, backtrace, subprocesses, callback = None):
+    def _notify(self, id, result, backtrace, subprocesses, callback=None):
         if self._tearing_down:
             return
 
         self.send_message(
             {
-                'type': "ACTION_COMPLETE",
-                'id': id,
-                'result': result,
-                'exception': backtrace,
-                'subprocesses': subprocesses
-            }, callback)
+                "type": "ACTION_COMPLETE",
+                "id": id,
+                "result": result,
+                "exception": backtrace,
+                "subprocesses": subprocesses,
+            },
+            callback,
+        )
 
     def cancel(self, id):
         with self._running_actions_lock:
@@ -119,12 +131,12 @@ class ActionRunnerPlugin(DevicePlugin):
                 thread.stop()
 
     def on_message(self, body):
-        if body['type'] == 'ACTION_START':
-            self.run(body['id'], body['action'], body['args'])
-        elif body['type'] == 'ACTION_CANCEL':
-            self.cancel(body['id'])
+        if body["type"] == "ACTION_START":
+            self.run(body["id"], body["action"], body["args"])
+        elif body["type"] == "ACTION_CANCEL":
+            self.cancel(body["id"])
         else:
-            raise NotImplementedError("Unknown type '%s'" % body['type'])
+            raise NotImplementedError("Unknown type '%s'" % body["type"])
 
 
 class ActionRunner(threading.Thread):
@@ -155,20 +167,33 @@ class ActionRunner(threading.Thread):
         # We are now stoppable
         self._started.set()
 
-        daemon_log.info("%s.run: %s %s %s" % (self.__class__.__name__, self.id, self.action, self.args))
+        daemon_log.info(
+            "%s.run: %s %s %s"
+            % (self.__class__.__name__, self.id, self.action, self.args)
+        )
         try:
             AgentShell.thread_state.enable_save()
 
-            agent_daemon_context = AgentDaemonContext(self.manager._session._client.sessions._sessions)
+            agent_daemon_context = AgentDaemonContext(
+                self.manager._session._client.sessions._sessions
+            )
 
-            result = self.manager._session._client.action_plugins.run(self.action, agent_daemon_context, self.args)
-        except CallbackAfterResponse, e:
-            self.manager.respond_with_callback(self.id, e, AgentShell.thread_state.get_subprocesses())
+            result = self.manager._session._client.action_plugins.run(
+                self.action, agent_daemon_context, self.args
+            )
+        except CallbackAfterResponse as e:
+            self.manager.respond_with_callback(
+                self.id, e, AgentShell.thread_state.get_subprocesses()
+            )
         except AgentShell.SubprocessAborted:
             self.manager.cancelled(self.id)
         except Exception:
-            backtrace = '\n'.join(traceback.format_exception(*(sys.exc_info())))
+            backtrace = "\n".join(traceback.format_exception(*(sys.exc_info())))
 
-            self.manager.fail(self.id, backtrace, AgentShell.thread_state.get_subprocesses())
+            self.manager.fail(
+                self.id, backtrace, AgentShell.thread_state.get_subprocesses()
+            )
         else:
-            self.manager.succeed(self.id, result, AgentShell.thread_state.get_subprocesses())
+            self.manager.succeed(
+                self.id, result, AgentShell.thread_state.get_subprocesses()
+            )
