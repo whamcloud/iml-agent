@@ -218,13 +218,13 @@ class TestActionRunnerPlugin(ActionRunnerPluginTestCase):
         the manager would via the HTTPS agent comms)
         """
 
-        id = self._run_action("action_one_no_context", {"arg1": "arg1_test"})
+        x = self._run_action("action_one_no_context", {"arg1": "arg1_test"})
         response = self._get_responses(1)[0]
         self.assertDictEqual(
             response,
             {
                 "type": "ACTION_COMPLETE",
-                "id": id,
+                "id": x,
                 "result": ACTION_ONE_NO_CONTEXT_RETVAL,
                 "exception": None,
                 "subprocesses": [

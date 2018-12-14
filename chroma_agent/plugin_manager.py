@@ -317,5 +317,5 @@ class ActionPluginManager(object):
         # Not a fixme because it is of little value to make the additional changes at this time.
         if "agent_daemon_context" in fn.__code__.co_varnames:
             return fn(agent_daemon_context, **args)
-        else:
-            return fn(**args)
+
+        return fn(**args)
