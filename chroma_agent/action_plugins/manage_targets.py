@@ -523,10 +523,10 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
         if _resource_exists(ha_label):
             if info["bdev"] == device and info["mntpt"] == mount_point:
                 return agent_result_ok
-            else:
-                return agent_error(
-                    "A resource with the name {} already exists".format(ha_label)
-                )
+
+            return agent_error(
+                "A resource with the name {} already exists".format(ha_label)
+            )
         if info["bdev"] != device or info["mntpt"] != mount_point:
             console_log.error(
                 "Mismatch for %s do not match configured (%s on %s) != (%s on %s)",

@@ -188,7 +188,7 @@ class NetworkInterfaces(dict):
             interface = NetworkInterface(device_lines, proc_net_dev_values)
 
             if (interface.interface not in EXCLUDE_INTERFACES) and (
-                interface.slave == False
+                interface.slave is False
             ):
                 self[interface.interface] = {
                     "mac_address": interface.mac_address,

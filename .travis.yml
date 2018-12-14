@@ -20,8 +20,9 @@ jobs:
         - stage: test
           name: "Format Check"
           python: "3.6"
-          script:
+          install:
               - pip install black
+          script:
               - black --check ./
         - stage: cd
           git:
