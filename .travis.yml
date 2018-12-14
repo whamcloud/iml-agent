@@ -19,7 +19,7 @@ jobs:
               - ./include/travis/run_in_centos7_docker.sh include/travis/mock_build_test.sh
         - stage: test
           name: "Format Check"
-          python: "3.7"
+          python: "3.6"
           script:
               - pip install black
               - black --check ./
