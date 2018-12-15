@@ -3,13 +3,16 @@ import logging
 from datetime import timedelta
 import json
 
-from iml_common.test.command_capture_testcase import CommandCaptureTestCase, CommandCaptureCommand
+from iml_common.test.command_capture_testcase import (
+    CommandCaptureTestCase,
+    CommandCaptureCommand,
+)
 from iml_common.lib.date_time import IMLDateTime
 
 log = logging.getLogger(__name__)
 
-ONLINE, OFFLINE = 'true', 'false'
-CMD = ('crm_mon', '--one-shot', '--as-xml')
+ONLINE, OFFLINE = "true", "false"
+CMD = ("crm_mon", "--one-shot", "--as-xml")
 
 
 class TestCorosync(CommandCaptureTestCase):
@@ -68,29 +71,31 @@ class TestCorosync(CommandCaptureTestCase):
           </nodes>
           <resources>
           </resources>
-        </crm_mon>""" % (feed_local_datetime, )
+        </crm_mon>""" % (
+            feed_local_datetime,
+        )
 
         self.add_commands(
             CommandCaptureCommand(CMD, stdout=crm_one_shot_xml),
-            CommandCaptureCommand(
-                ('systemctl', 'is-active', 'corosync'), rc=0),
-            CommandCaptureCommand(
-                ('systemctl', 'is-active', 'pacemaker'), rc=0))
+            CommandCaptureCommand(("systemctl", "is-active", "corosync"), rc=0),
+            CommandCaptureCommand(("systemctl", "is-active", "pacemaker"), rc=0),
+        )
 
         class mock_imldatetime(IMLDateTime):
             @classmethod
             def now(cls, tz=None):
                 return cls.utcnow() + timedelta(hours=feed_tz)
 
-        mock.patch('chroma_agent.device_plugins.corosync.IMLDateTime',
-                   mock_imldatetime).start()
+        mock.patch(
+            "chroma_agent.device_plugins.corosync.IMLDateTime", mock_imldatetime
+        ).start()
 
         plugin = CorosyncPlugin(None)
         result_dict = plugin.start_session()
 
         self.assertRanAllCommandsInOrder()
-        self.assertEqual(result_dict["state"]["corosync"], 'started')
-        self.assertEqual(result_dict["state"]["pacemaker"], 'started')
+        self.assertEqual(result_dict["state"]["corosync"], "started")
+        self.assertEqual(result_dict["state"]["pacemaker"], "started")
 
         #  Check it's serializable.
         try:
@@ -99,14 +104,14 @@ class TestCorosync(CommandCaptureTestCase):
             self.fail("payload from plugin can't be serialized")
 
         def check_node(node_name, crm_info, expected_status):
-            tm = crm_info['datetime']
+            tm = crm_info["datetime"]
             self.assertEqual(tm, feed_utc_datetime)
-            node_record = crm_info['nodes'][node_name]
-            self.assertEqual(node_record['name'], node_name)
-            self.assertEqual(node_record['online'], expected_status)
+            node_record = crm_info["nodes"][node_name]
+            self.assertEqual(node_record["name"], node_name)
+            self.assertEqual(node_record["online"], expected_status)
 
-        check_node('storage0.node', result_dict['crm_info'], ONLINE)
-        check_node('storage1.node', result_dict['crm_info'], OFFLINE)
+        check_node("storage0.node", result_dict["crm_info"], ONLINE)
+        check_node("storage1.node", result_dict["crm_info"], OFFLINE)
 
     def test_corosync_down(self):
         """Corosync is not running - attempt was tried, but failed.
@@ -119,19 +124,17 @@ class TestCorosync(CommandCaptureTestCase):
 
         self.add_commands(
             CommandCaptureCommand(
-                CMD,
-                rc=10,
-                stdout="""Connection to cluster failed: connection failed"""),
-            CommandCaptureCommand(
-                ('systemctl', 'is-active', 'corosync'), rc=1),
-            CommandCaptureCommand(
-                ('systemctl', 'is-active', 'pacemaker'), rc=1))
+                CMD, rc=10, stdout="""Connection to cluster failed: connection failed"""
+            ),
+            CommandCaptureCommand(("systemctl", "is-active", "corosync"), rc=1),
+            CommandCaptureCommand(("systemctl", "is-active", "pacemaker"), rc=1),
+        )
 
         plugin = CorosyncPlugin(None)
         result_dict = plugin.start_session()
 
-        self.assertEqual(result_dict["state"]["corosync"], 'stopped')
-        self.assertEqual(result_dict["state"]["pacemaker"], 'stopped')
+        self.assertEqual(result_dict["state"]["corosync"], "stopped")
+        self.assertEqual(result_dict["state"]["pacemaker"], "stopped")
         self.assertEqual(result_dict["crm_info"], None)
         self.assertRanAllCommandsInOrder()
 
@@ -153,15 +156,14 @@ class TestCorosync(CommandCaptureTestCase):
         #  Simulate crm_mon returning an unexpected error code
         self.add_commands(
             CommandCaptureCommand(CMD, rc=107),
-            CommandCaptureCommand(
-                ('systemctl', 'is-active', 'corosync'), rc=1),
-            CommandCaptureCommand(
-                ('systemctl', 'is-active', 'pacemaker'), rc=1))
+            CommandCaptureCommand(("systemctl", "is-active", "corosync"), rc=1),
+            CommandCaptureCommand(("systemctl", "is-active", "pacemaker"), rc=1),
+        )
 
         plugin = CorosyncPlugin(None)
         result_dict = plugin.start_session()
 
-        self.assertEqual(result_dict["state"]["corosync"], 'stopped')
-        self.assertEqual(result_dict["state"]["pacemaker"], 'stopped')
+        self.assertEqual(result_dict["state"]["corosync"], "stopped")
+        self.assertEqual(result_dict["state"]["pacemaker"], "stopped")
         self.assertEqual(result_dict["crm_info"], None)
         self.assertRanAllCommandsInOrder()

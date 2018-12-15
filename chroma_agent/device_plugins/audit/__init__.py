@@ -9,12 +9,13 @@ def local_audit_classes():
 
     classes = []
     classes.extend(lustre.local_audit_classes())
-    classes.append(getattr(node, 'NodeAudit'))
+    classes.append(getattr(node, "NodeAudit"))
     return classes
 
 
 class BaseAudit(object):
     """Base Audit class."""
+
     def __init__(self, **kwargs):
         self.raw_metrics = {}
 

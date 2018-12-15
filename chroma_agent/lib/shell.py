@@ -11,7 +11,7 @@ import threading
 from iml_common.lib.shell import BaseShell
 from iml_common.lib.shell import set_shell
 
-console_log = logging.getLogger('console')
+console_log = logging.getLogger("console")
 
 
 class ResultStore(threading.local):
@@ -47,12 +47,14 @@ class ResultStore(threading.local):
         :arg result is the RunResult of the command.
         """
         if self._save:
-            self._subprocesses.append({
-                'args': arg_list,
-                'rc': result.rc,
-                'stdout': result.stdout,
-                'stderr': result.stderr
-            })
+            self._subprocesses.append(
+                {
+                    "args": arg_list,
+                    "rc": result.rc,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                }
+            )
 
 
 class AgentShell(BaseShell):
@@ -69,7 +71,9 @@ class AgentShell(BaseShell):
     def monitor_func(cls, process, arg_list, logger):
         if AgentShell.thread_state.abort.is_set():
             if logger:
-                logger.warning("Teardown: killing subprocess %s (%s)" % (process.pid, arg_list))
+                logger.warning(
+                    "Teardown: killing subprocess %s (%s)" % (process.pid, arg_list)
+                )
             process.kill()
             raise AgentShell.SubprocessAborted()
 
@@ -117,9 +121,15 @@ class AgentShell(BaseShell):
         result = AgentShell.run(arg_list)
 
         if result.rc != 0:
-            return "Error (%s) running '%s': '%s' '%s'" % (result.rc, " ".join(arg_list), result.stdout, result.stderr)
+            return "Error (%s) running '%s': '%s' '%s'" % (
+                result.rc,
+                " ".join(arg_list),
+                result.stdout,
+                result.stderr,
+            )
 
         return None
+
 
 # We want iml_common routines to use our AgentShell.
 set_shell(AgentShell)

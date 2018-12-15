@@ -4,29 +4,29 @@
 
 import os
 
-ENV_PATH = '/etc/iml'
+ENV_PATH = "/etc/iml"
 
 
 def set_server_url(url):
     if not os.path.exists(ENV_PATH):
         os.makedirs(ENV_PATH)
 
-    with open('{}/manager-url.conf'.format(ENV_PATH), 'w+') as f:
+    with open("{}/manager-url.conf".format(ENV_PATH), "w+") as f:
         f.write("IML_MANAGER_URL={}\n".format(url))
 
 
 def remove_server_url():
-    os.unlink('{}/manager-url.conf'.format(ENV_PATH))
+    os.unlink("{}/manager-url.conf".format(ENV_PATH))
 
 
 def set_iml_profile(name, repos, packages):
-    '''
+    """
     Setup /etc/iml/profile.conf
-    '''
+    """
     if not os.path.exists(ENV_PATH):
         os.makedirs(ENV_PATH)
 
-    with open('{}/profile.conf'.format(ENV_PATH), 'w+') as f:
+    with open("{}/profile.conf".format(ENV_PATH), "w+") as f:
         if name:
             f.write("IML_PROFILE_NAME={}\n".format(name))
         if repos:
@@ -36,4 +36,4 @@ def set_iml_profile(name, repos, packages):
 
 
 def remove_iml_profile():
-    os.unlink('{}/profile.conf'.format(ENV_PATH))
+    os.unlink("{}/profile.conf".format(ENV_PATH))

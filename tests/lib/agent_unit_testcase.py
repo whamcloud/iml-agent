@@ -10,13 +10,13 @@ class AgentUnitTestCase(unittest.TestCase):
     def setUp(self):
         self.addCleanup(mock.patch.stopall)
 
-        mock.patch.object(util, 'platform_info', util.PlatformInfo('Linux',
-                                                                   'CentOS',
-                                                                   7.2,
-                                                                   '7.21552',
-                                                                   2.7,
-                                                                   7,
-                                                                   '3.10.0-327.36.3.el7.x86_64')).start()
+        mock.patch.object(
+            util,
+            "platform_info",
+            util.PlatformInfo(
+                "Linux", "CentOS", 7.2, "7.21552", 2.7, 7, "3.10.0-327.36.3.el7.x86_64"
+            ),
+        ).start()
 
     def assertAgentOK(self, value):
         self.assertEqual(value, agent_result_ok)

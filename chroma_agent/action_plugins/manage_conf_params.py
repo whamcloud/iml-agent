@@ -6,11 +6,12 @@
 from chroma_agent.lib.shell import AgentShell
 
 
-def set_conf_param(key = None, value = None):
+def set_conf_param(key=None, value=None):
     if value is not None:
-        AgentShell.try_run(['lctl', 'conf_param', "%s=%s" % (key, value)])
+        AgentShell.try_run(["lctl", "conf_param", "%s=%s" % (key, value)])
     else:
-        AgentShell.try_run(['lctl', 'conf_param', "-d", key])
+        AgentShell.try_run(["lctl", "conf_param", "-d", key])
+
 
 ACTIONS = [set_conf_param]
-CAPABILITIES = ['manage_conf_params']
+CAPABILITIES = ["manage_conf_params"]

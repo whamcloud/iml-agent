@@ -12,6 +12,7 @@ class FileSystemMixin(object):
     filesystem.  The fscontext property provides a way to override the
     default filesystem context ("/") for unit testing.
     """
+
     # Unit tests should patch this attribute when using fixture data.
     fscontext = "/"
 
@@ -37,7 +38,7 @@ class FileSystemMixin(object):
 
         filename = self.abs(filename)
 
-        if (not os.path.isfile(filename)):
+        if not os.path.isfile(filename):
             filename = filename.replace("osd-ldiskfs", "osd-zfs")
 
         for line in open(filename):

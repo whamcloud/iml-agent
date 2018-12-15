@@ -10,14 +10,18 @@ from iml_common.lib.agent_rpc import agent_ok_or_error
 def open_firewall(port, address, proto, description, persist):
     firewall_control = FirewallControl.create()
 
-    return agent_ok_or_error(firewall_control.add_rule(port, proto, description, persist, address))
+    return agent_ok_or_error(
+        firewall_control.add_rule(port, proto, description, persist, address)
+    )
 
 
 def close_firewall(port, address, proto, description, persist):
     firewall_control = FirewallControl.create()
 
-    return agent_ok_or_error(firewall_control.remove_rule(port, proto, description, persist, address))
+    return agent_ok_or_error(
+        firewall_control.remove_rule(port, proto, description, persist, address)
+    )
 
 
 ACTIONS = [open_firewall, close_firewall]
-CAPABILITIES = ['manage_networks']
+CAPABILITIES = ["manage_networks"]

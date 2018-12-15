@@ -19,12 +19,13 @@ class PluginManager(object):
     Simple plugin framework with minimal boilerplate required.  Uses introspection
     to find subclasses of plugin_class in plugin_path.
     """
+
     plugin_path = None
     plugin_class = None
 
     @classmethod
     def get_plugins(cls):
-        if not hasattr(cls, '_plugins'):
+        if not hasattr(cls, "_plugins"):
             cls._find_plugins()
 
         return cls._plugins
@@ -37,7 +38,7 @@ class PluginManager(object):
             """Walk backwards up the tree to first non-module directory."""
             components = []
 
-            if (os.path.isfile("%s/__init__.py" % dir)):
+            if os.path.isfile("%s/__init__.py" % dir):
                 parent, child = os.path.split(dir)
                 components.append(child)
                 components.extend(_walk_parents(parent))
@@ -69,7 +70,7 @@ class PluginManager(object):
             try:
                 try:
                     __import__(name, None, None)
-                except ImportError, e:
+                except ImportError as e:
                     if e.args[0].endswith(" " + name):
                         daemon_log.warn("** plugin %s not found" % name)
                     else:
@@ -85,7 +86,7 @@ class PluginManager(object):
         cls._load_plugins(cls._scan_plugins(cls.plugin_path))
         cls._plugins = {}
         for plugin_class in cls.plugin_class.__subclasses__():
-            name = plugin_class.__module__.split('.')[-1]
+            name = plugin_class.__module__.split(".")[-1]
             cls._plugins[name] = plugin_class
 
 
@@ -94,7 +95,9 @@ class DevicePlugin(object):
     A plugin which maintains a state and sends and receives messages.
     """
 
-    FAILSAFEDUPDATE = 60                # We always send an update every 60 cycles (60*10)seconds - 10 minutes.
+    FAILSAFEDUPDATE = (
+        60
+    )  # We always send an update every 60 cycles (60*10)seconds - 10 minutes.
 
     def __init__(self, session):
         self._session = session
@@ -141,7 +144,7 @@ class DevicePlugin(object):
         """
         pass
 
-    def send_message(self, body, callback = None):
+    def send_message(self, body, callback=None):
         """
         Enqueue a message to be sent to the manager (returns immediately).
 
@@ -153,15 +156,19 @@ class DevicePlugin(object):
         else:
             self._session.send_message(DevicePluginMessage(body), callback)
 
-    def _delta_result(self, result, delta_fields = None):
+    def _delta_result(self, result, delta_fields=None):
         if not delta_fields:
             delta_fields = result.keys()
 
-        if (self._safety_send < DevicePlugin.FAILSAFEDUPDATE) and (self.trigger_plugin_update is False):
+        if (self._safety_send < DevicePlugin.FAILSAFEDUPDATE) and (
+            self.trigger_plugin_update is False
+        ):
             self._safety_send += 1
 
             for key in delta_fields:
-                if result[key] == self.last_result[key]:        # If the result is not new then don't send it.
+                if (
+                    result[key] == self.last_result[key]
+                ):  # If the result is not new then don't send it.
                     result[key] = None
                 else:
                     self.last_result[key] = result[key]
@@ -169,7 +176,9 @@ class DevicePlugin(object):
             self._safety_send = 0
             self.trigger_plugin_update = False
 
-        return result if result else None                       # Turn {} into None, None will mean no message sent.
+        return (
+            result if result else None
+        )  # Turn {} into None, None will mean no message sent.
 
     def _reset_delta(self):
         self.last_result = collections.defaultdict(lambda: None)
@@ -190,7 +199,8 @@ class DevicePluginMessageCollection(list):
     Return this instead of a naked {} or a DevicePluginMessage if you need to return
     multiple messages from one callback.
     """
-    def __init__(self, messages, priority = PRIO_NORMAL):
+
+    def __init__(self, messages, priority=PRIO_NORMAL):
         """
         :param messages: An iterable of JSON-serializable objects
         :param priority: One of PRIO_LOW, PRIO_NORMAL, PRIO_HIGH
@@ -205,7 +215,8 @@ class DevicePluginMessage(object):
 
     Return this instead of a naked {} if you need to set the priority.
     """
-    def __init__(self, message, priority = PRIO_NORMAL):
+
+    def __init__(self, message, priority=PRIO_NORMAL):
         """
         :param message: A JSON-serializable object
         :param priority: One of PRIO_LOW, PRIO_NORMAL, PRIO_HIGH
@@ -215,7 +226,9 @@ class DevicePluginMessage(object):
 
 
 class DevicePluginManager(PluginManager):
-    plugin_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'device_plugins')
+    plugin_path = os.path.join(
+        os.path.abspath(os.path.dirname(__file__)), "device_plugins"
+    )
     plugin_class = DevicePlugin
 
     def get(self, plugin_name):
@@ -223,7 +236,7 @@ class DevicePluginManager(PluginManager):
 
 
 class ActionPluginManager(object):
-    path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'action_plugins')
+    path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "action_plugins")
     commands = None
     capabilities = None
 
@@ -235,7 +248,7 @@ class ActionPluginManager(object):
             """Walk backwards up the tree to first non-module directory."""
             components = []
 
-            if (os.path.isfile("%s/__init__.py" % dir)):
+            if os.path.isfile("%s/__init__.py" % dir):
                 parent, child = os.path.split(dir)
                 components.append(child)
                 components.extend(_walk_parents(parent))
@@ -261,18 +274,23 @@ class ActionPluginManager(object):
 
         cls.commands = {}
         capabilities = set()
-        for name in [n for n in names if not n.split(".")[-1].startswith('_')]:
+        for name in [n for n in names if not n.split(".")[-1].startswith("_")]:
             try:
-                module = __import__(name, None, None, ['ACTIONS', 'CAPABILITIES'])
-                if hasattr(module, 'ACTIONS'):
+                module = __import__(name, None, None, ["ACTIONS", "CAPABILITIES"])
+                if hasattr(module, "ACTIONS"):
                     for fn in module.ACTIONS:
                         cls.commands[fn.func_name] = fn
 
-                    daemon_log.info("Loaded actions from %s: %s" % (name, [fn.func_name for fn in module.ACTIONS]))
+                    daemon_log.info(
+                        "Loaded actions from %s: %s"
+                        % (name, [fn.func_name for fn in module.ACTIONS])
+                    )
                 else:
-                    daemon_log.warning("No 'ACTIONS' defined in action module %s" % name)
+                    daemon_log.warning(
+                        "No 'ACTIONS' defined in action module %s" % name
+                    )
 
-                if hasattr(module, 'CAPABILITIES') and module.CAPABILITIES:
+                if hasattr(module, "CAPABILITIES") and module.CAPABILITIES:
                     capabilities.add(*module.CAPABILITIES)
 
             except Exception:
@@ -297,7 +315,7 @@ class ActionPluginManager(object):
         # This feature was added just prior to 3.1 and whilst it would be better to always pass the context the
         # scope of the change was prohibitive at that time.
         # Not a fixme because it is of little value to make the additional changes at this time.
-        if 'agent_daemon_context' in fn.__code__.co_varnames:
+        if "agent_daemon_context" in fn.__code__.co_varnames:
             return fn(agent_daemon_context, **args)
-        else:
-            return fn(**args)
+
+        return fn(**args)

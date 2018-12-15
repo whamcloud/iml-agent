@@ -14,11 +14,14 @@ class TestClientAudit(PatchedContextTestCase):
             "target": "/mnt/lustre_clients/testfs",
             "source": "10.0.0.129@tcp:/testfs",
             "fstype": "lustre",
-            "opts": "rw"}
+            "opts": "rw",
+        }
 
-        device_map = {'blockDevices': {}, 'zed': {}, 'localMounts': [client_mount]}
-        mock.patch('chroma_agent.device_plugins.block_devices.scanner_cmd',
-                   return_value=device_map).start()
+        device_map = {"blockDevices": {}, "zed": {}, "localMounts": [client_mount]}
+        mock.patch(
+            "chroma_agent.device_plugins.block_devices.scanner_cmd",
+            return_value=device_map,
+        ).start()
 
         self.audit = ClientAudit()
 
@@ -26,7 +29,11 @@ class TestClientAudit(PatchedContextTestCase):
         assert ClientAudit.is_available()
 
     def test_gathered_mount_list(self):
-        actual_list = self.audit.metrics()['raw']['lustre_client_mounts']
-        expected_list = [dict(mountspec='10.0.0.129@tcp:/testfs',
-                              mountpoint='/mnt/lustre_clients/testfs')]
+        actual_list = self.audit.metrics()["raw"]["lustre_client_mounts"]
+        expected_list = [
+            dict(
+                mountspec="10.0.0.129@tcp:/testfs",
+                mountpoint="/mnt/lustre_clients/testfs",
+            )
+        ]
         self.assertEqual(actual_list, expected_list)

@@ -22,10 +22,16 @@ JOB_STATS_LIMIT = 20  # only return the most active jobs
 
 def local_audit_classes():
     import chroma_agent.device_plugins.audit.lustre
-    return [cls for cls in
-            [getattr(chroma_agent.device_plugins.audit.lustre, name) for name in
-             dir(chroma_agent.device_plugins.audit.lustre) if name.endswith('Audit')]
-            if hasattr(cls, 'is_available') and cls.is_available()]
+
+    return [
+        cls
+        for cls in [
+            getattr(chroma_agent.device_plugins.audit.lustre, name)
+            for name in dir(chroma_agent.device_plugins.audit.lustre)
+            if name.endswith("Audit")
+        ]
+        if hasattr(cls, "is_available") and cls.is_available()
+    ]
 
 
 class LustreAudit(BaseAudit, FileSystemMixin):
@@ -34,22 +40,21 @@ class LustreAudit(BaseAudit, FileSystemMixin):
     Contains methods which are common to all Lustre cluster component types.
     """
 
-    LustreVersion = namedtuple('LustreVersion', ['major', 'minor', 'patch'])
+    LustreVersion = namedtuple("LustreVersion", ["major", "minor", "patch"])
 
     @classmethod
     def is_available(cls):
         """Returns a boolean indicating whether or not this audit class should
         be instantiated.
         """
-        return (cls.kmod_is_loaded() and
-                cls.device_is_present())
+        return cls.kmod_is_loaded() and cls.device_is_present()
 
     @classmethod
     def device_is_present(cls):
         """Returns a boolean indicating whether or not this class
         has any corresponding Lustre device entries.
         """
-        modname = cls.__name__.replace('Audit', '').lower()
+        modname = cls.__name__.replace("Audit", "").lower()
 
         # There are some modules which can be loaded but don't have
         # corresponding device entries.  In these cases, just wink and
@@ -59,7 +64,7 @@ class LustreAudit(BaseAudit, FileSystemMixin):
             return True
 
         obj = cls()
-        entries = [dev for dev in obj.devices() if dev['type'] == modname]
+        entries = [dev for dev in obj.devices() if dev["type"] == modname]
         return len(entries) > 0
 
     @classmethod
@@ -67,7 +72,7 @@ class LustreAudit(BaseAudit, FileSystemMixin):
         """Returns a boolean indicating whether or not this class'
         corresponding Lustre module is loaded.
         """
-        modname = cls.__name__.replace('Audit', '').lower()
+        modname = cls.__name__.replace("Audit", "").lower()
 
         def filter(line):
             return line.startswith(modname)
@@ -83,11 +88,12 @@ class LustreAudit(BaseAudit, FileSystemMixin):
     def __init__(self, **kwargs):
         super(LustreAudit, self).__init__(**kwargs)
 
-        self.raw_metrics['lustre'] = {}
+        self.raw_metrics["lustre"] = {}
 
     def stats_dict_from_file(self, file):
         """Creates a dict from Lustre stats file contents."""
-        stats_re = re.compile(r"""
+        stats_re = re.compile(
+            r"""
         # e.g.
         # create                    726 samples [reqs]
         # cache_miss                21108 samples [pages] 1 1 21108
@@ -97,7 +103,9 @@ class LustreAudit(BaseAudit, FileSystemMixin):
         (?P<min_max_sum>\s+(?P<min>\d+)\s+(?P<max>\d+)\s+(?P<sum>\d+)
         (?P<sumsq>\s+(?P<sumsquare>\d+))?)?
         $
-        """, re.VERBOSE)
+        """,
+            re.VERBOSE,
+        )
 
         stats = {}
 
@@ -112,21 +120,21 @@ class LustreAudit(BaseAudit, FileSystemMixin):
                 if not match:
                     continue
 
-                name = match.group('name')
+                name = match.group("name")
                 stats[name] = {
-                    'count': int(match.group('count')),
-                    'units': match.group('units')
+                    "count": int(match.group("count")),
+                    "units": match.group("units"),
                 }
                 if match.group("min_max_sum") is not None:
-                    stats[name].update({
-                        'min': int(match.group('min')),
-                        'max': int(match.group('max')),
-                        'sum': int(match.group('sum'))
-                    })
+                    stats[name].update(
+                        {
+                            "min": int(match.group("min")),
+                            "max": int(match.group("max")),
+                            "sum": int(match.group("sum")),
+                        }
+                    )
                 if match.group("sumsq") is not None:
-                    stats[name].update({
-                        'sumsquare': int(match.group('sumsquare'))
-                    })
+                    stats[name].update({"sumsquare": int(match.group("sumsquare"))})
         except IOError:
             return stats
 
@@ -134,7 +142,7 @@ class LustreAudit(BaseAudit, FileSystemMixin):
 
     def dict_from_file(self, file):
         """Creates a dict from simple dict-like (k\s+v) file contents."""
-        return dict(re.split('\s+', line) for line in self.read_lines(file))
+        return dict(re.split("\s+", line) for line in self.read_lines(file))
 
     @property
     def version(self):
@@ -149,8 +157,8 @@ class LustreAudit(BaseAudit, FileSystemMixin):
         """Returns a LustreVersion containing major, minor and patch components of the local Lustre version."""
         result = []
 
-        for element in (self.version.split('.') + ['0', '0', '0'])[0:3]:
-            digits = re.match('\d+', element)
+        for element in (self.version.split(".") + ["0", "0", "0"])[0:3]:
+            digits = re.match("\d+", element)
 
             if digits:
                 result.append(int(digits.group()))
@@ -172,9 +180,15 @@ class LustreAudit(BaseAudit, FileSystemMixin):
     def devices(self):
         """Returns a list of Lustre devices local to this node."""
         try:
-            return [dict(zip(['index', 'state', 'type', 'name',
-                              'uuid', 'refcount'], line.split()))
-                    for line in self.read_lines('/sys/kernel/debug/lustre/devices')]
+            return [
+                dict(
+                    zip(
+                        ["index", "state", "type", "name", "uuid", "refcount"],
+                        line.split(),
+                    )
+                )
+                for line in self.read_lines("/sys/kernel/debug/lustre/devices")
+            ]
         except IOError:
             return []
 
@@ -191,19 +205,19 @@ class TargetAudit(LustreAudit):
     def __init__(self, **kwargs):
         super(TargetAudit, self).__init__(**kwargs)
         self.int_metric_map = {
-            'kbytestotal': 'kbytestotal',
-            'kbytesfree': 'kbytesfree',
-            'kbytesavail': 'kbytesavail',
-            'filestotal': 'filestotal',
-            'filesfree': 'filesfree',
-            'num_exports': 'num_exports'
+            "kbytestotal": "kbytestotal",
+            "kbytesfree": "kbytesfree",
+            "kbytesavail": "kbytesavail",
+            "filestotal": "filestotal",
+            "filesfree": "filesfree",
+            "num_exports": "num_exports",
         }
         self.metric_defaults_map = {
-            'read_bytes': dict(count = 0, units = "bytes", min = 0, max = 0, sum = 0),
-            'write_bytes': dict(count = 0, units = "bytes", min = 0, max = 0, sum = 0),
+            "read_bytes": dict(count=0, units="bytes", min=0, max=0, sum=0),
+            "write_bytes": dict(count=0, units="bytes", min=0, max=0, sum=0),
         }
 
-        self.raw_metrics['lustre']['target'] = {}
+        self.raw_metrics["lustre"]["target"] = {}
 
     def read_stats(self, target):
         """Returns a dict containing target stats."""
@@ -250,6 +264,7 @@ class TargetAudit(LustreAudit):
 
 class MdsAudit(TargetAudit):
     """In Lustre < 2.x, the MDT stats were mis-named as MDS stats."""
+
     @classmethod
     def is_available(cls):
         """Stupid override to prevent this being used on 2.x+ filesystems."""
@@ -260,63 +275,59 @@ class MdsAudit(TargetAudit):
 
     def __init__(self, **kwargs):
         super(MdsAudit, self).__init__(**kwargs)
-        self.target_root = '/proc/fs/lustre/mds'
+        self.target_root = "/proc/fs/lustre/mds"
 
     def _gather_raw_metrics(self):
-        for mdt in [dev for dev in self.devices() if dev['type'] == 'mds']:
-            self.raw_metrics['lustre']['target'][mdt['name']] = self.read_int_metrics(mdt['name'])
-            self.raw_metrics['lustre']['target'][mdt['name']]['stats'] = self.read_stats(mdt['name'])
+        for mdt in [dev for dev in self.devices() if dev["type"] == "mds"]:
+            self.raw_metrics["lustre"]["target"][mdt["name"]] = self.read_int_metrics(
+                mdt["name"]
+            )
+            self.raw_metrics["lustre"]["target"][mdt["name"]][
+                "stats"
+            ] = self.read_stats(mdt["name"])
 
 
 class MdtAudit(TargetAudit):
     def __init__(self, **kwargs):
         super(MdtAudit, self).__init__(**kwargs)
-        self.target_root = '/proc/fs/lustre'
-        self.int_metric_map.update({
-            'kbytestotal': 'osd-ldiskfs/%s/kbytestotal',
-            'kbytesfree': 'osd-ldiskfs/%s/kbytesfree',
-            'filestotal': 'osd-ldiskfs/%s/filestotal',
-            'filesfree': 'osd-ldiskfs/%s/filesfree',
-        })
+        self.target_root = "/proc/fs/lustre"
+        self.int_metric_map.update(
+            {
+                "kbytestotal": "osd-ldiskfs/%s/kbytestotal",
+                "kbytesfree": "osd-ldiskfs/%s/kbytesfree",
+                "filestotal": "osd-ldiskfs/%s/filestotal",
+                "filesfree": "osd-ldiskfs/%s/filesfree",
+            }
+        )
 
     def _parse_hsm_agent_stats(self, stats_root):
-        stats = {
-            'total': 0,
-            'idle': 0,
-            'busy': 0
-        }
+        stats = {"total": 0, "idle": 0, "busy": 0}
 
         for line in self.read_lines(os.path.join(stats_root, "agents")):
             # uuid=... archive_id=1 requests=[current:0 ok:1 errors:0]
-            stats['total'] += 1
-            if 'current:0' in line:
-                stats['idle'] += 1
+            stats["total"] += 1
+            if "current:0" in line:
+                stats["idle"] += 1
             else:
-                stats['busy'] += 1
+                stats["busy"] += 1
 
         return stats
 
     def _parse_hsm_action_stats(self, stats_root):
-        stats = {
-            'waiting': 0,
-            'running': 0,
-            'succeeded': 0,
-            'errored': 0
-        }
+        stats = {"waiting": 0, "running": 0, "succeeded": 0, "errored": 0}
 
         for line in self.read_lines(os.path.join(stats_root, "actions")):
-            if 'status=WAITING' in line:
-                stats['waiting'] += 1
-            elif 'status=SUCCEED' in line:
-                stats['succeeded'] += 1
-            elif 'status=STARTED' in line:
-                stats['running'] += 1
+            if "status=WAITING" in line:
+                stats["waiting"] += 1
+            elif "status=SUCCEED" in line:
+                stats["succeeded"] += 1
+            elif "status=STARTED" in line:
+                stats["running"] += 1
 
         return stats
 
     def get_hsm_stats(self, target):
-        control_file = os.path.join(self.target_root, "mdt",
-                                    target, "hsm_control")
+        control_file = os.path.join(self.target_root, "mdt", target, "hsm_control")
         try:
             if self.read_string(control_file) != "enabled":
                 return {}
@@ -326,10 +337,7 @@ class MdtAudit(TargetAudit):
         stats_root = os.path.join(self.target_root, "mdt", target, "hsm")
         agent_stats = self._parse_hsm_agent_stats(stats_root)
         action_stats = self._parse_hsm_action_stats(stats_root)
-        return {
-            'agents': agent_stats,
-            'actions': action_stats
-        }
+        return {"agents": agent_stats, "actions": action_stats}
 
     def read_stats(self, target):
         """
@@ -359,7 +367,7 @@ class MdtAudit(TargetAudit):
           This function finds the second type of entries and counts those as
           clients."""
         count = 0
-        fs_name = target[:target.rfind("MDT")]
+        fs_name = target[: target.rfind("MDT")]
         rootdir = os.path.join(self.target_root, "mdt", target, "exports")
         for subdir, dirs, files in self.walk(rootdir):
             for f in files:
@@ -371,26 +379,36 @@ class MdtAudit(TargetAudit):
         return count
 
     def _gather_raw_metrics(self):
-        for mdt in [dev for dev in self.devices() if dev['type'] == 'mdt']:
-            self.raw_metrics['lustre']['target'][mdt['name']] = self.read_int_metrics(mdt['name'])
+        for mdt in [dev for dev in self.devices() if dev["type"] == "mdt"]:
+            self.raw_metrics["lustre"]["target"][mdt["name"]] = self.read_int_metrics(
+                mdt["name"]
+            )
             try:
-                self.raw_metrics['lustre']['target'][mdt['name']]['client_count'] = self.get_client_count(mdt['name'])
+                self.raw_metrics["lustre"]["target"][mdt["name"]][
+                    "client_count"
+                ] = self.get_client_count(mdt["name"])
             except KeyError:
                 pass
-            self.raw_metrics['lustre']['target'][mdt['name']]['stats'] = self.read_stats(mdt['name'])
-            self.raw_metrics['lustre']['target'][mdt['name']]['hsm'] = self.get_hsm_stats(mdt['name'])
+            self.raw_metrics["lustre"]["target"][mdt["name"]][
+                "stats"
+            ] = self.read_stats(mdt["name"])
+            self.raw_metrics["lustre"]["target"][mdt["name"]][
+                "hsm"
+            ] = self.get_hsm_stats(mdt["name"])
 
 
 class MgsAudit(TargetAudit):
     def __init__(self, **kwargs):
         super(MgsAudit, self).__init__(**kwargs)
-        self.target_root = '/proc/fs/lustre/mgs'
-        self.int_metric_map.update({
-            'num_exports': 'num_exports',
-            'threads_started': 'mgs/threads_started',
-            'threads_min': 'mgs/threads_min',
-            'threads_max': 'mgs/threads_max',
-        })
+        self.target_root = "/proc/fs/lustre/mgs"
+        self.int_metric_map.update(
+            {
+                "num_exports": "num_exports",
+                "threads_started": "mgs/threads_started",
+                "threads_min": "mgs/threads_min",
+                "threads_max": "mgs/threads_max",
+            }
+        )
 
     def read_stats(self, target):
         """Returns a dict containing MGS stats."""
@@ -398,19 +416,21 @@ class MgsAudit(TargetAudit):
         return self.stats_dict_from_file(path)
 
     def _gather_raw_metrics(self):
-        self.raw_metrics['lustre']['target']['MGS'] = self.read_int_metrics('MGS')
-        self.raw_metrics['lustre']['target']['MGS']['stats'] = self.read_stats('MGS')
+        self.raw_metrics["lustre"]["target"]["MGS"] = self.read_int_metrics("MGS")
+        self.raw_metrics["lustre"]["target"]["MGS"]["stats"] = self.read_stats("MGS")
 
 
 class ObdfilterAudit(TargetAudit):
     def __init__(self, **kwargs):
         super(ObdfilterAudit, self).__init__(**kwargs)
-        self.target_root = '/proc/fs/lustre/obdfilter'
-        self.int_metric_map.update({
-            'tot_dirty': 'tot_dirty',
-            'tot_granted': 'tot_granted',
-            'tot_pending': 'tot_pending'
-        })
+        self.target_root = "/proc/fs/lustre/obdfilter"
+        self.int_metric_map.update(
+            {
+                "tot_dirty": "tot_dirty",
+                "tot_granted": "tot_granted",
+                "tot_pending": "tot_pending",
+            }
+        )
         self.job_stat_last_snapshot_time = defaultdict(int)
 
     def read_brw_stats(self, target):
@@ -421,23 +441,27 @@ class ObdfilterAudit(TargetAudit):
         # Lustre source.  When possible, we should retain Lustre names
         # for things to make life easier for archaeologists.
         hist_map = {
-            'pages per bulk r/w': 'pages',
-            'discontiguous pages': 'discont_pages',
-            'discontiguous blocks': 'discont_blocks',
-            'disk fragmented I/Os': 'dio_frags',
-            'disk I/Os in flight': 'rpc_hist',
-            'I/O time (1/1000s)': 'io_time',  # 1000 == CFS_HZ (fingers crossed)
-            'disk I/O size': 'disk_iosize'
+            "pages per bulk r/w": "pages",
+            "discontiguous pages": "discont_pages",
+            "discontiguous blocks": "discont_blocks",
+            "disk fragmented I/Os": "dio_frags",
+            "disk I/Os in flight": "rpc_hist",
+            "I/O time (1/1000s)": "io_time",  # 1000 == CFS_HZ (fingers crossed)
+            "disk I/O size": "disk_iosize",
         }
 
-        header_re = re.compile("""
+        header_re = re.compile(
+            """
         # e.g.
         # disk I/O size          ios   % cum % |  ios   % cum %
         # discontiguous blocks   rpcs  % cum % |  rpcs  % cum %
         ^(?P<name>.+?)\s+(?P<units>\w+)\s+%
-        """, re.VERBOSE)
+        """,
+            re.VERBOSE,
+        )
 
-        bucket_re = re.compile("""
+        bucket_re = re.compile(
+            """
         # e.g.
         # 0:               187  87  87   | 13986  91  91
         # 128K:            784  76 100   | 114654  82 100
@@ -447,7 +471,9 @@ class ObdfilterAudit(TargetAudit):
         \s+\|\s+
         (?P<write_count>\d+)\s+(?P<write_pct>\d+)\s+(?P<write_cum_pct>\d+)
         $
-        """, re.VERBOSE)
+        """,
+            re.VERBOSE,
+        )
 
         path = os.path.join(self.target_root, target, "brw_stats")
         try:
@@ -459,30 +485,30 @@ class ObdfilterAudit(TargetAudit):
         for line in lines:
             header = re.match(header_re, line)
             if header is not None:
-                hist_key = hist_map[header.group('name')]
+                hist_key = hist_map[header.group("name")]
                 histograms[hist_key] = {}
-                histograms[hist_key]['units'] = header.group('units')
-                histograms[hist_key]['buckets'] = {}
+                histograms[hist_key]["units"] = header.group("units")
+                histograms[hist_key]["buckets"] = {}
                 continue
 
             bucket = re.match(bucket_re, line)
             if bucket is not None:
                 assert hist_key is not None
 
-                name = bucket.group('name')
+                name = bucket.group("name")
                 bucket_vals = {
-                    'read': {
-                        'count': int(bucket.group('read_count')),
-                        'pct': int(bucket.group('read_pct')),
-                        'cum_pct': int(bucket.group('read_cum_pct'))
+                    "read": {
+                        "count": int(bucket.group("read_count")),
+                        "pct": int(bucket.group("read_pct")),
+                        "cum_pct": int(bucket.group("read_cum_pct")),
                     },
-                    'write': {
-                        'count': int(bucket.group('write_count')),
-                        'pct': int(bucket.group('write_pct')),
-                        'cum_pct': int(bucket.group('write_cum_pct'))
-                    }
+                    "write": {
+                        "count": int(bucket.group("write_count")),
+                        "pct": int(bucket.group("write_pct")),
+                        "cum_pct": int(bucket.group("write_cum_pct")),
+                    },
                 }
-                histograms[hist_key]['buckets'][name] = bucket_vals
+                histograms[hist_key]["buckets"][name] = bucket_vals
 
         return histograms
 
@@ -506,7 +532,7 @@ class ObdfilterAudit(TargetAudit):
         [('job_stats', None)]
 
         """
-        path = self.abs(os.path.join(self.target_root, target_name, 'job_stats'))
+        path = self.abs(os.path.join(self.target_root, target_name, "job_stats"))
         try:
             with open(path) as yaml_file:
                 read_dict = yaml.load(yaml_file)
@@ -545,34 +571,42 @@ class ObdfilterAudit(TargetAudit):
         stats_to_return = []
         for stat in stats:
             # Convert to a format expected in other parts of the application.
-            stat['read'] = stat.pop('read_bytes')
-            stat['write'] = stat.pop('write_bytes')
+            stat["read"] = stat.pop("read_bytes")
+            stat["write"] = stat.pop("write_bytes")
 
             #  Record that we know about this stat
-            latest_job_stat_snapshot_times[stat['job_id']] = stat['snapshot_time']
+            latest_job_stat_snapshot_times[stat["job_id"]] = stat["snapshot_time"]
 
             #  if we knew about this last run, and the time is new, then report it
-            if self.job_stat_last_snapshot_time[stat['job_id']] < stat['snapshot_time']:
+            if self.job_stat_last_snapshot_time[stat["job_id"]] < stat["snapshot_time"]:
                 stats_to_return.append(stat)
 
         #  The local dict will have all the current times for jobs we are tracking, so update the instance copy.
         self.job_stat_last_snapshot_time = latest_job_stat_snapshot_times
 
         #  Get the top few job stats based on read+write sum.
-        return heapq.nlargest(JOB_STATS_LIMIT, stats_to_return, key=lambda stat: stat['read']['sum'] + stat['write']['sum'])
+        return heapq.nlargest(
+            JOB_STATS_LIMIT,
+            stats_to_return,
+            key=lambda stat: stat["read"]["sum"] + stat["write"]["sum"],
+        )
 
     def _gather_raw_metrics(self):
-        metrics = self.raw_metrics['lustre']
+        metrics = self.raw_metrics["lustre"]
         try:
-            metrics['jobid_var'] = self.read_string('/sys/fs/lustre/jobid_var')
+            metrics["jobid_var"] = self.read_string("/sys/fs/lustre/jobid_var")
         except IOError:
-            metrics['jobid_var'] = 'disable'
-        for ost in [dev for dev in self.devices() if dev['type'] == 'obdfilter']:
-            metrics['target'][ost['name']] = self.read_int_metrics(ost['name'])
-            metrics['target'][ost['name']]['stats'] = self.read_stats(ost['name'])
+            metrics["jobid_var"] = "disable"
+        for ost in [dev for dev in self.devices() if dev["type"] == "obdfilter"]:
+            metrics["target"][ost["name"]] = self.read_int_metrics(ost["name"])
+            metrics["target"][ost["name"]]["stats"] = self.read_stats(ost["name"])
             if not DISABLE_BRW_STATS:
-                metrics['target'][ost['name']]['brw_stats'] = self.read_brw_stats(ost['name'])
-            metrics['target'][ost['name']]['job_stats'] = self.read_job_stats(ost['name'])
+                metrics["target"][ost["name"]]["brw_stats"] = self.read_brw_stats(
+                    ost["name"]
+                )
+            metrics["target"][ost["name"]]["job_stats"] = self.read_job_stats(
+                ost["name"]
+            )
 
 
 class OstAudit(ObdfilterAudit):
@@ -594,25 +628,31 @@ class OstAudit(ObdfilterAudit):
 class LnetAudit(LustreAudit):
     def parse_lnet_stats(self):
         try:
-            stats_str = self.read_string('/proc/sys/lnet/stats')
+            stats_str = self.read_string("/proc/sys/lnet/stats")
         except IOError:
             # Normally, this would be an exceptional condition, but in
             # the case of lnet, it could happen when the module is loaded
             # but lnet is not configured.
             return {}
 
-        (a, b, c, d, e, f, g, h, i, j, k) = [int(v) for v in
-                                             re.split('\s+', stats_str)]
+        (a, b, c, d, e, f, g, h, i, j, k) = [int(v) for v in re.split("\s+", stats_str)]
         # lnet/lnet/router_proc.c
-        return {'msgs_alloc': a, 'msgs_max': b,
-                'errors': c,
-                'send_count': d, 'recv_count': e,
-                'route_count': f, 'drop_count': g,
-                'send_length': h, 'recv_length': i,
-                'route_length': j, 'drop_length': k}
+        return {
+            "msgs_alloc": a,
+            "msgs_max": b,
+            "errors": c,
+            "send_count": d,
+            "recv_count": e,
+            "route_count": f,
+            "drop_count": g,
+            "send_length": h,
+            "recv_length": i,
+            "route_length": j,
+            "drop_length": k,
+        }
 
     def _gather_raw_metrics(self):
-        self.raw_metrics['lustre']['lnet'] = self.parse_lnet_stats()
+        self.raw_metrics["lustre"]["lnet"] = self.parse_lnet_stats()
 
 
 class ClientAudit(LustreAudit):
@@ -620,6 +660,7 @@ class ClientAudit(LustreAudit):
     Audit Lustre client information. Included in audit payload when
     a mounted Lustre client is detected.
     """
+
     @classmethod
     def is_available(cls):
         return len(cls._client_mounts())
@@ -627,16 +668,19 @@ class ClientAudit(LustreAudit):
     @classmethod
     def _client_mounts(cls):
         from chroma_agent.device_plugins.block_devices import get_local_mounts
-        spec = re.compile(r'@\w+:/\w+')
+
+        spec = re.compile(r"@\w+:/\w+")
         # get_local_mounts() returns a list of tuples in which the third element
         # is the filesystem type.
-        return [mount for mount in get_local_mounts()
-                if mount[2] == 'lustre' and spec.search(mount[0])]
+        return [
+            mount
+            for mount in get_local_mounts()
+            if mount[2] == "lustre" and spec.search(mount[0])
+        ]
 
     def _gather_raw_metrics(self):
         client_mounts = []
         for mount in self.__class__._client_mounts():
-            client_mounts.append(dict(mountspec = mount[0],
-                                      mountpoint = mount[1]))
+            client_mounts.append(dict(mountspec=mount[0], mountpoint=mount[1]))
 
-        self.raw_metrics['lustre_client_mounts'] = client_mounts
+        self.raw_metrics["lustre_client_mounts"] = client_mounts

@@ -16,8 +16,10 @@ class LocalAudit(BaseAudit, FileSystemMixin):
 
     # FIXME: This probably ought to be a memorized property, but I'm lazy.
     def audit_classes(self):
-        if not hasattr(self, 'audit_classes_list'):
-            self.audit_classes_list = chroma_agent.device_plugins.audit.local_audit_classes()
+        if not hasattr(self, "audit_classes_list"):
+            self.audit_classes_list = (
+                chroma_agent.device_plugins.audit.local_audit_classes()
+            )
         return self.audit_classes_list
 
     # Flagrantly "borrowed" from:
@@ -58,11 +60,13 @@ class LocalAudit(BaseAudit, FileSystemMixin):
         for cls in self.audit_classes():
             audit = cls()
             audit_metrics = audit.metrics()
-            agg_raw = self.__mergedicts(agg_raw, audit_metrics['raw'])
+            agg_raw = self.__mergedicts(agg_raw, audit_metrics["raw"])
 
-        return {'raw': agg_raw}
+        return {"raw": agg_raw}
 
     @exceptionSandBox(console_log, {})
     def properties(self):
         """Returns merged properties suitable for host validation."""
-        return dict(item for cls in self.audit_classes() for item in cls().properties().items())
+        return dict(
+            item for cls in self.audit_classes() for item in cls().properties().items()
+        )

@@ -18,7 +18,13 @@ from chroma_agent.conf import ENV_PATH
 from chroma_agent.crypto import Crypto
 from chroma_agent.plugin_manager import ActionPluginManager, DevicePluginManager
 from chroma_agent.agent_client import AgentClient
-from chroma_agent.log import daemon_log, daemon_log_setup, console_log_setup, increase_loglevel, decrease_loglevel
+from chroma_agent.log import (
+    daemon_log,
+    daemon_log_setup,
+    console_log_setup,
+    increase_loglevel,
+    decrease_loglevel,
+)
 from chroma_agent.lib.agent_startup_functions import agent_daemon_startup_functions
 from chroma_agent.lib.agent_teardown_functions import agent_daemon_teardown_functions
 
@@ -28,6 +34,7 @@ from chroma_agent.lib.agent_teardown_functions import agent_daemon_teardown_func
 # self-signed certificates when we communicate between
 # the agent and manager.
 import urllib3
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -44,14 +51,15 @@ class ServerProperties(object):
     def boot_time(self):
         for line in open("/proc/stat").readlines():
             name, val = line.split(" ", 1)
-            if name == 'btime':
+            if name == "btime":
                 return datetime.datetime.fromtimestamp(int(val))
 
 
 def main():
     """handle unexpected exceptions"""
     parser = argparse.ArgumentParser(
-        description="Integrated Manager for Lustre software Agent")
+        description="Integrated Manager for Lustre software Agent"
+    )
 
     parser.add_argument("--publish-zconf", action="store_true")
     parser.parse_args()
@@ -69,7 +77,8 @@ def main():
         except KeyError as e:
             daemon_log.error(
                 "No configuration found (must be registered before running the agent service), "
-                "details: %s" % e)
+                "details: %s" % e
+            )
             return
 
         if config.profile_managed is False:
@@ -80,11 +89,16 @@ def main():
             # constructor. Well, we could, but it would only work some
             # of the time and that would be even more awful.
             import chroma_agent.plugin_manager
-            chroma_agent.plugin_manager.EXCLUDED_PLUGINS += ['corosync']
 
-        agent_client = AgentClient(url, ActionPluginManager(),
-                                   DevicePluginManager(), ServerProperties(),
-                                   Crypto(ENV_PATH))
+            chroma_agent.plugin_manager.EXCLUDED_PLUGINS += ["corosync"]
+
+        agent_client = AgentClient(
+            url,
+            ActionPluginManager(),
+            DevicePluginManager(),
+            ServerProperties(),
+            Crypto(ENV_PATH),
+        )
 
         def teardown_callback(*args, **kwargs):
             agent_client.stop()
@@ -105,8 +119,8 @@ def main():
             agent_client.stopped.wait(timeout=10)
 
         agent_client.join()
-    except Exception, e:
-        backtrace = '\n'.join(traceback.format_exception(*(sys.exc_info())))
+    except Exception as e:
+        backtrace = "\n".join(traceback.format_exception(*(sys.exc_info())))
         daemon_log.error("Unhandled exception: %s" % backtrace)
 
     # Call any agent daemon teardown methods that were registered.

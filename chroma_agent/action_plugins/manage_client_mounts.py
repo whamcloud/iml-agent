@@ -42,13 +42,13 @@ def create_fstab_entry(mountspec, mountpoint):
 
 def mount_lustre_filesystem(mountspec, mountpoint):
     try:
-        os.makedirs(mountpoint, 0755)
+        os.makedirs(mountpoint, 0o755)
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise
 
     create_fstab_entry(mountspec, mountpoint)
-    AgentShell.try_run(['/bin/mount', mountpoint])
+    AgentShell.try_run(["/bin/mount", mountpoint])
 
 
 def mount_lustre_filesystems(filesystems):
@@ -58,7 +58,7 @@ def mount_lustre_filesystems(filesystems):
 
 def unmount_lustre_filesystem(mountspec, mountpoint):
     delete_fstab_entry(mountspec, mountpoint)
-    AgentShell.try_run(['/bin/umount', mountpoint])
+    AgentShell.try_run(["/bin/umount", mountpoint])
 
 
 def unmount_lustre_filesystems(filesystems):
@@ -66,5 +66,10 @@ def unmount_lustre_filesystems(filesystems):
         unmount_lustre_filesystem(mountspec, mountpoint)
 
 
-ACTIONS = [mount_lustre_filesystems, unmount_lustre_filesystems, mount_lustre_filesystem, unmount_lustre_filesystem]
-CAPABILITIES = ['manage_client_mounts']
+ACTIONS = [
+    mount_lustre_filesystems,
+    unmount_lustre_filesystems,
+    mount_lustre_filesystem,
+    unmount_lustre_filesystem,
+]
+CAPABILITIES = ["manage_client_mounts"]

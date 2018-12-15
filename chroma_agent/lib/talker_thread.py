@@ -37,6 +37,8 @@ class TalkerThread(threading.Thread):
         sock = networking.subscribe_multicast(self.interface)
 
         while not self._stop.is_set():
-            sock.sendto("%d\n\0" % self.interface.mcastport,
-                        (self.interface.mcastaddr, self.interface.mcastport))
+            sock.sendto(
+                "%d\n\0" % self.interface.mcastport,
+                (self.interface.mcastaddr, self.interface.mcastport),
+            )
             self._stop.wait(0.25)
