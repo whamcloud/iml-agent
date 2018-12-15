@@ -31,7 +31,7 @@ class LocalTargets(object):
         # when we see a combined MGS+MDT
         uuid_name_to_target = {}
 
-        for device in target_devices:
+        for device in sorted(target_devices, cmp=LocalTargets.comparator):
             block_device = BlockDevice(device["type"], device["path"])
 
             # If the target_device has no uuid then it doesn't have a filesystem and is of no use to use, but
@@ -79,6 +79,18 @@ class LocalTargets(object):
                     uuid_name_to_target[(device["uuid"], name)] = target_dict
 
         self.targets = uuid_name_to_target.values()
+
+    @classmethod
+    def comparator(cls, a, b):
+        value = cmp(a["type"], b["type"])
+
+        if value == 0:
+            value = cmp(a["uuid"], b["uuid"])
+
+        if value == 0:
+            value = cmp(a["path"], b["path"])
+
+        return value
 
 
 class MgsTargets(object):
