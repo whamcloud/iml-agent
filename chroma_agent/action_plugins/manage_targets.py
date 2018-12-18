@@ -309,6 +309,9 @@ def _constraint(ha_label, primary):
 
 
 def register_target(device_path, mount_point, backfstype):
+    """
+    Mount/unmount target so it registers with MGS
+    """
     filesystem = FileSystem(backfstype, device_path)
 
     _mkdir_p_concurrent(mount_point)
@@ -326,11 +329,12 @@ def _unconfigure_target_ha(ha_label, info, force=False):
     else:
         extra = []
 
-    result = cibxpath("delete", '//primitive[@id="%s"]'.format(ha_label), extra)
-    if info["backfstype"] == "zfs":
-        cibxpath("delete", '//primitive[@id="%s"]'.format(_zfs_name(ha_label)), extra)
+    if info["device_type"] == "zfs":
+        path = '//group[@id="{}"]'.format(_group_name(ha_label))
+    else:
+        path = '//primitive[@id="{}"]'.format(ha_label)
 
-    return result
+    return cibxpath("delete", path, extra)
 
 
 def unconfigure_target_ha(primary, ha_label, uuid):
@@ -403,7 +407,7 @@ def _this_node():
 
 def _unconfigure_target_priority(primary, ha_label):
     return cibxpath(
-        "delete", '//rsc_location[@id="%s"]'.format(_constraint(ha_label, primary))
+        "delete", '//rsc_location[@id="{}"]'.format(_constraint(ha_label, primary))
     )
 
 
@@ -426,24 +430,18 @@ def _configure_target_priority(primary, ha_label, node):
     return result
 
 
-def _resource_xml(label, ra, nvpair={}, op={}):
+def _resource_xml(label, ra, nvpair={}):
     ras = ra.split(":")
     res = ET.Element(
         "primitive", {"id": label, "class": ras[0], "provider": ras[1], "type": ras[2]}
     )
-    # lab = ha_label+'-operations'
-    # ops = ET.SubElement(res, 'operations', {'id': lab})
-    # for key in ['monitor', 'start', 'stop']:
-    #    if key in op:
-    #        ET.SubElement(ops, 'op', {'id': lab+'-'+key, 'timeout': ops[key]})
-    # @@ - ops
-    ialabel = label + "-instance_attributes"
+    ialabel = "{}-instance_attributes".format(label)
     attr = ET.SubElement(res, "instance_attributes", {"id": ialabel})
     for key in nvpair:
         ET.SubElement(
             attr,
             "nvpair",
-            {"id": ialabel + "-" + key, "name": key, "value": nvpair[key]},
+            {"id": "{}-{}".format(ialabel, key), "name": key, "value": nvpair[key]},
         )
     return res
 
@@ -455,7 +453,7 @@ def _configure_target_ha(ha_label, info, enabled=False):
         extra = ["--disabled"]
 
     # FIXME: This is a hack for ocf:lustre:Lustre up to Lustre 2.10.7/2.12 see LU-11461
-    if info["device_type"] == "ldiskfs":
+    if info["device_type"] == "linux":
         result = AgentShell.run(["realpath", info["bdev"]])
         if result.rc == 0 and result.stdout.startswith("/dev/sd"):
             info["bdev"] = result.stdout.strip()
@@ -583,15 +581,18 @@ def unmount_target(uuid):
 
     # Searches for <nvpair name="target" value=uuid> in
     # <primitive provider="chroma" type="Target"> in dom
-    if not next(
-        (
-            ops
-            for res in dom.findall(".//primitive")
-            if res.get("provider") == "chroma" and res.get("type") == "Target"
-            for ops in res.findall(".//nvpair")
-            if ops.get("name") == "target" and ops.get("value") == uuid
-        ),
-        False,
+    if (
+        next(
+            (
+                ops
+                for res in dom.findall(".//primitive")
+                if res.get("provider") == "chroma" and res.get("type") == "Target"
+                for ops in res.findall(".//nvpair")
+                if ops.get("name") == "target" and ops.get("value") == uuid
+            ),
+            None,
+        )
+        is not None
     ):
         return
     dom.unlink()
@@ -979,7 +980,7 @@ def convert_targets(force=False):
             }
         }
 
-    dom = ET.parse(result.stdout)
+    dom = ET.fromstring(result.stdout)
 
     this_node = _this_node()
 
@@ -1029,7 +1030,7 @@ def convert_targets(force=False):
         try:
             info = next(
                 _get_target_config(ops.get("value"))
-                for ops in res.findall(".//nvpair[@name='target'")
+                for ops in res.findall('.//nvpair[@name="target"]')
             )
         except Exception as err:
             console_log.error("No local info for resource: %s", ha_label)
