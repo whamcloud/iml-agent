@@ -362,7 +362,7 @@ def _cibadmin(command_args, timeout=120, raise_on_timeout=False):
     return result
 
 
-def cibadmin(command_args, timeout):
+def cibadmin(command_args, timeout=120):
     result = _cibadmin(command_args, timeout, True)
 
     if result.rc != 0:
