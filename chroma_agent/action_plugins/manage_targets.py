@@ -132,7 +132,7 @@ def _get_resource_locations(xml):
             resid = res.get("id")
             if (
                 res.get("role") in ["Started", "Stopping"]
-                and res.get("failed") == "false"
+                and int(res.get("nodes_running_on")) > 0
             ):
                 locations[resid] = res.find(".//node").get("name")
             else:
