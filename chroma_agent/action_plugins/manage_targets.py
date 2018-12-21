@@ -8,8 +8,9 @@ import os
 import re
 import time
 import socket
-from xml.dom.minidom import parseString
+import xml.etree.ElementTree as ET
 
+from chroma_agent.lib.pacemaker import cibcreate, cibxpath
 from chroma_agent import config
 from chroma_agent.action_plugins.manage_pacemaker import PreservePacemakerCorosyncState
 from chroma_agent.device_plugins.block_devices import get_local_mounts
@@ -118,24 +119,22 @@ def get_resource_location(resource_name):
 
 def _get_resource_locations(xml):
     # allow testing
-    dom = parseString(xml)
+    dom = ET.fromstring(xml)
 
     locations = {}
-    for res in dom.getElementsByTagName("resource"):
-        agent = res.getAttribute("resource_agent")
-        if agent in [
+    for res in dom.findall(".//resource"):
+        if res.get("resource_agent") in [
             "ocf::chroma:Target",
             "ocf::lustre:Lustre",
             "ocf::chroma:ZFS",
             "ocf::heartbeat:ZFS",
         ]:
-            resid = res.getAttribute("id")
+            resid = res.get("id")
             if (
-                res.getAttribute("role") in ["Started", "Stopping"]
-                and res.getAttribute("failed") == "false"
+                res.get("role") in ["Started", "Stopping"]
+                and res.get("failed") == "false"
             ):
-                node = res.getElementsByTagName("node")[0]
-                locations[resid] = node.getAttribute("name")
+                locations[resid] = res.find(".//node").get("name")
             else:
                 locations[resid] = None
 
@@ -310,6 +309,9 @@ def _constraint(ha_label, primary):
 
 
 def register_target(device_path, mount_point, backfstype):
+    """
+    Mount/unmount target so it registers with MGS
+    """
     filesystem = FileSystem(backfstype, device_path)
 
     _mkdir_p_concurrent(mount_point)
@@ -327,11 +329,12 @@ def _unconfigure_target_ha(ha_label, info, force=False):
     else:
         extra = []
 
-    result = AgentShell.run(["pcs", "resource", "delete", ha_label] + extra)
-    if info["backfstype"] == "zfs":
-        AgentShell.run(["pcs", "resource", "delete", _zfs_name(ha_label)] + extra)
+    if info["device_type"] == "zfs":
+        path = '//group[@id="{}"]'.format(_group_name(ha_label))
+    else:
+        path = '//primitive[@id="{}"]'.format(ha_label)
 
-    return result
+    return cibxpath("delete", path, extra)
 
 
 def unconfigure_target_ha(primary, ha_label, uuid):
@@ -403,8 +406,8 @@ def _this_node():
 
 
 def _unconfigure_target_priority(primary, ha_label):
-    return AgentShell.run(
-        ["pcs", "constraint", "location", "remove", _constraint(ha_label, primary)]
+    return cibxpath(
+        "delete", '//rsc_location[@id="{}"]'.format(_constraint(ha_label, primary))
     )
 
 
@@ -415,15 +418,32 @@ def _configure_target_priority(primary, ha_label, node):
         score = "10"
 
     name = _constraint(ha_label, primary)
-    result = AgentShell.run(
-        ["pcs", "constraint", "location", "add", name, ha_label, node, score]
+    constraint = ET.Element(
+        "rsc_location", {"id": name, "node": node, "rsc": ha_label, "score": score}
     )
 
-    if result.rc == 76:
+    result = cibcreate("constraints", ET.tostring(constraint))
+    if result.rc == errno.ENOTUNIQ:
         console_log.warn("A constraint with the name %s already exists", name)
-        result.rc = 0
+        result = AgentShell.RunResult(0, err.stdout, err.stderr, err.result.timeout)
 
     return result
+
+
+def _resource_xml(label, ra, nvpair={}):
+    ras = ra.split(":")
+    res = ET.Element(
+        "primitive", {"id": label, "class": ras[0], "provider": ras[1], "type": ras[2]}
+    )
+    ialabel = "{}-instance_attributes".format(label)
+    attr = ET.SubElement(res, "instance_attributes", {"id": ialabel})
+    for key in nvpair:
+        ET.SubElement(
+            attr,
+            "nvpair",
+            {"id": "{}-{}".format(ialabel, key), "name": key, "value": nvpair[key]},
+        )
+    return res
 
 
 def _configure_target_ha(ha_label, info, enabled=False):
@@ -432,77 +452,39 @@ def _configure_target_ha(ha_label, info, enabled=False):
     else:
         extra = ["--disabled"]
 
-    bdev = info["bdev"]
-
-    if info["device_type"] == "zfs":
-        extra += ["--group", _group_name(ha_label)]
-        zpool = info["bdev"].split("/")[0]
-        result = AgentShell.run(
-            [
-                "pcs",
-                "resource",
-                "create",
-                _zfs_name(ha_label),
-                "ocf:chroma:ZFS",
-                "pool={}".format(zpool),
-                "op",
-                "start",
-                "timeout=120",
-                "op",
-                "stop",
-                "timeout=90",
-            ]
-            + extra
-        )
-        if result.rc != 0:
-            console_log.error(
-                "Resource (%s) create failed:%d: %s", zpool, result.rc, result.stderr
-            )
-            return result
-
-        if enabled and not _wait_target(_zfs_name(ha_label), True):
-            return {
-                "rc": -1,
-                "stdout": "",
-                "stderr": "ZFS Resource ({}) failed to start".format(
-                    _zfs_name(ha_label)
-                ),
-            }
-
-    else:
-        # FIXME: This is a hack for ocf:lustre:Lustre up to Lustre 2.10.6/2.11 see LU-11461
+    # FIXME: This is a hack for ocf:lustre:Lustre up to Lustre 2.10.7/2.12 see LU-11461
+    if info["device_type"] == "linux":
         result = AgentShell.run(["realpath", info["bdev"]])
         if result.rc == 0 and result.stdout.startswith("/dev/sd"):
-            bdev = result.stdout.strip()
+            info["bdev"] = result.stdout.strip()
+
+    res = _resource_xml(
+        ha_label,
+        "ocf:lustre:Lustre",
+        {"target": info["bdev"], "mountpoint": info["mntpt"]},
+    )
+
+    if info["device_type"] == "zfs":
+        grp = ET.Element("group", {"id": _group_name(ha_label)})
+        zpool = info["bdev"].split("/")[0]
+        grp.append(
+            _resource_xml(_zfs_name(ha_label), "ocf:chroma:ZFS", {"pool": zpool})
+        )
+        grp.append(res)
+        res = grp
 
     # Create Lustre resource and add target=uuid as an attribute
-    result = AgentShell.run(
-        [
-            "pcs",
-            "resource",
-            "create",
-            ha_label,
-            "ocf:lustre:Lustre",
-            "target={}".format(bdev),
-            "mountpoint={}".format(info["mntpt"]),
-            "op",
-            "start",
-            "timeout=600",
-        ]
-        + extra
-    )
+    result = cibcreate("resources", ET.tostring(res))
 
     if result.rc != 0 or enabled and not _wait_target(ha_label, True):
         if result.rc == 0:
-            result.rc = -1
-            result.stderr = "Resource ({}) failed to start".format(ha_label)
+            result = AgentShell.RunResult(
+                -1, "", "Resource ({}) failed to start".format(ha_label), False
+            )
 
         console_log.error(
             "Failed to create resource %s:%d: %s", ha_label, result.rc, result.stderr
         )
-
-        if info["device_type"] == "zfs":
-            AgentShell.run(["pcs", "resource", "delete", _zfs_name(ha_label)])
 
     return result
 
@@ -589,27 +571,28 @@ def unmount_target(uuid):
 
     # only unmount targets that are controlled by chroma:Target
     try:
-        result = AgentShell.run(["cibadmin", "--query", "--xpath", "//primitive"])
+        result = cibxpath("query", "//primitive")
     except OSError as err:
-        if err.errno != errno.ENOENT:
-            raise
-    if result.rc != 0:
-        exit(-1)
-    dom = parseString(result.stdout)
+        if err.rc == errno.ENOENT:
+            exit(-1)
+        raise
+
+    dom = ET.fromstring(result.stdout)
 
     # Searches for <nvpair name="target" value=uuid> in
     # <primitive provider="chroma" type="Target"> in dom
-    if not next(
-        (
-            ops
-            for res in dom.getElementsByTagName("primitive")
-            if res.getAttribute("provider") == "chroma"
-            and res.getAttribute("type") == "Target"
-            for ops in res.getElementsByTagName("nvpair")
-            if ops.getAttribute("name") == "target"
-            and ops.getAttribute("value") == uuid
-        ),
-        False,
+    if (
+        next(
+            (
+                ops
+                for res in dom.findall(".//primitive")
+                if res.get("provider") == "chroma" and res.get("type") == "Target"
+                for ops in res.findall(".//nvpair")
+                if ops.get("name") == "target" and ops.get("value") == uuid
+            ),
+            None,
+        )
+        is not None
     ):
         return
     dom.unlink()
@@ -878,19 +861,13 @@ def _move_target(target_label, dest_node):
 
 
 def _find_resource_constraint(ha_label, primary):
-    stdout = AgentShell.try_run(
-        [
-            "cibadmin",
-            "--query",
-            "--xpath",
-            '//constraints/rsc_location[@id="{}"]'.format(
-                _constraint(ha_label, primary)
-            ),
-        ]
+    result = cibxpath(
+        "query",
+        '//constraints/rsc_location[@id="{}"]'.format(_constraint(ha_label, primary)),
     )
 
     # Single line: <rsc_location id="HA_LABEL-PRIMARY" node="NODE" rsc="HA_LABEL" score="20"/>
-    match = re.match(r".*node=.([^\"]+)", stdout)
+    match = re.match(r".*node=.([^\"]+)", result.stdout)
 
     if match:
         return match.group(1)
@@ -1003,7 +980,7 @@ def convert_targets(force=False):
             }
         }
 
-    dom = parseString(result.stdout)
+    dom = ET.fromstring(result.stdout)
 
     this_node = _this_node()
 
@@ -1011,52 +988,49 @@ def convert_targets(force=False):
     # dc-uuid is the node id of the domain controller
     dcuuid = next(
         (
-            node.getAttribute("uname")
-            for node in dom.getElementsByTagName("node")
-            if node.getAttribute("id") == dom.documentElement.getAttribute("dc-uuid")
+            node.get("uname")
+            for node in dom.findall(".//node")
+            if node.get("id") == dom.get("dc-uuid")
         ),
         "",
     )
+
     if dcuuid != this_node and not force:
         console_log.info("This is not Pacemaker DC %s this is %s", dcuuid, this_node)
         return
 
     # Build map of resource -> [ primary node, secondary node ]
     locations = {}
-    for con in dom.getElementsByTagName("rsc_location"):
-        ha_label = con.getAttribute("rsc")
+    for con in dom.findall(".//rsc_location"):
+        ha_label = con.get("rsc")
         if not locations.get(ha_label):
             locations[ha_label] = {}
-        if con.getAttribute("id") == _constraint(ha_label, True):
+        if con.get("id") == _constraint(ha_label, True):
             ind = 0
-        elif con.getAttribute("id") == _constraint(ha_label, False):
+        elif con.get("id") == _constraint(ha_label, False):
             ind = 1
         else:
-            console_log.info("Unknown constraint: %s", con.getAttribute("id"))
+            console_log.info("Unknown constraint: %s", con.get("id"))
             continue
-        locations[ha_label][ind] = con.getAttribute("node")
+        locations[ha_label][ind] = con.get("node")
 
     active = get_resource_locations()
 
     AgentShell.run(["pcs", "property", "set", "maintenance-mode=true"])
 
     wait_list = []
-    for res in dom.getElementsByTagName("primitive"):
-        if not (
-            res.getAttribute("provider") == "chroma"
-            and res.getAttribute("type") == "Target"
-        ):
+    for res in dom.findall(".//primitive"):
+        if not (res.get("provider") == "chroma" and res.get("type") == "Target"):
             continue
 
-        ha_label = res.getAttribute("id")
+        ha_label = res.get("id")
 
         # _get_target_config() will raise KeyError if uuid doesn't exist locally
         # next() will raise StopIteration if it doesn't find attribute target
         try:
             info = next(
-                _get_target_config(ops.getAttribute("value"))
-                for ops in res.getElementsByTagName("nvpair")
-                if ops.getAttribute("name") == "target"
+                _get_target_config(ops.get("value"))
+                for ops in res.findall('.//nvpair[@name="target"]')
             )
         except Exception as err:
             console_log.error("No local info for resource: %s", ha_label)

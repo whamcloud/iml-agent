@@ -317,7 +317,18 @@ class PacemakerConfig(object):
         return result
 
 
-def cibadmin(command_args, timeout=120):
+def cibxpath(command, xpath, extra=[]):
+    """
+    command: query, delete, delete-all, etc...
+    """
+    return _cibadmin(["--{}".format(command), "--xpath", xpath] + extra)
+
+
+def cibcreate(scope, xml, extra=[]):
+    return _cibadmin(["--create", "--scope", scope, "--xml-text", xml] + extra)
+
+
+def _cibadmin(command_args, timeout=120, raise_on_timeout=False):
     assert timeout > 0, "timeout must be greater than zero"
 
     # I think these are "errno" values, but I'm not positive
@@ -342,13 +353,22 @@ def cibadmin(command_args, timeout=120):
         elif result.rc not in RETRY_CODES:
             break
 
-    if result.rc in RETRY_CODES:
+    if raise_on_timeout and result.rc in RETRY_CODES:
         raise PacemakerError(
             "%s timed out after %d seconds: rc: %s, stderr: %s"
             % (" ".join(command_args), timeout, result.rc, result.stderr)
         )
-    else:
+
+    return result
+
+
+def cibadmin(command_args, timeout=120):
+    result = _cibadmin(command_args, timeout, True)
+
+    if result.rc != 0:
         raise AgentShell.CommandExecutionError(result, command_args)
+
+    return result
 
 
 def pacemaker_running():
