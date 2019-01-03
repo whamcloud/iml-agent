@@ -152,7 +152,7 @@ def get_resource_locations():
     except OSError as err:
         # ENOENT is fine here.  Pacemaker might not be installed yet.
         if err.errno != errno.ENOENT:
-            raise
+            raise err
 
     if result.rc != 0:
         # Pacemaker not running, or no resources configured yet
@@ -323,13 +323,13 @@ def register_target(device_path, mount_point, backfstype):
     return {"label": filesystem.label}
 
 
-def _unconfigure_target_ha(ha_label, info, force=False):
+def _unconfigure_target_ha(ha_label, force=False):
     if force:
         extra = ["--force"]
     else:
         extra = []
 
-    if info["device_type"] == "zfs":
+    if _resource_exists(_group_name(ha_label)):
         path = '//group[@id="{}"]'.format(_group_name(ha_label))
     else:
         path = '//primitive[@id="{}"]'.format(ha_label)
@@ -357,7 +357,7 @@ def unconfigure_target_ha(primary, ha_label, uuid):
         _unconfigure_target_priority(primary, ha_label)
 
         if primary:
-            result = _unconfigure_target_ha(ha_label, info)
+            result = _unconfigure_target_ha(ha_label)
 
             if result.rc != 0 and result.rc != 234:
                 return agent_error(
@@ -430,19 +430,28 @@ def _configure_target_priority(primary, ha_label, node):
     return result
 
 
+def _nvpair_xml(element, key, value):
+    ET.SubElement(
+        element,
+        "nvpair",
+        {
+            "id": "{}-{}-{}".format(element.get("id"), element.tag, key),
+            "name": key,
+            "value": value,
+        },
+    )
+
+
 def _resource_xml(label, ra, nvpair={}):
     ras = ra.split(":")
     res = ET.Element(
         "primitive", {"id": label, "class": ras[0], "provider": ras[1], "type": ras[2]}
     )
-    ialabel = "{}-instance_attributes".format(label)
-    attr = ET.SubElement(res, "instance_attributes", {"id": ialabel})
+    attr = ET.SubElement(
+        res, "instance_attributes", {"id": "{}-instance_attributes".format(label)}
+    )
     for key in nvpair:
-        ET.SubElement(
-            attr,
-            "nvpair",
-            {"id": "{}-{}".format(ialabel, key), "name": key, "value": nvpair[key]},
-        )
+        _nvpair_xml(attr, key, nvpair[key])
     return res
 
 
@@ -458,6 +467,7 @@ def _configure_target_ha(ha_label, info, enabled=False):
         if result.rc == 0 and result.stdout.startswith("/dev/sd"):
             info["bdev"] = result.stdout.strip()
 
+    xmlid = ha_label
     res = _resource_xml(
         ha_label,
         "ocf:lustre:Lustre",
@@ -465,13 +475,20 @@ def _configure_target_ha(ha_label, info, enabled=False):
     )
 
     if info["device_type"] == "zfs":
-        grp = ET.Element("group", {"id": _group_name(ha_label)})
+        xmlid = _group_name(ha_label)
+        grp = ET.Element("group", {"id": xmlid})
         zpool = info["bdev"].split("/")[0]
         grp.append(
             _resource_xml(_zfs_name(ha_label), "ocf:chroma:ZFS", {"pool": zpool})
         )
         grp.append(res)
         res = grp
+
+    if not enabled:
+        meta = ET.SubElement(
+            res, "meta_attributes", {"id": "{}-{}".format(xmlid, "meta_attributes")}
+        )
+        _nvpair_xml(meta, "target_role", "Stopped")
 
     # Create Lustre resource and add target=uuid as an attribute
     result = cibcreate("resources", ET.tostring(res))
@@ -575,7 +592,7 @@ def unmount_target(uuid):
     except OSError as err:
         if err.rc == errno.ENOENT:
             exit(-1)
-        raise
+        raise err
 
     dom = ET.fromstring(result.stdout)
 
@@ -697,6 +714,27 @@ def _resource_exists(ha_label):
     return result.rc == 0
 
 
+def _res_set_started(ha_label, running):
+    # RAISES AgentShell.CommandExecutionError on error
+    if running:
+        role = "Started"
+    else:
+        role = "Stopped"
+
+    AgentShell.try_run(
+        [
+            "crm_resource",
+            "--resource",
+            ha_label,
+            "--set-parameter",
+            "target-role",
+            "--meta",
+            "--parameter-value",
+            role,
+        ]
+    )
+
+
 def start_target(ha_label):
     """
     Start the high availability target
@@ -726,49 +764,38 @@ def start_target(ha_label):
     # HYD-1989: brute force, try up to 3 times to start the target
     i = 0
     while True:
-        i += 1
+        try:
+            i += 1
 
-        error = AgentShell.run_canned_error_message(
-            ["pcs", "resource", "enable", ha_label]
-        )
-        if error:
-            return agent_error(error)
-        if _resource_exists(_zfs_name(ha_label)):
-            error = AgentShell.run_canned_error_message(
-                ["pcs", "resource", "enable", _zfs_name(ha_label)]
-            )
-            if error:
-                return agent_error(error)
-        if _resource_exists(_group_name(ha_label)):
-            # enable group also, in case group was disabled
-            error = AgentShell.run_canned_error_message(
-                ["pcs", "resource", "enable", _group_name(ha_label)]
-            )
-            if error:
-                return agent_error(error)
+            _res_set_started(ha_label, True)
+            if _resource_exists(_zfs_name(ha_label)):
+                _res_set_started(_zfs_name(ha_label), True)
+                # enable group also, in case group was disabled
+                _res_set_started(_group_name(ha_label), True)
 
-        # now wait for it to start
-        if _wait_target(ha_label, True):
-            location = get_resource_location(ha_label)
-            if not location:
-                return agent_error(
-                    "Started {} but now can't locate it!".format(ha_label)
-                )
-            return agent_result(location)
+            # now wait for it to start
+            if _wait_target(ha_label, True):
+                location = get_resource_location(ha_label)
+                if not location:
+                    return agent_error(
+                        "Started {} but now can't locate it!".format(ha_label)
+                    )
+                return agent_result(location)
 
-        else:
-            # try to leave things in a sane state for a failed mount
-            error = AgentShell.run_canned_error_message(
-                ["pcs", "resource", "disable", ha_label]
-            )
-
-            if error:
-                return agent_error(error)
-
-            if i < 4:
-                console_log.info("failed to start target %s", ha_label)
             else:
-                return agent_error("Failed to start target {}".format(ha_label))
+                # try to leave things in a sane state for a failed mount
+                _res_set_started(ha_label, False)
+
+                if i < 4:
+                    console_log.info("failed to start target %s", ha_label)
+                else:
+                    return agent_error("Failed to start target {}".format(ha_label))
+
+        except AgentShell.CommandExecutionError as err:
+            return agent_error(
+                "Error (%s) running '%s': '%s' '%s'"
+                % (err.result.rc, err.command, err.result.stdout, err.result.stderr)
+            )
 
 
 def stop_target(ha_label):
@@ -782,19 +809,18 @@ def stop_target(ha_label):
     while True:
         i += 1
 
-        # Issue the command to Pacemaker to stop the target
-        if _resource_exists(_zfs_name(ha_label)):
-            # Group disable will disable all members of group regardless of current status
-            error = AgentShell.run_canned_error_message(
-                ["pcs", "resource", "disable", _group_name(ha_label)]
-            )
-        else:
-            error = AgentShell.run_canned_error_message(
-                ["pcs", "resource", "disable", ha_label]
-            )
+        try:
+            # Issue the command to Pacemaker to stop the target
+            if _resource_exists(_zfs_name(ha_label)):
+                _res_set_started(_group_name(ha_label), False)
+            else:
+                _res_set_started(ha_label, False)
 
-        if error:
-            return agent_error(error)
+        except AgentShell.CommandExecutionError as err:
+            return agent_error(
+                "Error (%s) running '%s': '%s' '%s'"
+                % (err.result.rc, err.command, err.result.stdout, err.result.stderr)
+            )
 
         if _wait_target(ha_label, False):
             return agent_result_ok
@@ -968,7 +994,7 @@ def convert_targets(force=False):
         result = AgentShell.run(["cibadmin", "--query"])
     except OSError as err:
         if err.errno != errno.ENOENT:
-            raise
+            raise err
 
     if result.rc != 0:
         # Pacemaker not running, or no resources configured yet
@@ -1038,7 +1064,7 @@ def convert_targets(force=False):
 
         _unconfigure_target_priority(False, ha_label)
         _unconfigure_target_priority(True, ha_label)
-        _unconfigure_target_ha(ha_label, info, True)
+        _unconfigure_target_ha(ha_label, True)
         _configure_target_ha(ha_label, info, (active.get(ha_label) is not None))
         _configure_target_priority(True, ha_label, locations[ha_label][0])
         _configure_target_priority(False, ha_label, locations[ha_label][1])
