@@ -535,7 +535,7 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
                 info["bdev"],
                 info["mntpt"],
             )
-        result = _configure_target_ha(ha_label, info, True)
+        result = _configure_target_ha(ha_label, info, False)
         if result.rc != 0:
             return agent_error("Failed to create {}: {}".format(ha_label, result.rc))
 
