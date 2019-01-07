@@ -4,4 +4,4 @@ srpm:
 	dnf -y install rpkg
 	python setup.py sdist -d ./
 	rpkg srpm --outdir=$(outdir) --spec=python-iml-agent.spec
-	cp --remove-destination chroma-agent.service 50-chroma-agent.preset logrotate.cfg iml-storage-server.target 10-device-scanner.target.conf $(outdir)
+	cp --remove-destination chroma-agent.service 50-chroma-agent.preset logrotate.cfg iml-storage-server.target 10-device-scanner.target.conf iml-agent-*.tar.gz $(outdir)
