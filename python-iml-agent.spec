@@ -4,8 +4,8 @@ BuildRequires: systemd
 %define unit_name chroma-agent.service
 
 %global pypi_name iml-agent
-%{?!version: %global version @VERSION@}
-%{?!package_release: %global package_release @RELEASE@}
+%{?!version: %global version 4.1.2}
+%{?!package_release: %global package_release 1}
 %{?!python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; import sys; sys.stdout.write(get_python_lib())")}
 
 %{?dist_version: %global source https://github.com/whamcloud/%{pypi_name}/archive/%{dist_version}.tar.gz}
@@ -29,7 +29,7 @@ Group:          Development/Libraries
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Prefix:         %{_prefix}
 BuildArch:      noarch
-Vendor:         whamCloud <iml@whamcloud.com>
+Vendor:         Whamcloud <iml@whamcloud.com>
 BuildRequires:  python2-setuptools
 BuildRequires:  systemd
 
@@ -174,8 +174,11 @@ grubby --set-default=/boot/vmlinuz-$MOST_RECENT_KERNEL_VERSION
 %defattr(-,root,root)
 
 %changelog
+* Mon Jan 7 2019 Joe Grund <jgrund@whamcloud.com> - 4.1.2.0-1
+- Use Docker copr image instead of module-tools
+
 * Mon Jul 16 2018 Joe Grund <jgrund@whamcloud.com> - 4.1.1.0-1
-Remove old package update scan from this project.
+- Remove old package update scan from this project.
 
 * Fri Dec 1 2017 Brian J. Murrell <brian.murrell@intel.com> - 4.0.5.0-1
 - Initial module

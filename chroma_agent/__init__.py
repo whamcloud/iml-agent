@@ -25,20 +25,16 @@ except OSError as e:
         raise
 
 try:
-    from scm_version import VERSION, PACKAGE_VERSION, IS_RELEASE, BUILD
+    from version import VERSION, PACKAGE_VERSION
 
     __version__ = VERSION
     __package_version__ = PACKAGE_VERSION
-    __build__ = BUILD
-    __is_release__ = IS_RELEASE
 except ImportError:
     from pkginfo import UnpackedSDist
 
     pkg = UnpackedSDist(".")
     __version__ = pkg.version
     __package_version__ = __version__
-    __build__ = 1
-    __is_release__ = False
 
 
 def package_version():
