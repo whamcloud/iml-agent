@@ -16,7 +16,11 @@ jobs:
         - stage: test
           name: "mock build test"
           script:
-              - ./include/travis/run_in_centos7_docker.sh include/travis/mock_build_test.sh
+              - docker run -dit --name mock -v "$(pwd)":/mockdir --cap-add=SYS_ADMIN --privileged imlteam/mock
+              - docker exec -it mock bash -xec 'yum install -y dnf'
+              - docker exec -it mock bash -xec 'chown root.root /mockdir/*'
+              - docker exec -it mock bash -xec 'cd /mockdir && make -f .copr/Makefile outdir=/mockdir'
+              - docker exec -it mock bash -xec 'mock /mockdir/python-iml-agent-*.el*.src.rpm -v --enable-network'
         - stage: test
           name: "Format Check"
           python: "3.6"
