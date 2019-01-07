@@ -6,3 +6,6 @@ include chroma_agent/templates/corosync.conf
 include chroma_agent/templates/ifcfg-nic
 include chroma_agent/templates/chroma-copytool
 include chroma_agent/templates/chroma-copytool-monitor
+include 10-device-scanner.target.conf
+include 50-chroma-agent.preset
+include iml-storage-server.target
