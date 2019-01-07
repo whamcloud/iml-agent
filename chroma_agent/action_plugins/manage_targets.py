@@ -458,6 +458,8 @@ def _resource_xml(label, ra, nvpair={}, ops={}):
 
     attr = ET.SubElement(res, "operations")
     for key in ["start", "stop", "monitor"]:
+        if key not in ops:
+            ops[key] = {}
         action = agent.find('.//action[@name="{}"]'.format(key))
         if "interval" not in ops[key]:
             ops[key]["interval"] = action.get("interval", "0s")
