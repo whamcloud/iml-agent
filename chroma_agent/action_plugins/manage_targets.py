@@ -24,8 +24,6 @@ from iml_common.lib.agent_rpc import agent_result_ok
 from iml_common.lib.agent_rpc import agent_ok_or_error
 from iml_common.lib.agent_rpc import agent_result_is_error
 from iml_common.lib.agent_rpc import agent_result_is_ok
-from iml_common.lib.exception_sandbox import exceptionSandBox
-
 
 def writeconf_target(
     device=None,
@@ -141,7 +139,6 @@ def _get_resource_locations(xml):
     return locations
 
 
-@exceptionSandBox(console_log, None)
 def get_resource_locations():
     """Parse `crm_mon -1` to identify where (if anywhere) resources
     (i.e. targets) are running
