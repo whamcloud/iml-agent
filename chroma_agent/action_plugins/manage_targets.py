@@ -442,19 +442,22 @@ def _nvpair_xml(element, key, value):
     )
 
 
-def _resource_xml(label, ra, nvpair={}, ops={}):
+def _resource_xml(label, ra, nvpair=None, ops=None):
     ras = ra.split(":")
     res = ET.Element(
         "primitive", {"id": label, "class": ras[0], "provider": ras[1], "type": ras[2]}
     )
-    attr = ET.SubElement(
-        res, "instance_attributes", {"id": "{}-instance_attributes".format(label)}
-    )
-    for key in nvpair:
-        _nvpair_xml(attr, key, nvpair[key])
+    if nvpair:
+        attr = ET.SubElement(
+            res, "instance_attributes", {"id": "{}-instance_attributes".format(label)}
+        )
+        for key in nvpair:
+            _nvpair_xml(attr, key, nvpair[key])
 
     result = AgentShell.try_run(["crm_resource", "--show-metadata={}".format(ra)])
     agent = ET.fromstring(result)
+    if ops is None:
+        ops = {}
 
     attr = ET.SubElement(res, "operations")
     for key in ["start", "stop", "monitor"]:
@@ -473,7 +476,7 @@ def _resource_xml(label, ra, nvpair={}, ops={}):
                 "id": "{}-{}-interval-{}".format(label, key, ops[key]["interval"]),
                 "interval": ops[key]["interval"],
                 "timeout": ops[key]["timeout"],
-            }
+            },
         )
     return res
 
