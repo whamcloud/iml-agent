@@ -25,12 +25,23 @@ jobs:
           script:
               - black --check ./
         - stage: cd
-          git:
-              depth: 999999
           name: "Continuous Deployment"
           script:
-              - include/travis/copr-deploy.sh prepare
-              - ./travis_wait "./include/travis/run_in_centos7_docker.sh include/travis/copr-deploy.sh build_srpm"
+              - export OWNER=managerforlustre
+              - export PROJECT=manager-for-lustre-devel
+              - export PACKAGE=iml-agent
+              - export CLONE_URL=https://github.com/whamcloud/iml-agent.git
+              - export SPEC=python-iml-agent.spec
+              - docker run -it -e OWNER="$OWNER" -e PROJECT="$PROJECT" -e PACKAGE="$PACKAGE" -e CLONE_URL="$CLONE_URL" -e SPEC="$SPEC" -e KEY="$encrypted_253525cedcf6_key" -e IV="$encrypted_253525cedcf6_iv" -v $(pwd):/build:rw imlteam/copr
+        - stage: deploy-copr
+          name: "Copr deploy"
+          script:
+              - export OWNER=managerforlustre
+              - export PROJECT=manager-for-lustre
+              - export PACKAGE=iml-agent
+              - export CLONE_URL=https://github.com/whamcloud/iml-agent.git
+              - export SPEC=python-iml-agent.spec
+              - docker run -it -e OWNER="$OWNER" -e PROJECT="$PROJECT" -e PACKAGE="$PACKAGE" -e CLONE_URL="$CLONE_URL" -e SPEC="$SPEC" -e KEY="$encrypted_253525cedcf6_key" -e IV="$encrypted_253525cedcf6_iv" -v $(pwd):/build:rw imlteam/copr
         - stage: deploy-pypi
           name: "PyPi deploy"
           script: skip
@@ -43,17 +54,6 @@ jobs:
                   all_branches: true
                   distributions: sdist bdist_wheel
           skip_upload_docs: true
-        - stage: deploy-copr
-          name: "Copr deploy"
-          script: skip
-          before_deploy:
-              - include/travis/copr-deploy.sh prepare
-          deploy:
-              skip_cleanup: true
-              provider: script
-              script: ./travis_wait "./include/travis/run_in_centos7_docker.sh include/travis/copr-deploy.sh build"
-              on:
-                  all_branches: true
 stages:
     - test
     - name: cd
