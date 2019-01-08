@@ -25,6 +25,7 @@ from iml_common.lib.agent_rpc import agent_ok_or_error
 from iml_common.lib.agent_rpc import agent_result_is_error
 from iml_common.lib.agent_rpc import agent_result_is_ok
 
+
 def writeconf_target(
     device=None,
     target_types=(),
@@ -150,18 +151,13 @@ def get_resource_locations():
         # ENOENT is fine here.  Pacemaker might not be installed yet.
         if err.errno != errno.ENOENT:
             raise err
-        else:
-            return None
+        return {}
 
     if result.rc != 0:
-        # Pacemaker not running, or no resources configured yet
-        return {
-            "crm_mon_error": {
-                "rc": result.rc,
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-            }
-        }
+        console_log.info(
+            "crm_mon failed (%d): '%s' '%s'", result.rc, result.stdout, result.stderr
+        )
+        return {}
 
     return _get_resource_locations(result.stdout)
 
