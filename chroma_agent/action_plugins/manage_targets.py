@@ -1016,6 +1016,13 @@ def convert_targets(force=False):
     except OSError as err:
         if err.errno != errno.ENOENT:
             raise err
+        return {
+            "crm_mon_error": {
+                "rc": err.errno,
+                "stdout": err.message,
+                "stderr": err.strerror,
+            }
+        }
 
     if result.rc != 0:
         # Pacemaker not running, or no resources configured yet
