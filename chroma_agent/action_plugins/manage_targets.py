@@ -109,10 +109,6 @@ def get_resource_location(resource_name):
     """
     locations = get_resource_locations()
 
-    if not isinstance(locations, dict):
-        # Pacemaker not running, or no resources configured yet
-        return None
-
     return locations.get(resource_name)
 
 
