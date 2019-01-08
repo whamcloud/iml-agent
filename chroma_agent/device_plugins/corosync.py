@@ -111,6 +111,8 @@ class CorosyncPlugin(DevicePlugin):
             # ENOENT is fine here.  Pacemaker might not be installed yet.
             if e.errno != errno.ENOENT:
                 raise
+            else:
+                return None
 
         if rc not in [0, 10]:  # 10 Corosync is not running on this node
             daemon_log.warning(

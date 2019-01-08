@@ -150,6 +150,8 @@ def get_resource_locations():
         # ENOENT is fine here.  Pacemaker might not be installed yet.
         if err.errno != errno.ENOENT:
             raise err
+        else:
+            return None
 
     if result.rc != 0:
         # Pacemaker not running, or no resources configured yet
