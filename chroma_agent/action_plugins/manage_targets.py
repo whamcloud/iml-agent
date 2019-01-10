@@ -425,7 +425,7 @@ def _configure_target_priority(primary, ha_label, node):
     result = cibcreate("constraints", ET.tostring(constraint))
     if result.rc == errno.ENOTUNIQ:
         console_log.warn("A constraint with the name %s already exists", name)
-        result = AgentShell.RunResult(0, err.stdout, err.stderr, err.result.timeout)
+        result = AgentShell.RunResult(0, result.stdout, result.stderr, result.timeout)
 
     return result
 
