@@ -25,6 +25,7 @@ from iml_common.lib.agent_rpc import agent_ok_or_error
 from iml_common.lib.agent_rpc import agent_result_is_error
 from iml_common.lib.agent_rpc import agent_result_is_ok
 
+
 def writeconf_target(
     device=None,
     target_types=(),
