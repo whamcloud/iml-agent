@@ -24,7 +24,6 @@ from iml_common.lib.agent_rpc import agent_result_ok
 from iml_common.lib.agent_rpc import agent_ok_or_error
 from iml_common.lib.agent_rpc import agent_result_is_error
 from iml_common.lib.agent_rpc import agent_result_is_ok
-from iml_common.lib.exception_sandbox import exceptionSandBox
 
 
 def writeconf_target(
@@ -141,7 +140,6 @@ def _get_resource_locations(xml):
     return locations
 
 
-@exceptionSandBox(console_log, None)
 def get_resource_locations():
     """Parse `crm_mon -1` to identify where (if anywhere) resources
     (i.e. targets) are running
@@ -153,6 +151,8 @@ def get_resource_locations():
         # ENOENT is fine here.  Pacemaker might not be installed yet.
         if err.errno != errno.ENOENT:
             raise err
+        else:
+            return None
 
     if result.rc != 0:
         # Pacemaker not running, or no resources configured yet
@@ -442,16 +442,42 @@ def _nvpair_xml(element, key, value):
     )
 
 
-def _resource_xml(label, ra, nvpair={}):
+def _resource_xml(label, ra, nvpair=None, ops=None):
     ras = ra.split(":")
     res = ET.Element(
         "primitive", {"id": label, "class": ras[0], "provider": ras[1], "type": ras[2]}
     )
-    attr = ET.SubElement(
-        res, "instance_attributes", {"id": "{}-instance_attributes".format(label)}
-    )
-    for key in nvpair:
-        _nvpair_xml(attr, key, nvpair[key])
+    if nvpair:
+        attr = ET.SubElement(
+            res, "instance_attributes", {"id": "{}-instance_attributes".format(label)}
+        )
+        for key in nvpair:
+            _nvpair_xml(attr, key, nvpair[key])
+
+    result = AgentShell.try_run(["crm_resource", "--show-metadata={}".format(ra)])
+    agent = ET.fromstring(result)
+    if ops is None:
+        ops = {}
+
+    attr = ET.SubElement(res, "operations")
+    for key in ["start", "stop", "monitor"]:
+        if key not in ops:
+            ops[key] = {}
+        action = agent.find('.//action[@name="{}"]'.format(key))
+        if "interval" not in ops[key]:
+            ops[key]["interval"] = action.get("interval", "0s")
+        if "timeout" not in ops[key]:
+            ops[key]["timeout"] = action.get("timeout", "120s")
+        ET.SubElement(
+            attr,
+            "op",
+            {
+                "name": key,
+                "id": "{}-{}-interval-{}".format(label, key, ops[key]["interval"]),
+                "interval": ops[key]["interval"],
+                "timeout": ops[key]["timeout"],
+            },
+        )
     return res
 
 
