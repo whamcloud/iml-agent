@@ -20,11 +20,6 @@ Summary:        IML Agent
 License:        MIT
 URL:            https://pypi.python.org/pypi/%{pypi_name}
 Source0:        %{source}
-Source1:        %{unit_name}
-Source2:        50-chroma-agent.preset
-Source3:        logrotate.cfg
-Source4:        iml-storage-server.target
-Source5:        10-device-scanner.target.conf
 Group:          Development/Libraries
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Prefix:         %{_prefix}
@@ -103,15 +98,15 @@ rm -rf %{buildroot}
 mkdir -p $RPM_BUILD_ROOT/usr/sbin/
 mv $RPM_BUILD_ROOT/usr/{,s}bin/fence_chroma
 mv $RPM_BUILD_ROOT/usr/{,s}bin/chroma-copytool-monitor
-mkdir -p %{buildroot}%{_unitdir}/
-mkdir -p %{buildroot}%{_presetdir}
-install -m 644 %{SOURCE1} %{buildroot}%{_unitdir}/
-install -m 644 %{SOURCE2} %{buildroot}%{_presetdir}/
-mkdir -p $RPM_BUILD_ROOT/etc/{init,logrotate}.d/
-install -m 644 %{SOURCE3} $RPM_BUILD_ROOT/etc/logrotate.d/chroma-agent
-install -m 644 %{SOURCE4} %{buildroot}%{_unitdir}/iml-storage-server.target
 mkdir -p %{buildroot}%{_unitdir}/device-scanner.target.d/
-install -m 644 %{SOURCE5} %{buildroot}%{_unitdir}/device-scanner.target.d/10-device-scanner.target.conf
+install -m 644 %{unit_name} %{buildroot}%{_unitdir}/
+install -m 644 iml-storage-server.target %{buildroot}%{_unitdir}/iml-storage-server.target
+install -m 644 10-device-scanner.target.conf %{buildroot}%{_unitdir}/device-scanner.target.d/10-device-scanner.target.conf
+mkdir -p %{buildroot}%{_presetdir}
+install -m 644 50-chroma-agent.preset %{buildroot}%{_presetdir}/
+mkdir -p $RPM_BUILD_ROOT/etc/{init,logrotate}.d/
+install -m 644 logrotate.cfg $RPM_BUILD_ROOT/etc/logrotate.d/chroma-agent
+mkdir -p %{buildroot}%{_unitdir}/device-scanner.target.d/
 
 touch management.files
 cat <<EndOfList>>management.files

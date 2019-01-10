@@ -22,6 +22,10 @@ _queue = Queue.Queue()
 
 
 MAX_LOG_LINES_PER_MESSAGE = 64
+CONVERTERS = {
+    # Ensure that message field is always valid unicode
+    "MESSAGE": lambda message: message.decode("unicode_escape")
+}
 
 
 def parse_journal(data):
@@ -56,7 +60,7 @@ class SystemdJournalListener(threading.Thread):
         self.should_run = True
 
     def run(self):
-        j = systemd.journal.Reader()
+        j = systemd.journal.Reader(converters=CONVERTERS)
         j.seek_tail()
         while self.should_run:
             if j.wait(1) == systemd.journal.APPEND:
