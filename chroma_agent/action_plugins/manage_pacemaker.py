@@ -13,7 +13,7 @@ import time
 import threading
 
 from chroma_agent.lib.shell import AgentShell
-from chroma_agent.lib.pacemaker import cibadmin, PacemakerConfig
+from chroma_agent.lib.pacemaker import cibadmin, cibxpath, PacemakerConfig
 from chroma_agent.log import daemon_log
 from manage_corosync import start_corosync, stop_corosync
 from chroma_agent.lib.pacemaker import pacemaker_running
@@ -279,10 +279,8 @@ def delete_node(nodename):
         if name == nodename:
             break
     AgentShell.try_run(["crm_node", "--force", "-R", node_id])
-    cibadmin(["--delete", "-o", "nodes", "-X", '<node uname="%s"/>' % nodename])
-    cibadmin(
-        ["--delete", "-o", "nodes", "--crm_xml", '<node_state uname="%s"/>' % nodename]
-    )
+    cibxpath("delete", '//nodes/node[@uname="{}"]'.format(nodename))
+    cibxpath("delete", '//status/node_state[@uname="{}"]'.format(nodename))
 
 
 # This is a required due to a short coming in the state-machine which is that transient states are not supported.
