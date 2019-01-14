@@ -34,22 +34,31 @@ def process_zfs_mount(device, data, zfs_mounts):
     # If zfs-backed target/dataset, lookup underlying pool to get uuid
     # and nested dataset in zed structures to access lustre svname (label).
     dev_root = device.split("/")[0]
-    if dev_root not in [d for d, _, _ in zfs_mounts]:
-        daemon_log.debug("lustre device is not zfs")
+    if not dev_root:
         return None, None
 
-    pool = next(p for p in data["zed"].values() if p["name"] == dev_root)
-    dataset = next(d for d in pool["datasets"] if d["name"] == device)
+    if dev_root not in [d for d, _, _ in zfs_mounts]:
+        daemon_log.debug("lustre device has no mounted zfs pool")
+        # Do not skip the check below if pool's canmount=off
+        # We do not have the pool properties ATM here
+        # So we can't check if it's canmount=off
 
-    fs_label = next(
-        p["value"]
-        for p in dataset["props"]
-        if p["name"] == "lustre:svname"  # used to be fsname
-    )
+    try:
+        pool = next(p for p in data["zed"].values() if p["name"] == dev_root)
+        dataset = next(d for d in pool["datasets"] if d["name"] == device)
 
-    fs_uuid = dataset["guid"]
+        fs_label = next(
+            p["value"]
+            for p in dataset["props"]
+            if p["name"] == "lustre:svname"  # used to be fsname
+        )
 
-    return fs_label, fs_uuid
+        fs_uuid = dataset["guid"]
+
+        return fs_label, fs_uuid
+    except StopIteration:
+        daemon_log.debug("lustre device is not zfs")
+        return None, None
 
 
 def process_lvm_mount(device, data):
