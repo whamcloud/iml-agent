@@ -282,9 +282,9 @@ class LinuxNetworkDevicePlugin(DevicePlugin):
         :param interfaces: A list of the interfaces on the current node
         :return: Returns a dict of dicts describing the nids on the current node.
         """
-        # Read active NIDs from /proc
+        # Read active NIDs from /sys
         try:
-            with open("/proc/sys/lnet/nis") as file:
+            with open("/sys/kernel/debug/lnet/nis") as file:
                 lines = file.readlines()
         except IOError:
             daemon_log.warning("get_nids: failed to open")

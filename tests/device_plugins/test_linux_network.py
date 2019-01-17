@@ -156,7 +156,7 @@ class TestLinuxNetwork(unittest.TestCase):
 
             def readlines(self):
                 """
-                The out of of a 'cat /proc/sys/lnet/nis commaned. I have seen returns with the same entry
+                The out of of a 'cat /sys/kernel/debug/lnet/nis command. I have seen returns with the same entry
                 repeated many times, hences its inclusion.
                 :return: Returns a list of lines as readlines would.
                 """
