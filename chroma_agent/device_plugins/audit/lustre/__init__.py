@@ -4,7 +4,6 @@
 
 
 import re
-import os
 import heapq
 from collections import defaultdict
 from collections import namedtuple
@@ -12,7 +11,10 @@ from collections import namedtuple
 from tablib.packages import yaml
 
 from chroma_agent.device_plugins.audit import BaseAudit
-from chroma_agent.device_plugins.audit.mixins import FileSystemMixin
+from chroma_agent.device_plugins.audit.mixins import (
+    FileSystemMixin,
+    LustreGetParamMixin,
+)
 
 
 # HYD-2307 workaround
@@ -34,7 +36,7 @@ def local_audit_classes():
     ]
 
 
-class LustreAudit(BaseAudit, FileSystemMixin):
+class LustreAudit(BaseAudit, FileSystemMixin, LustreGetParamMixin):
     """Parent class for LustreAudit entities.
 
     Contains methods which are common to all Lustre cluster component types.
@@ -90,7 +92,7 @@ class LustreAudit(BaseAudit, FileSystemMixin):
 
         self.raw_metrics["lustre"] = {}
 
-    def stats_dict_from_file(self, file):
+    def stats_dict_from_path(self, path):
         """Creates a dict from Lustre stats file contents."""
         stats_re = re.compile(
             r"""
@@ -115,7 +117,7 @@ class LustreAudit(BaseAudit, FileSystemMixin):
         # excepting IOErrors as a general rule, but I suppose this is
         # the least-worst solution.
         try:
-            for line in self.read_lines(file):
+            for line in self.get_param_lines(path):
                 match = re.match(stats_re, line)
                 if not match:
                     continue
@@ -135,21 +137,21 @@ class LustreAudit(BaseAudit, FileSystemMixin):
                     )
                 if match.group("sumsq") is not None:
                     stats[name].update({"sumsquare": int(match.group("sumsquare"))})
-        except IOError:
+        except:
             return stats
 
         return stats
 
-    def dict_from_file(self, file):
+    def dict_from_path(self, path):
         """Creates a dict from simple dict-like (k\s+v) file contents."""
-        return dict(re.split("\s+", line) for line in self.read_lines(file))
+        return dict(re.split("\s+", line) for line in self.get_param_lines(path))
 
     @property
     def version(self):
         """Returns a string representation of the local Lustre version."""
         try:
-            return self.read_string("/sys/fs/lustre/version")
-        except IOError:
+            return self.get_param_string("version")
+        except:
             return "0.0.0"
 
     @property
@@ -169,7 +171,7 @@ class LustreAudit(BaseAudit, FileSystemMixin):
 
     def health_check(self):
         """Returns a string containing Lustre's idea of its own health."""
-        return self.read_string("/sys/fs/lustre/health_check")
+        return self.get_param_string("health_check")
 
     def is_healthy(self):
         """Returns a boolean based on our determination of Lustre's health."""
@@ -187,9 +189,9 @@ class LustreAudit(BaseAudit, FileSystemMixin):
                         line.split(),
                     )
                 )
-                for line in self.read_lines("/sys/kernel/debug/lustre/devices")
+                for line in self.get_param_lines("devices")
             ]
-        except IOError:
+        except:
             return []
 
     def _gather_raw_metrics(self):
@@ -219,10 +221,10 @@ class TargetAudit(LustreAudit):
 
         self.raw_metrics["lustre"]["target"] = {}
 
-    def read_stats(self, target):
+    def get_stats(self, target):
         """Returns a dict containing target stats."""
-        path = os.path.join(self.target_root, target, "stats")
-        stats = self.stats_dict_from_file(path)
+        path = self.join_param(self.target_root, target, "stats")
+        stats = self.stats_dict_from_path(path)
 
         # Check for missing stats that need default values.
         for stat, default in self.metric_defaults_map.items():
@@ -231,10 +233,10 @@ class TargetAudit(LustreAudit):
 
         return stats
 
-    def read_int_metric(self, target, metric):
+    def get_int_metric(self, target, metric):
         """Given a target name and simple int metric name, returns the
         metric value as an int.  Tries a simple interpolation of the target
-        name into the mapped metric path (e.g. osd-ldiskfs/%s/filesfree)
+        name into the mapped metric path (e.g. osd-*.%s.filesfree)
         to allow for complex mappings.
 
         An IOError will be raised if the metric file cannot be read.
@@ -242,20 +244,20 @@ class TargetAudit(LustreAudit):
         try:
             mapped_metric = self.int_metric_map[metric] % target
         except TypeError:
-            mapped_metric = os.path.join(target, self.int_metric_map[metric])
+            mapped_metric = self.join_param(target, self.int_metric_map[metric])
 
-        path = os.path.join(self.target_root, mapped_metric)
-        return self.read_int(path)
+        path = self.join_param(self.target_root, mapped_metric)
+        return self.get_param_int(path)
 
-    def read_int_metrics(self, target):
+    def get_int_metrics(self, target):
         """Given a target name, returns a hash of simple int metrics
         found for that target (e.g. filesfree).
         """
         metrics = {}
         for metric in self.int_metric_map.keys():
             try:
-                metrics[metric] = self.read_int_metric(target, metric)
-            except IOError:
+                metrics[metric] = self.get_int_metric(target, metric)
+            except:
                 # Don't bomb on missing metrics, just skip 'em.
                 pass
 
@@ -275,35 +277,35 @@ class MdsAudit(TargetAudit):
 
     def __init__(self, **kwargs):
         super(MdsAudit, self).__init__(**kwargs)
-        self.target_root = "/proc/fs/lustre/mds"
+        self.target_root = "mds"
 
     def _gather_raw_metrics(self):
         for mdt in [dev for dev in self.devices() if dev["type"] == "mds"]:
-            self.raw_metrics["lustre"]["target"][mdt["name"]] = self.read_int_metrics(
+            self.raw_metrics["lustre"]["target"][mdt["name"]] = self.get_int_metrics(
                 mdt["name"]
             )
-            self.raw_metrics["lustre"]["target"][mdt["name"]][
-                "stats"
-            ] = self.read_stats(mdt["name"])
+            self.raw_metrics["lustre"]["target"][mdt["name"]]["stats"] = self.get_stats(
+                mdt["name"]
+            )
 
 
 class MdtAudit(TargetAudit):
     def __init__(self, **kwargs):
         super(MdtAudit, self).__init__(**kwargs)
-        self.target_root = "/proc/fs/lustre"
+        self.target_root = ""
         self.int_metric_map.update(
             {
-                "kbytestotal": "osd-ldiskfs/%s/kbytestotal",
-                "kbytesfree": "osd-ldiskfs/%s/kbytesfree",
-                "filestotal": "osd-ldiskfs/%s/filestotal",
-                "filesfree": "osd-ldiskfs/%s/filesfree",
+                "kbytestotal": "osd-*.%s.kbytestotal",
+                "kbytesfree": "osd-*.%s.kbytesfree",
+                "filestotal": "osd-*.%s.filestotal",
+                "filesfree": "osd-*.%s.filesfree",
             }
         )
 
     def _parse_hsm_agent_stats(self, stats_root):
         stats = {"total": 0, "idle": 0, "busy": 0}
 
-        for line in self.read_lines(os.path.join(stats_root, "agents")):
+        for line in self.get_param_lines(self.join_param(stats_root, "agents")):
             # uuid=... archive_id=1 requests=[current:0 ok:1 errors:0]
             stats["total"] += 1
             if "current:0" in line:
@@ -316,7 +318,7 @@ class MdtAudit(TargetAudit):
     def _parse_hsm_action_stats(self, stats_root):
         stats = {"waiting": 0, "running": 0, "succeeded": 0, "errored": 0}
 
-        for line in self.read_lines(os.path.join(stats_root, "actions")):
+        for line in self.get_param_lines(self.join_param(stats_root, "actions")):
             if "status=WAITING" in line:
                 stats["waiting"] += 1
             elif "status=SUCCEED" in line:
@@ -327,28 +329,28 @@ class MdtAudit(TargetAudit):
         return stats
 
     def get_hsm_stats(self, target):
-        control_file = os.path.join(self.target_root, "mdt", target, "hsm_control")
+        control_file = self.join_param(self.target_root, "mdt", target, "hsm_control")
         try:
-            if self.read_string(control_file) != "enabled":
+            if self.get_param_string(control_file) != "enabled":
                 return {}
-        except IOError:
+        except:
             return {}
 
-        stats_root = os.path.join(self.target_root, "mdt", target, "hsm")
+        stats_root = self.join_param(self.target_root, "mdt", target, "hsm")
         agent_stats = self._parse_hsm_agent_stats(stats_root)
         action_stats = self._parse_hsm_action_stats(stats_root)
         return {"agents": agent_stats, "actions": action_stats}
 
-    def read_stats(self, target):
+    def get_stats(self, target):
         """
         Aggregate mish-mash of MDT stats into one stats dict.
 
         As of lustre version 2.9.58, some of the expected stats have moved to /proc/fs/lustre/mds/MDS/mdt
         """
         stats = {}
-        for stats_file in ["mdt/%s/md_stats" % target, "mds/MDS/mdt/stats"]:
-            path = os.path.join(self.target_root, stats_file)
-            stats.update(self.stats_dict_from_file(path))
+        for stats_file in ["mdt.%s.md_stats" % target, "mds.MDS.mdt.stats"]:
+            path = self.join_param(self.target_root, stats_file)
+            stats.update(self.stats_dict_from_path(path))
 
         return stats
 
@@ -368,19 +370,16 @@ class MdtAudit(TargetAudit):
           clients."""
         count = 0
         fs_name = target[: target.rfind("MDT")]
-        rootdir = os.path.join(self.target_root, "mdt", target, "exports")
-        for subdir, dirs, files in self.walk(rootdir):
-            for f in files:
-                if f == "uuid":
-                    uuid = os.path.join(rootdir, os.path.basename(subdir), f)
-                    for line in self.read_lines(uuid):
-                        if line and line.find(fs_name + "MDT") < 0:
-                            count = count + 1
+        path = self.join_param(self.target_root, "mdt", target, "exports", "*", "uuid")
+        for export in self.list_params(path):
+            uuid = self.get_param_string(export)
+            if uuid and uuid.find(fs_name + "MDT") < 0:
+                count = count + 1
         return count
 
     def _gather_raw_metrics(self):
         for mdt in [dev for dev in self.devices() if dev["type"] == "mdt"]:
-            self.raw_metrics["lustre"]["target"][mdt["name"]] = self.read_int_metrics(
+            self.raw_metrics["lustre"]["target"][mdt["name"]] = self.get_int_metrics(
                 mdt["name"]
             )
             try:
@@ -389,9 +388,9 @@ class MdtAudit(TargetAudit):
                 ] = self.get_client_count(mdt["name"])
             except KeyError:
                 pass
-            self.raw_metrics["lustre"]["target"][mdt["name"]][
-                "stats"
-            ] = self.read_stats(mdt["name"])
+            self.raw_metrics["lustre"]["target"][mdt["name"]]["stats"] = self.get_stats(
+                mdt["name"]
+            )
             self.raw_metrics["lustre"]["target"][mdt["name"]][
                 "hsm"
             ] = self.get_hsm_stats(mdt["name"])
@@ -400,7 +399,7 @@ class MdtAudit(TargetAudit):
 class MgsAudit(TargetAudit):
     def __init__(self, **kwargs):
         super(MgsAudit, self).__init__(**kwargs)
-        self.target_root = "/proc/fs/lustre/mgs"
+        self.target_root = "mgs"
         self.int_metric_map.update(
             {
                 "num_exports": "num_exports",
@@ -410,20 +409,20 @@ class MgsAudit(TargetAudit):
             }
         )
 
-    def read_stats(self, target):
+    def get_stats(self, target):
         """Returns a dict containing MGS stats."""
-        path = os.path.join(self.target_root, target, "mgs/stats")
-        return self.stats_dict_from_file(path)
+        path = self.join_param(self.target_root, target, "mgs", "stats")
+        return self.stats_dict_from_path(path)
 
     def _gather_raw_metrics(self):
-        self.raw_metrics["lustre"]["target"]["MGS"] = self.read_int_metrics("MGS")
-        self.raw_metrics["lustre"]["target"]["MGS"]["stats"] = self.read_stats("MGS")
+        self.raw_metrics["lustre"]["target"]["MGS"] = self.get_int_metrics("MGS")
+        self.raw_metrics["lustre"]["target"]["MGS"]["stats"] = self.get_stats("MGS")
 
 
 class ObdfilterAudit(TargetAudit):
     def __init__(self, **kwargs):
         super(ObdfilterAudit, self).__init__(**kwargs)
-        self.target_root = "/proc/fs/lustre/obdfilter"
+        self.target_root = "obdfilter"
         self.int_metric_map.update(
             {
                 "tot_dirty": "tot_dirty",
@@ -433,7 +432,7 @@ class ObdfilterAudit(TargetAudit):
         )
         self.job_stat_last_snapshot_time = defaultdict(int)
 
-    def read_brw_stats(self, target):
+    def get_brw_stats(self, target):
         """Return a dict representation of an OST's brw_stats histograms."""
         histograms = {}
 
@@ -475,10 +474,10 @@ class ObdfilterAudit(TargetAudit):
             re.VERBOSE,
         )
 
-        path = os.path.join(self.target_root, target, "brw_stats")
+        path = self.join_param(self.target_root, target, "brw_stats")
         try:
-            lines = self.read_lines(path)
-        except IOError:
+            lines = self.get_param_lines(path)
+        except:
             return histograms
 
         hist_key = None
@@ -512,7 +511,7 @@ class ObdfilterAudit(TargetAudit):
 
         return histograms
 
-    def _read_job_stats_yaml_file(self, target_name):
+    def _get_job_stats_yaml(self, target_name):
         """Given a path to a yaml file, read the file into a dict and return a value
 
         return values will be an list or None.
@@ -521,7 +520,7 @@ class ObdfilterAudit(TargetAudit):
 
         The main value of splitting this is so it can be mocked out in tests.
 
-        :param path  Full path to the yaml file (i.e. /proc/fs/lustre/obdfilter/lustre-OST0000/job_stats)
+        :param target_name  Name of sub target (i.e. obdfilter/$TARGET/job_stats)
 
         Sample Code showing the output when job stats is cleared.
         $ lctl set_param obdfilter.*.job_stats=clear
@@ -532,19 +531,19 @@ class ObdfilterAudit(TargetAudit):
         [('job_stats', None)]
 
         """
-        path = self.abs(os.path.join(self.target_root, target_name, "job_stats"))
+        path = self.join_param(self.target_root, target_name, "job_stats")
         try:
-            with open(path) as yaml_file:
-                read_dict = yaml.load(yaml_file)
-        except IOError:
+            read_dict = yaml.load(self.get_param_lines(path))
+        except:
             # If job stats is NOT turned on, the file will not exist
             return None
-        else:
-            # job stats output should always have this key, but it will return None when there are not stats
-            # Instead this method should return [].  None means job stats is not turned on.
-            return read_dict.get("job_stats") or []
 
-    def read_job_stats(self, target_name):
+        # job stats output should always have this key, but it will return None when
+        # there are not stats Instead this method should return [].  None means job
+        # stats is not turned on.
+        return read_dict.get("job_stats") or []
+
+    def get_job_stats(self, target_name):
         """Try to read and return the contents of /proc/fs/lustre/obdfilter/<target>/job_stats
 
         Attempt to read the proc file, parse, and find up to the top few jobs in the report
@@ -558,14 +557,15 @@ class ObdfilterAudit(TargetAudit):
         are found.
         """
 
-        stats = self._read_job_stats_yaml_file(target_name)
+        stats = self._get_job_stats_yaml(target_name)
 
         if not stats:
             # stats is None when job stats is disabled, or [] if enabled but empty
             # currently no reason it differentiate, so return as if empty
             return []
 
-        #  Initialize this dict in preparation to collect just these latest snapshot times as seen in this stats sample
+        #  Initialize this dict in preparation to collect just these latest snapshot
+        #  times as seen in this stats sample
         latest_job_stat_snapshot_times = defaultdict(int)
 
         stats_to_return = []
@@ -594,17 +594,17 @@ class ObdfilterAudit(TargetAudit):
     def _gather_raw_metrics(self):
         metrics = self.raw_metrics["lustre"]
         try:
-            metrics["jobid_var"] = self.read_string("/sys/fs/lustre/jobid_var")
+            metrics["jobid_var"] = self.get_param_string("jobid_var")
         except IOError:
             metrics["jobid_var"] = "disable"
         for ost in [dev for dev in self.devices() if dev["type"] == "obdfilter"]:
-            metrics["target"][ost["name"]] = self.read_int_metrics(ost["name"])
-            metrics["target"][ost["name"]]["stats"] = self.read_stats(ost["name"])
+            metrics["target"][ost["name"]] = self.get_int_metrics(ost["name"])
+            metrics["target"][ost["name"]]["stats"] = self.get_stats(ost["name"])
             if not DISABLE_BRW_STATS:
-                metrics["target"][ost["name"]]["brw_stats"] = self.read_brw_stats(
+                metrics["target"][ost["name"]]["brw_stats"] = self.get_brw_stats(
                     ost["name"]
                 )
-            metrics["target"][ost["name"]]["job_stats"] = self.read_job_stats(
+            metrics["target"][ost["name"]]["job_stats"] = self.get_job_stats(
                 ost["name"]
             )
 
@@ -628,7 +628,7 @@ class OstAudit(ObdfilterAudit):
 class LnetAudit(LustreAudit):
     def parse_lnet_stats(self):
         try:
-            stats_str = self.read_string("/proc/sys/lnet/stats")
+            stats_str = self.get_param_string("stats")
         except IOError:
             # Normally, this would be an exceptional condition, but in
             # the case of lnet, it could happen when the module is loaded

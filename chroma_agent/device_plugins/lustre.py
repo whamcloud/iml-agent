@@ -5,7 +5,6 @@
 
 from collections import defaultdict, namedtuple
 import os
-import glob
 import ConfigParser
 
 from chroma_agent.lib.shell import AgentShell
@@ -104,8 +103,9 @@ class LustrePlugin(DevicePlugin):
                         fs_uuid = self._mount_cache[device]["fs_uuid"]
                         fs_label = self._mount_cache[device]["fs_label"]
                     else:
-                        # Sending none as the type means BlockDevice will use it's local cache to work the type.
-                        # This is not a good method, and we should work on a way of not storing such state but for the
+                        # Sending none as the type means BlockDevice will use it's local
+                        # cache to work the type.  This is not a good method, and we
+                        # should work on a way of not storing such state but for the
                         # present it is the best we have.
                         try:
                             fs_uuid = BlockDevice(None, device).uuid
@@ -120,11 +120,10 @@ class LustrePlugin(DevicePlugin):
 
             recovery_status = {}
             try:
-                recovery_file = glob.glob(
-                    "/proc/fs/lustre/*/%s/recovery_status" % fs_label
-                )[0]
-                recovery_status_text = open(recovery_file).read()
-                for line in recovery_status_text.split("\n"):
+                lines = AgentShell.try_run(
+                    ["lctl", "get_param", "-n", "*.%s.recovery_status" % fs_label]
+                )
+                for line in lines.split("\n"):
                     tokens = line.split(":")
                     if len(tokens) != 2:
                         continue
