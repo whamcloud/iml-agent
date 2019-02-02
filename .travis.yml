@@ -14,6 +14,48 @@ jobs:
           script:
               - nosetests
         - stage: test
+          name: "Format Check"
+          python: "3.6"
+          install:
+              - pip install black
+          script:
+              - black --check ./
+        - stage: test
+          name: "Rust iml-agent Build Check"
+          script:
+              - docker run -dit --cap-add=SYS_ADMIN --privileged --name mock imlteam/mock /usr/sbin/init
+              - docker cp -a ./ mock:/builddir
+              - docker exec -it mock bash -xec 'chown -R root:root /builddir'
+              - docker exec -it mock bash -xec 'yum install -y yum-plugin-copr'
+              - docker exec -it mock bash -xec 'yum -y copr enable -y managerforlustre/buildtools'
+              - docker exec -it mock bash -xec 'yum install -y rust-bundled-packaging spectool openssl-devel'
+              - docker exec -it mock bash -xec 'cd /builddir/iml-agent && make -f .copr/Makefile srpm outdir=/tmp/'
+        - stage: test
+          name: "Rust Tests"
+          language: rust
+          rust: 1.32.0
+          cache: cargo
+          script:
+              - cargo build --verbose
+              - cargo test --verbose
+        - stage: test
+          name: "Rust Linting Check"
+          language: rust
+          rust: 1.32.0
+          cache: cargo
+          before_script:
+              - rustup component add clippy
+          script:
+              - cargo clippy
+        - stage: test
+          name: "Rust Format Check"
+          language: rust
+          rust: 1.32.0
+          before_script:
+              - rustup component add rustfmt
+          script:
+              - cargo fmt --all -- --check
+        - stage: test
           name: "mock build test"
           script:
               - docker run -dit --name mock -v "$(pwd)":/mockdir --cap-add=SYS_ADMIN --privileged imlteam/mock
@@ -22,13 +64,6 @@ jobs:
               - docker exec -it mock bash -xec 'mkdir -p /tmp/build'
               - docker exec -it mock bash -xec 'cd /mockdir && make -f .copr/Makefile outdir=/tmp/build'
               - docker exec -it mock bash -xec 'mock /tmp/build/python-iml-agent-*.el*.src.rpm -v --enable-network'
-        - stage: test
-          name: "Format Check"
-          python: "3.6"
-          install:
-              - pip install black
-          script:
-              - black --check ./
         - stage: cd
           name: "Continuous Deployment"
           script:

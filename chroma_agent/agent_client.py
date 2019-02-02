@@ -492,7 +492,7 @@ class HttpWriter(ExceptionCatchingThread):
                 if now < next_request_at:
                     # We're still in our backoff period, skip requesting a session
                     daemon_log.debug(
-                        "Delaying session request until %s" % next_request_at
+                        "Delaying session request until {}".format(next_request_at)
                     )
                     return
                 else:

@@ -9,3 +9,6 @@ _topdir/
 tags
 settings.json
 *.rpm
+target/
+**/*.rs.bk
+.idea

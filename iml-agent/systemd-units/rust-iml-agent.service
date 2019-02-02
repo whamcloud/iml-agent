@@ -1,0 +1,12 @@
+[Unit]
+Description=Rust IML Agent Daemon
+After=network.target
+PartOf=rust-iml-agent.path
+After=rust-iml-agent.path
+
+[Service]
+Restart=always
+EnvironmentFile=/etc/iml/manager-url.conf
+ExecStart=/usr/bin/rust-iml-agent
+StandardOutput=journal
+StandardError=journal

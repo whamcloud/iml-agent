@@ -73,6 +73,7 @@ Requires:       pcapy
 Requires:       python-impacket
 Requires:       system-config-firewall-base
 Requires:       ed
+Requires:       rust-iml-agent
 
 %description -n python2-%{pypi_name}-management
 This package layers on management capabilities for Integrated Manager for Lustre Agent.

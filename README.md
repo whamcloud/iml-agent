@@ -1,6 +1,6 @@
 # iml-agent
 
-The Manager for Lustre Agent
+The Integrated Manager for Lustre Agent
 
 [![Build Status](https://travis-ci.org/whamcloud/iml-agent.svg?branch=master)](https://travis-ci.org/whamcloud/iml-agent)
 
