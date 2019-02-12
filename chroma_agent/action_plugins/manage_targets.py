@@ -1066,7 +1066,17 @@ def convert_targets(force=False):
 
     active = get_resource_locations()
 
-    AgentShell.run(["pcs", "property", "set", "maintenance-mode=true"])
+    AgentShell.try_run(
+        [
+            "crm_attribute",
+            "--type",
+            "crm_config",
+            "--name",
+            "maintenance-mode",
+            "--update",
+            "true",
+        ]
+    )
 
     wait_list = []
     for res in dom.findall(".//primitive"):
@@ -1098,7 +1108,16 @@ def convert_targets(force=False):
     for wait in wait_list:
         console_log.info("Waiting on %s", wait[0])
         _wait_target(*wait)
-    AgentShell.run(["pcs", "property", "unset", "maintenance-mode"])
+    AgentShell.try_run(
+        [
+            "crm_attribute",
+            "--type",
+            "crm_config",
+            "--name",
+            "maintenance-mode",
+            "--delete",
+        ]
+    )
 
 
 ACTIONS = [
