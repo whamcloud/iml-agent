@@ -533,8 +533,8 @@ class ObdfilterAudit(TargetAudit):
         """
         path = self.join_param(self.target_root, target_name, "job_stats")
         try:
-            read_dict = yaml.load(self.get_param_lines(path))
-        except:
+            read_dict = yaml.load(self.get_param_raw(path))
+        except Exception as e:
             # If job stats is NOT turned on, the file will not exist
             return None
 
@@ -556,7 +556,6 @@ class ObdfilterAudit(TargetAudit):
         If Job stats is not turned on, there will be no proc file path, and this method will return [] as if no stats
         are found.
         """
-
         stats = self._get_job_stats_yaml(target_name)
 
         if not stats:
@@ -595,7 +594,7 @@ class ObdfilterAudit(TargetAudit):
         metrics = self.raw_metrics["lustre"]
         try:
             metrics["jobid_var"] = self.get_param_string("jobid_var")
-        except IOError:
+        except:
             metrics["jobid_var"] = "disable"
         for ost in [dev for dev in self.devices() if dev["type"] == "obdfilter"]:
             metrics["target"][ost["name"]] = self.get_int_metrics(ost["name"])
@@ -629,7 +628,7 @@ class LnetAudit(LustreAudit):
     def parse_lnet_stats(self):
         try:
             stats_str = self.get_param_string("stats")
-        except IOError:
+        except:
             # Normally, this would be an exceptional condition, but in
             # the case of lnet, it could happen when the module is loaded
             # but lnet is not configured.

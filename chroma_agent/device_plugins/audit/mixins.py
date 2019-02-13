@@ -15,7 +15,9 @@ class LustreGetParamMixin(object):
 
     def _get_param(self, *args):
         # Remove trailing newline to cleanup stdout.split("\n")
-        return AgentShell.try_run(["lctl", "get_param"] + [x for x in args]).strip()
+        return AgentShell.try_run(
+            ["lctl", "get_param"] + [x.replace("/", ".") for x in args]
+        )
 
     def get_param_lines(self, path, filter_f=None):
         """Return a generator for stripped lines read from the param.
@@ -23,7 +25,7 @@ class LustreGetParamMixin(object):
         If the optional filter_f argument is supplied, it will be applied
         prior to stripping each line.
         """
-        stdout = self._get_param("-n", path)
+        stdout = self._get_param("-n", path).strip()
 
         if not stdout:
             yield None
@@ -35,6 +37,9 @@ class LustreGetParamMixin(object):
                     yield line
             else:
                 yield line
+
+    def get_param_raw(self, path):
+        return self._get_param("-n", path)
 
     def get_param_string(self, path):
         """Read the first line from a param and return it as a string."""
@@ -54,7 +59,7 @@ class LustreGetParamMixin(object):
         return ".".join(arr)
 
     def list_params(self, path):
-        return self._get_param("-N", path).split("\n")
+        return self._get_param("-N", path).strip().split("\n")
 
 
 class FileSystemMixin(object):

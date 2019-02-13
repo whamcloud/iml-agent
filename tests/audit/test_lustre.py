@@ -8,7 +8,7 @@ from chroma_agent.device_plugins.audit.lustre import (
     MgsAudit,
     LustreAudit,
 )
-
+from iml_common.test.command_capture_testcase import CommandCaptureTestCase
 from tests.test_utils import PatchedContextTestCase
 
 
@@ -93,13 +93,16 @@ class TestMisformedLustreVersion(PatchedContextTestCase):
         self.assertEqual(self.audit.version_info, self.audit.LustreVersion(2, 0, 0))
 
 
-class TestMissingLustreVersion(PatchedContextTestCase):
+class TestMissingLustreVersion(CommandCaptureTestCase):
     """No idea how this might happen, but it shouldn't crash the audit."""
 
     def setUp(self):
-        self.test_root = tempfile.mkdtemp()
         super(TestMissingLustreVersion, self).setUp()
-        os.makedirs(os.path.join(self.test_root, "sys/fs/lustre"))
+        self.add_command(
+            ("lctl", "get_param", "-n", "version"),
+            rc=2,
+            stderr="error: get_param: param_path 'version': No such file or directory",
+        )
         self.audit = LustreAudit()
 
     def test_version(self):
@@ -108,18 +111,13 @@ class TestMissingLustreVersion(PatchedContextTestCase):
     def test_version_info(self):
         self.assertEqual(self.audit.version_info, self.audit.LustreVersion(0, 0, 0))
 
-    def tearDown(self):
-        shutil.rmtree(self.test_root)
 
-
-class TestLustreAuditGoodHealth(PatchedContextTestCase):
+class TestLustreAuditGoodHealth(CommandCaptureTestCase):
     def setUp(self):
-        self.test_root = tempfile.mkdtemp()
         super(TestLustreAuditGoodHealth, self).setUp()
-        os.makedirs(os.path.join(self.test_root, "sys/fs/lustre"))
-        f = open(os.path.join(self.test_root, "sys/fs/lustre/health_check"), "w+")
-        f.write("healthy\n")
-        f.close()
+        self.add_command(
+            ("lctl", "get_param", "-n", "health_check"), stdout="healthy\n"
+        )
         self.audit = LustreAudit()
 
     def test_health_check_healthy(self):
@@ -128,18 +126,13 @@ class TestLustreAuditGoodHealth(PatchedContextTestCase):
     def test_healthy_true(self):
         assert self.audit.is_healthy()
 
-    def tearDown(self):
-        shutil.rmtree(self.test_root)
 
-
-class TestLustreAuditBadHealth(PatchedContextTestCase):
+class TestLustreAuditBadHealth(CommandCaptureTestCase):
     def setUp(self):
-        self.test_root = tempfile.mkdtemp()
         super(TestLustreAuditBadHealth, self).setUp()
-        os.makedirs(os.path.join(self.test_root, "sys/fs/lustre"))
-        f = open(os.path.join(self.test_root, "sys/fs/lustre/health_check"), "w+")
-        f.write("NOT HEALTHY\n")
-        f.close()
+        self.add_command(
+            ("lctl", "get_param", "-n", "health_check"), stdout="NOT HEALTHY\n"
+        )
         self.audit = LustreAudit()
 
     def test_health_check_not_healthy(self):
@@ -147,6 +140,3 @@ class TestLustreAuditBadHealth(PatchedContextTestCase):
 
     def test_healthy_false(self):
         assert not self.audit.is_healthy()
-
-    def tearDown(self):
-        shutil.rmtree(self.test_root)

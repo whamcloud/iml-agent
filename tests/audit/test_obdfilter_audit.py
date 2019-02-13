@@ -26,17 +26,17 @@ class TestObdfilterAuditReadingJobStats(unittest.TestCase):
 
     def setUp(self):
         self.audit = ObdfilterAudit()
-        self.initial_read_yam_file_func = self.audit._read_job_stats_yaml_file
+        self.initial_read_yam_file_func = self.audit._get_job_stats_yaml
 
     def tearDown(self):
-        self.audit._read_yaml_file = self.initial_read_yam_file_func
+        self.audit._get_job_stats_yaml = self.initial_read_yam_file_func
 
     def test_snapshot_time(self):
         """If a stats file is available, can it be read, and is snapshot time controlling response"""
 
         #  simulate job stats turned off
-        self.audit._read_job_stats_yaml_file = lambda target_name: None
-        res = self.audit.read_job_stats("OST0000")
+        self.audit._get_job_stats_yaml = lambda target_name: None
+        res = self.audit.get_job_stats("OST0000")
 
         self.assertEqual(res, [], res)
         self.assertEqual(
@@ -46,8 +46,8 @@ class TestObdfilterAuditReadingJobStats(unittest.TestCase):
         )
 
         #  simulate job stats turned on, but has nothing to report, same return as off
-        self.audit._read_job_stats_yaml_file = lambda target_name: []
-        res = self.audit.read_job_stats("OST0000")
+        self.audit._get_job_stats_yaml = lambda target_name: []
+        res = self.audit.get_job_stats("OST0000")
         self.assertEqual(res, [], res)
         self.assertEqual(
             self.audit.job_stat_last_snapshot_time,
@@ -56,7 +56,7 @@ class TestObdfilterAuditReadingJobStats(unittest.TestCase):
         )
 
         #  This sample stats file output for next 2 tests
-        self.audit._read_job_stats_yaml_file = lambda target_name: [
+        self.audit._get_job_stats_yaml = lambda target_name: [
             {
                 "job_id": 16,
                 "snapshot_time": 1416616379,
@@ -78,7 +78,7 @@ class TestObdfilterAuditReadingJobStats(unittest.TestCase):
         ]
 
         #  Test that the reading adds the record to the snapshot dict, and returns it
-        res = self.audit.read_job_stats("OST0000")
+        res = self.audit.get_job_stats("OST0000")
         self.assertEqual(
             self.audit.job_stat_last_snapshot_time,
             {16: 1416616379},
@@ -87,7 +87,7 @@ class TestObdfilterAuditReadingJobStats(unittest.TestCase):
         self.assertEqual(len(res), 1, res)
 
         # Second read, no change in proc file, so no change in snapshot dict (same value), and returning nothing
-        res = self.audit.read_job_stats("OST0000")
+        res = self.audit.get_job_stats("OST0000")
         self.assertEqual(res, [], res)
         self.assertEqual(
             self.audit.job_stat_last_snapshot_time,
@@ -96,7 +96,7 @@ class TestObdfilterAuditReadingJobStats(unittest.TestCase):
         )
 
         #  Simulate new job stats proc file was updated with new snapshot_time for job 16
-        self.audit._read_job_stats_yaml_file = lambda target_name: [
+        self.audit._get_job_stats_yaml = lambda target_name: [
             {
                 "job_id": 16,
                 "snapshot_time": 1416616599,
@@ -118,7 +118,7 @@ class TestObdfilterAuditReadingJobStats(unittest.TestCase):
         ]
 
         #  Test that only one record is in the cache, the latest record, and that this new record is returned
-        res = self.audit.read_job_stats("OST0000")
+        res = self.audit.get_job_stats("OST0000")
         self.assertTrue(
             {16: 1416616379} not in self.audit.job_stat_last_snapshot_time.items(),
             self.audit.job_stat_last_snapshot_time,
@@ -134,7 +134,7 @@ class TestObdfilterAuditReadingJobStats(unittest.TestCase):
     def test_snapshot_time_autoclear(self):
         """Test that the cache holds only active jobs after a clear"""
 
-        self.audit._read_job_stats_yaml_file = lambda target_name: [
+        self.audit._get_job_stats_yaml = lambda target_name: [
             {
                 "job_id": 16,
                 "snapshot_time": 1416616379,
@@ -156,11 +156,11 @@ class TestObdfilterAuditReadingJobStats(unittest.TestCase):
         ]
 
         #  Add this stat to the cache
-        res = self.audit.read_job_stats("OST0000")
+        res = self.audit.get_job_stats("OST0000")
 
         #  Next stat shows a new job_id, and DOES NOT SHOW the old id 16.  This means 16 is no longer reporting
         #  This situation can happen in Lustre does an autoclear between these to samples, and 16 has nothing to report.
-        self.audit._read_job_stats_yaml_file = lambda target_name: [
+        self.audit._get_job_stats_yaml = lambda target_name: [
             {
                 "job_id": 17,
                 "snapshot_time": 1416616399,
@@ -182,7 +182,7 @@ class TestObdfilterAuditReadingJobStats(unittest.TestCase):
         ]
 
         #  Test that the cache only have the job_id 17, and not 16 anymore, and that the return is only for 17.
-        res = self.audit.read_job_stats("OST0000")
+        res = self.audit.get_job_stats("OST0000")
         self.assertEqual(
             self.audit.job_stat_last_snapshot_time,
             {17: 1416616399},

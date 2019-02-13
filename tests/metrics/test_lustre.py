@@ -157,7 +157,7 @@ lnet 233888 3 ptlrpc,ksocklnd,obdclass, Live 0xffffffffa076e000
         f.write("obdfilter 265823 4 - Live 0xffffffffa06b5000")
         f.close()
 
-        f = open(os.path.join(self.test_root, "sys/kernel/debug/lustre/devices"), "w+")
+        f = open(os.path.join(self.test_root, "devices"), "w+")
         f.write("  2 UP obdfilter test-OST0000 test-OST0000_UUID 5")
         f.close()
 
@@ -472,13 +472,13 @@ class TestJobStats(PatchedContextTestCase):
         audit = ObdfilterAudit()
         self.metrics = audit.metrics()["raw"]["lustre"]
 
-    def test(self):
+    def test_jobstats(self):
         assert self.metrics["jobid_var"] == "procname_uid"
         metrics = self.metrics["target"]
         for target in ("lustre-OST0001", "lustre-OST0002", "lustre-OST0003"):
             assert metrics[target]["job_stats"] == []
         stats = metrics["lustre-OST0000"]["job_stats"]
-        assert [stat["job_id"] for stat in stats] == ["dd.0", "cp.0"]
+        assert [stat["job_id"] for stat in stats] == ["dd.0", "cp.0"], stats
         assert [stat["snapshot_time"] for stat in stats] == [1381939640, 1381939592]
         assert stats[0]["read"]["sum"] == stats[0]["write"]["sum"] == 671088640
         assert stats[1]["read"]["sum"] == 0 and stats[1]["write"]["sum"] == 220986046
