@@ -54,7 +54,7 @@ class TestLinuxNetwork(unittest.TestCase):
                 ]
             )
         else:
-            raise "Unknown args: "+repr(args)
+            raise "Unknown args: " + repr(args)
 
     def test_network_interface(self):
         class mock_open:

@@ -233,7 +233,7 @@ class LNetNid:
     def __init__(self, lnet_nis_line, interfaces):
         tokens = lnet_nis_line.split()
 
-        assert len(tokens) == 9, "line: "+lnet_nis_line
+        assert len(tokens) == 9, "line: " + lnet_nis_line
 
         self.nid_address = tokens[0].split("@")[
             0
