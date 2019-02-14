@@ -139,7 +139,7 @@ class LustrePlugin(DevicePlugin):
                     k = tokens[0].strip()
                     v = tokens[1].strip()
                     recovery_status[k] = v
-            except IndexError:
+            except Exception:
                 # If the recovery_status file doesn't exist,
                 # we will return an empty dict for recovery info
                 pass
