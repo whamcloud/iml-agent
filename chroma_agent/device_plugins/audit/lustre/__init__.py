@@ -137,7 +137,7 @@ class LustreAudit(BaseAudit, FileSystemMixin, LustreGetParamMixin):
                     )
                 if match.group("sumsq") is not None:
                     stats[name].update({"sumsquare": int(match.group("sumsquare"))})
-        except:
+        except Exception:
             return stats
 
         return stats
@@ -151,7 +151,7 @@ class LustreAudit(BaseAudit, FileSystemMixin, LustreGetParamMixin):
         """Returns a string representation of the local Lustre version."""
         try:
             return self.get_param_string("version")
-        except:
+        except Exception:
             return "0.0.0"
 
     @property
@@ -191,7 +191,7 @@ class LustreAudit(BaseAudit, FileSystemMixin, LustreGetParamMixin):
                 )
                 for line in self.get_param_lines("devices")
             ]
-        except:
+        except Exception:
             return []
 
     def _gather_raw_metrics(self):
@@ -257,7 +257,7 @@ class TargetAudit(LustreAudit):
         for metric in self.int_metric_map.keys():
             try:
                 metrics[metric] = self.get_int_metric(target, metric)
-            except:
+            except Exception:
                 # Don't bomb on missing metrics, just skip 'em.
                 pass
 
@@ -333,7 +333,7 @@ class MdtAudit(TargetAudit):
         try:
             if self.get_param_string(control_file) != "enabled":
                 return {}
-        except:
+        except Exception:
             return {}
 
         stats_root = self.join_param(self.target_root, "mdt", target, "hsm")
@@ -477,7 +477,7 @@ class ObdfilterAudit(TargetAudit):
         path = self.join_param(self.target_root, target, "brw_stats")
         try:
             lines = self.get_param_lines(path)
-        except:
+        except Exception:
             return histograms
 
         hist_key = None
@@ -594,7 +594,7 @@ class ObdfilterAudit(TargetAudit):
         metrics = self.raw_metrics["lustre"]
         try:
             metrics["jobid_var"] = self.get_param_string("jobid_var")
-        except:
+        except Exception:
             metrics["jobid_var"] = "disable"
         for ost in [dev for dev in self.devices() if dev["type"] == "obdfilter"]:
             metrics["target"][ost["name"]] = self.get_int_metrics(ost["name"])
@@ -628,7 +628,7 @@ class LnetAudit(LustreAudit):
     def parse_lnet_stats(self):
         try:
             stats_str = self.get_param_string("stats")
-        except:
+        except Exception:
             # Normally, this would be an exceptional condition, but in
             # the case of lnet, it could happen when the module is loaded
             # but lnet is not configured.
