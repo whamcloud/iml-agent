@@ -786,19 +786,17 @@ def start_target(ha_label):
             _res_set_started(_group_name(ha_label), True)
 
         # now wait for it to start
-        if _wait_target(ha_label, True):
-            location = get_resource_location(ha_label)
-            if not location:
-                return agent_error(
-                    "Started {} but now can't locate it!".format(ha_label)
-                )
-            return agent_result(location)
-
-        else:
+        if not _wait_target(ha_label, True):
             # try to leave things in a sane state for a failed mount
             _res_set_started(ha_label, False)
 
             return agent_error("Failed to start target {}".format(ha_label))
+
+        location = get_resource_location(ha_label)
+        if not location:
+            return agent_error("Started {} but now can't locate it!".format(ha_label))
+
+        return agent_result(location)
 
     except AgentShell.CommandExecutionError as err:
         return agent_error(
@@ -826,11 +824,10 @@ def stop_target(ha_label):
             % (err.result.rc, err.command, err.result.stdout, err.result.stderr)
         )
 
-    if _wait_target(ha_label, False):
-        return agent_result_ok
-
-    else:
+    if not _wait_target(ha_label, False):
         return agent_error("Failed to stop target {}".format(ha_label))
+
+    return agent_result_ok
 
 
 def _move_target(target_label, dest_node):
