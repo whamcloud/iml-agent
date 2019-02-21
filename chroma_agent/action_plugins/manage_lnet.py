@@ -49,9 +49,12 @@ def stop_lnet():
     will be unloaded before lnet is stopped.
     """
 
-    return agent_ok_or_error(
-        AgentShell.run_canned_error_message(["lctl", "network", "down"])
-    )
+    # FIXME: Due to LU-11986 (partial lustre_rmmod leads to panic) and LU-9525 ("lctl
+    # network down" won't work...) call lustre_rmmod to shutdown network
+    return unload_lnet()
+    #return agent_ok_or_error(
+    #    AgentShell.run_canned_error_message(["lctl", "network", "down"])
+    #)
 
 
 def load_lnet():
