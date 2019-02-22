@@ -9,7 +9,7 @@ import json
 from chroma_agent.lib.shell import AgentShell
 from chroma_agent.log import console_log
 from chroma_agent.device_plugins.linux_network import LinuxNetworkDevicePlugin
-from iml_common.lib.agent_rpc import agent_ok_or_error
+from iml_common.lib.agent_rpc import agent_ok_or_error, agent_result_ok
 
 IML_CONFIGURATION_FILE = "/etc/modprobe.d/iml_lnet_module_parameters.conf"
 IML_CONFIGURE_FILE_JSON_HEADER = "##  "
@@ -49,12 +49,17 @@ def stop_lnet():
     will be unloaded before lnet is stopped.
     """
 
+    console_log.info("Stopping LNet")
     # FIXME: Due to LU-11986 (partial lustre_rmmod leads to panic) and LU-9525 ("lctl
     # network down" won't work...) call lustre_rmmod to shutdown network
-    return unload_lnet()
-    #return agent_ok_or_error(
-    #    AgentShell.run_canned_error_message(["lctl", "network", "down"])
-    #)
+
+    # Teardown to ksocklnd - ignore error
+    result = AgentShell.run_canned_error_message(["lustre_rmmod"])
+    if not result:
+        return agent_result_ok
+    return agent_ok_or_error(
+        AgentShell.run_canned_error_message(["lctl", "network", "down"])
+    )
 
 
 def load_lnet():
