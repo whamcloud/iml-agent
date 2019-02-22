@@ -54,8 +54,8 @@ def stop_lnet():
     # network down" won't work...) call lustre_rmmod to shutdown network
 
     # Teardown to ksocklnd - ignore error
-    result = AgentShell.run_canned_error_message(["lustre_rmmod"])
-    if not result:
+    result = AgentShell.run(["lustre_rmmod"])
+    if result.rc == 0:
         return agent_result_ok
     return agent_ok_or_error(
         AgentShell.run_canned_error_message(["lctl", "network", "down"])
