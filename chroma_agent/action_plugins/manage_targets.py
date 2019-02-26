@@ -778,41 +778,31 @@ def start_target(ha_label):
             location = primary
         return agent_result(location)
 
-    # HYD-1989: brute force, try up to 3 times to start the target
-    i = 0
-    while True:
-        try:
-            i += 1
+    try:
+        _res_set_started(ha_label, True)
+        if _resource_exists(_zfs_name(ha_label)):
+            _res_set_started(_zfs_name(ha_label), True)
+            # enable group also, in case group was disabled
+            _res_set_started(_group_name(ha_label), True)
 
-            _res_set_started(ha_label, True)
-            if _resource_exists(_zfs_name(ha_label)):
-                _res_set_started(_zfs_name(ha_label), True)
-                # enable group also, in case group was disabled
-                _res_set_started(_group_name(ha_label), True)
+        # now wait for it to start
+        if not _wait_target(ha_label, True):
+            # try to leave things in a sane state for a failed mount
+            _res_set_started(ha_label, False)
 
-            # now wait for it to start
-            if _wait_target(ha_label, True):
-                location = get_resource_location(ha_label)
-                if not location:
-                    return agent_error(
-                        "Started {} but now can't locate it!".format(ha_label)
-                    )
-                return agent_result(location)
+            return agent_error("Failed to start target {}".format(ha_label))
 
-            else:
-                # try to leave things in a sane state for a failed mount
-                _res_set_started(ha_label, False)
+        location = get_resource_location(ha_label)
+        if not location:
+            return agent_error("Started {} but now can't locate it!".format(ha_label))
 
-                if i < 4:
-                    console_log.info("failed to start target %s", ha_label)
-                else:
-                    return agent_error("Failed to start target {}".format(ha_label))
+        return agent_result(location)
 
-        except AgentShell.CommandExecutionError as err:
-            return agent_error(
-                "Error (%s) running '%s': '%s' '%s'"
-                % (err.result.rc, err.command, err.result.stdout, err.result.stderr)
-            )
+    except AgentShell.CommandExecutionError as err:
+        return agent_error(
+            "Error (%s) running '%s': '%s' '%s'"
+            % (err.result.rc, err.command, err.result.stdout, err.result.stderr)
+        )
 
 
 def stop_target(ha_label):
@@ -821,31 +811,23 @@ def stop_target(ha_label):
 
     Return: Value using simple return protocol
     """
-    # HYD-7230: brute force, try up to 3 times to stop the target
-    i = 0
-    while True:
-        i += 1
-
-        try:
-            # Issue the command to Pacemaker to stop the target
-            if _resource_exists(_zfs_name(ha_label)):
-                _res_set_started(_group_name(ha_label), False)
-            else:
-                _res_set_started(ha_label, False)
-
-        except AgentShell.CommandExecutionError as err:
-            return agent_error(
-                "Error (%s) running '%s': '%s' '%s'"
-                % (err.result.rc, err.command, err.result.stdout, err.result.stderr)
-            )
-
-        if _wait_target(ha_label, False):
-            return agent_result_ok
-
-        if i < 4:
-            console_log.info("failed to stop target %s", ha_label)
+    try:
+        # Issue the command to Pacemaker to stop the target
+        if _resource_exists(_zfs_name(ha_label)):
+            _res_set_started(_group_name(ha_label), False)
         else:
-            return agent_error("Failed to stop target {}".format(ha_label))
+            _res_set_started(ha_label, False)
+
+    except AgentShell.CommandExecutionError as err:
+        return agent_error(
+            "Error (%s) running '%s': '%s' '%s'"
+            % (err.result.rc, err.command, err.result.stdout, err.result.stderr)
+        )
+
+    if not _wait_target(ha_label, False):
+        return agent_error("Failed to stop target {}".format(ha_label))
+
+    return agent_result_ok
 
 
 def _move_target(target_label, dest_node):
@@ -1066,7 +1048,17 @@ def convert_targets(force=False):
 
     active = get_resource_locations()
 
-    AgentShell.run(["pcs", "property", "set", "maintenance-mode=true"])
+    AgentShell.try_run(
+        [
+            "crm_attribute",
+            "--type",
+            "crm_config",
+            "--name",
+            "maintenance-mode",
+            "--update",
+            "true",
+        ]
+    )
 
     wait_list = []
     for res in dom.findall(".//primitive"):
@@ -1098,7 +1090,16 @@ def convert_targets(force=False):
     for wait in wait_list:
         console_log.info("Waiting on %s", wait[0])
         _wait_target(*wait)
-    AgentShell.run(["pcs", "property", "unset", "maintenance-mode"])
+    AgentShell.try_run(
+        [
+            "crm_attribute",
+            "--type",
+            "crm_config",
+            "--name",
+            "maintenance-mode",
+            "--delete",
+        ]
+    )
 
 
 ACTIONS = [
