@@ -9,7 +9,7 @@ import json
 from chroma_agent.lib.shell import AgentShell
 from chroma_agent.log import console_log
 from chroma_agent.device_plugins.linux_network import LinuxNetworkDevicePlugin
-from iml_common.lib.agent_rpc import agent_ok_or_error
+from iml_common.lib.agent_rpc import agent_ok_or_error, agent_result_ok
 
 IML_CONFIGURATION_FILE = "/etc/modprobe.d/iml_lnet_module_parameters.conf"
 IML_CONFIGURE_FILE_JSON_HEADER = "##  "
@@ -29,70 +29,13 @@ class Module:
             self.dependents = set([])
 
 
-def _get_loaded_mods():
-    modules = {}
-
-    for line in open("/proc/modules").readlines():
-        m = Module(line.strip())
-        modules[m.name] = m
-
-    return modules
-
-
-def _remove_module(name, modules):
-    try:
-        m = modules[name]
-    except KeyError:
-        # It's not loaded, do nothing.
-        return None
-
-    console_log.info(
-        "Removing %d dependents of %s : %s" % (len(m.dependents), name, m.dependents)
-    )
-    while m.dependents:
-        error = _remove_module(m.dependents.pop(), modules)
-
-        if error:
-            return error
-
-    console_log.info("Removing %s" % name)
-
-    error = AgentShell.run_canned_error_message(["rmmod", name])
-
-    if error:
-        return error
-
-    modules.pop(name)
-    for m in modules.values():
-        if name in m.dependents:
-            m.dependents.remove(name)
-
-    return None
-
-
-def _rmmod(module_name):
-    return _remove_module(module_name, _get_loaded_mods())
-
-
-def _rmmod_deps(module_name, excpt=[]):
-    deps = [d for d in _get_loaded_mods()[module_name].dependents if d not in excpt]
-
-    for module_name in deps:
-        error = _rmmod(module_name)
-
-        if error:
-            return error
-
-    return None
-
-
 def start_lnet():
     """
     Place lnet into the 'up' state.
     """
     console_log.info("Starting LNet")
 
-    # modprobe lust is a hack for HYD-1263 - Fix or work around LU-1279 - failure trying to mount
+    # modprobe lustre is a hack for HYD-1263 - Fix or work around LU-1279 - failure trying to mount
     # should be removed when LU-1279 is fixed
     return agent_ok_or_error(
         AgentShell.run_canned_error_message(["lctl", "net", "up"])
@@ -107,9 +50,15 @@ def stop_lnet():
     """
 
     console_log.info("Stopping LNet")
+    # FIXME: Due to LU-11986 (partial lustre_rmmod leads to panic) and LU-9525 ("lctl
+    # network down" won't work...) call lustre_rmmod to shutdown network
+
+    # Teardown to ksocklnd - ignore error
+    result = AgentShell.run(["lustre_rmmod"])
+    if result.rc == 0:
+        return agent_result_ok
     return agent_ok_or_error(
-        _rmmod_deps("lnet", excpt=["ksocklnd", "ko2iblnd"])
-        or AgentShell.run_canned_error_message(["lctl", "net", "down"])
+        AgentShell.run_canned_error_message(["lctl", "network", "down"])
     )
 
 
@@ -127,7 +76,7 @@ def unload_lnet():
 
     Lnet must be stopped before unload_lnet is called.
     """
-    return agent_ok_or_error(_rmmod("lnet"))
+    return agent_ok_or_error(AgentShell.run_canned_error_message(["lustre_rmmod"]))
 
 
 def configure_lnet(lnet_configuration):

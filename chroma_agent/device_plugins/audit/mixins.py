@@ -4,6 +4,62 @@
 
 
 import os
+from chroma_agent.lib.shell import AgentShell
+
+
+class LustreGetParamMixin(object):
+    """Mixin for Audit subclasses.  Classes that inherit from
+    this mixin will get some convenience methods for interacting with a
+    lctl get_param.
+    """
+
+    def _get_param(self, *args):
+        # Remove trailing newline to cleanup stdout.split("\n")
+        return AgentShell.try_run(
+            ["lctl", "get_param"] + [x.replace("/", ".") for x in args]
+        )
+
+    def get_param_lines(self, path, filter_f=None):
+        """Return a generator for stripped lines read from the param.
+
+        If the optional filter_f argument is supplied, it will be applied
+        prior to stripping each line.
+        """
+        stdout = self._get_param("-n", path).strip()
+
+        if not stdout:
+            yield None
+            return
+
+        for line in stdout.split("\n"):
+            if filter_f:
+                if filter_f(line):
+                    yield line
+            else:
+                yield line
+
+    def get_param_raw(self, path):
+        return self._get_param("-n", path)
+
+    def get_param_string(self, path):
+        """Read the first line from a param and return it as a string."""
+        return self.get_param_lines(path).next()
+
+    def get_param_int(self, path):
+        """Read one line from a param and return it as an int."""
+        return int(self.get_param_string(path))
+
+    def join_param(self, a, *p):
+        if a:
+            arr = [a]
+        else:
+            arr = []
+        for x in p:
+            arr.append(x)
+        return ".".join(arr)
+
+    def list_params(self, path):
+        return self._get_param("-N", path).strip().split("\n")
 
 
 class FileSystemMixin(object):
@@ -29,17 +85,7 @@ class FileSystemMixin(object):
         prior to stripping each line.
         """
 
-        # I really don't like this, but at present I can't see a way of the Audit's knowing enough about the
-        # devices to point to the correct device - The notion that Audit, Corosync, etc can all be seperate means
-        # they don't have the knowledge to deal with things like zfs verse's ldiskfs. So for know if the file doesn't
-        # exist and the path contains osd-ldiskfs then swap it for osd-zfs and use that - and if that doesn't exist we
-        # are no worse off.
-        # If I had a better solution without a major rewrite I would use it!
-
         filename = self.abs(filename)
-
-        if not os.path.isfile(filename):
-            filename = filename.replace("osd-ldiskfs", "osd-zfs")
 
         for line in open(filename):
             if filter_f:

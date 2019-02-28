@@ -222,7 +222,7 @@ class NetworkInterfaces(dict):
 
 
 class LNetNid:
-    """ Created with a single line that is the output of /proc/sys/lnet/nis, this class will
+    """ Created with a single line that is the output of lctl get_param nis, this class will
     parse those lines and end up with a set of properties corresponding to the parsed data
 
     It also requires a list of the network interfaces on the node so that it can name the nids
@@ -233,7 +233,7 @@ class LNetNid:
     def __init__(self, lnet_nis_line, interfaces):
         tokens = lnet_nis_line.split()
 
-        assert len(tokens) == 9
+        assert len(tokens) == 9, "line: " + lnet_nis_line
 
         self.nid_address = tokens[0].split("@")[
             0
@@ -282,12 +282,10 @@ class LinuxNetworkDevicePlugin(DevicePlugin):
         :param interfaces: A list of the interfaces on the current node
         :return: Returns a dict of dicts describing the nids on the current node.
         """
-        # Read active NIDs from /proc
         try:
-            with open("/proc/sys/lnet/nis") as file:
-                lines = file.readlines()
-        except IOError:
-            daemon_log.warning("get_nids: failed to open")
+            lines = AgentShell.try_run(["lctl", "get_param", "-n", "nis"]).split("\n")
+        except Exception as err:
+            daemon_log.warning("get_nids: failed to open: %s", err.message)
             return LinuxNetworkDevicePlugin.cached_results
 
         # Skip header line
@@ -296,6 +294,8 @@ class LinuxNetworkDevicePlugin(DevicePlugin):
         # Parse each NID string out into result list
         lnet_nids = []
         for line in lines:
+            if not line:
+                continue
             try:
                 lnet_nids.append(LNetNid(line, interfaces))
             except NetworkInterfaces.InterfaceNotFound as e:

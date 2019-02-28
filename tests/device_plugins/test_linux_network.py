@@ -9,7 +9,8 @@ from chroma_agent.device_plugins.linux_network import (
 
 class TestLinuxNetwork(unittest.TestCase):
     def mock_try_run(self, args):
-        return """1: bond0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000
+        if args == ["ip", "addr"]:
+            return """1: bond0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000
     link/ether 52:54:00:33:d9:15 brd ff:ff:ff:ff:ff:ff
     inet 192.168.10.79/21 brd 192.168.10.255 scope global bond0
     inet6 fe80::4e00:10ff:feac:61e0/64 scope link
@@ -36,6 +37,24 @@ class TestLinuxNetwork(unittest.TestCase):
     inet 192.168.4.23/23 brd 192.168.5.2555 scope global ib0
     inet6 fe80::225:90ff:ff1c:a229/64 scope link
        valid_lft forever preferred_lft forever"""
+        elif args == ["lctl", "get_param", "-n", "nis"]:
+            return "\n".join(
+                [
+                    "nid                      status alive refs peer  rtr   max    tx   min",
+                    "0@lo                         up     0    3    0    0     0     0     0",
+                    "192.168.10.79@tcp1001        up    -1    1    8    0   256   256   256",
+                    "192.168.10.78@tcp1002        up    -1    1    8    0   256   256   256",
+                    "10.0.0.101@tcp1              up    -1    1    8    0   256   256   256",
+                    "192.168.4.23@o2ib99          up    -1    1    8    0   256   256   256",
+                    "192.168.4.23@o2ib99          up    -1    1    8    0   256   256   256",
+                    "192.168.4.23@o2ib99          up    -1    1    8    0   256   256   256",
+                    "192.168.4.23@o2ib99          up    -1    1    8    0   256   256   256",
+                    "192.168.4.23@o2ib99          up    -1    1    8    0   256   256   256",
+                    "192.168.4.23@o2ib99          up    -1    1    8    0   256   256   256",
+                ]
+            )
+        else:
+            raise "Unknown args: " + repr(args)
 
     def test_network_interface(self):
         class mock_open:
@@ -144,37 +163,7 @@ class TestLinuxNetwork(unittest.TestCase):
         return interfaces
 
     def test_lnet_interface(self):
-        class mock_open:
-            def __init__(self, fname):
-                pass
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, exception_type, value, _traceback):
-                pass
-
-            def readlines(self):
-                """
-                The out of of a 'cat /proc/sys/lnet/nis commaned. I have seen returns with the same entry
-                repeated many times, hences its inclusion.
-                :return: Returns a list of lines as readlines would.
-                """
-                return [
-                    "nid                      status alive refs peer  rtr   max    tx   min",
-                    "0@lo                         up     0    3    0    0     0     0     0",
-                    "192.168.10.79@tcp1001        up    -1    1    8    0   256   256   256",
-                    "192.168.10.78@tcp1002        up    -1    1    8    0   256   256   256",
-                    "10.0.0.101@tcp1              up    -1    1    8    0   256   256   256",
-                    "192.168.4.23@o2ib99          up    -1    1    8    0   256   256   256",
-                    "192.168.4.23@o2ib99          up    -1    1    8    0   256   256   256",
-                    "192.168.4.23@o2ib99          up    -1    1    8    0   256   256   256",
-                    "192.168.4.23@o2ib99          up    -1    1    8    0   256   256   256",
-                    "192.168.4.23@o2ib99          up    -1    1    8    0   256   256   256",
-                    "192.168.4.23@o2ib99          up    -1    1    8    0   256   256   256",
-                ]
-
-        with mock.patch("__builtin__.open", mock_open):
+        with mock.patch("chroma_agent.lib.shell.AgentShell.try_run", self.mock_try_run):
             device_plugin = LinuxNetworkDevicePlugin(None)
             interfaces = self.test_network_interface()
             lnet_devices = device_plugin._lnet_devices(interfaces)
