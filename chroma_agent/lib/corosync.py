@@ -367,6 +367,12 @@ class CorosyncRingInterface(object):
     def set_address(self, ipv4_address, prefix):
         ifaddr = "%s/%s" % (ipv4_address, prefix)
 
+        if not ipv4_address or not prefix:
+            console_log.info(
+                "Set {} called with invalid parameters: {}".format(self.name, ifaddr)
+            )
+            return
+
         console_log.info("Set %s (%s) up" % (self.name, ifaddr))
 
         if self.ipv4_address != ipv4_address:

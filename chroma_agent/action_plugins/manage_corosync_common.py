@@ -87,11 +87,7 @@ def configure_network(
         )
 
     for interface in interfaces:
-        if (
-            interface.ipaddr
-            and interface.ipaddr != interface.corosync_iface.ipv4_address
-        ):
-            interface.corosync_iface.set_address(interface.ipaddr, interface.prefix)
+        interface.corosync_iface.set_address(interface.ipaddr, interface.prefix)
 
     return agent_result_ok
 
