@@ -73,6 +73,17 @@ jobs:
               - export CLONE_URL=https://github.com/whamcloud/iml-agent.git
               - export SPEC=python-iml-agent.spec
               - docker run -it -e OWNER="$OWNER" -e PROJECT="$PROJECT" -e PACKAGE="$PACKAGE" -e CLONE_URL="$CLONE_URL" -e SPEC="$SPEC" -e KEY="$encrypted_253525cedcf6_key" -e IV="$encrypted_253525cedcf6_iv" -v $(pwd):/build:rw imlteam/copr
+        - stage: cd
+          name: "rust-iml-agent Continuous Deployment (Copr)"
+          script:
+              - export OWNER=managerforlustre
+              - export PROJECT=manager-for-lustre-devel
+              - export SRPM_PATH='/tmp/*.src.rpm'
+              - docker run -dit --entrypoint "/bin/bash" --name "copr" -e OWNER="$OWNER" -e PROJECT="$PROJECT" -e SRPM_PATH="$SRPM_PATH" -e KEY="$encrypted_253525cedcf6_key" -e IV="$encrypted_253525cedcf6_iv" -v $(pwd):/build:rw imlteam/copr
+              - docker exec -it copr bash -xec 'yum copr enable -y managerforlustre/buildtools'
+              - docker exec -it copr bash -xec 'yum install -y rust-bundled-packaging spectool openssl-devel'
+              - docker exec -it copr bash -xec 'cd /build/iml-agent && make -f .copr/Makefile srpm outdir=/tmp/'
+              - docker exec -it copr bash -xec 'create_build'
         - stage: deploy-copr
           name: "Copr deploy"
           script:

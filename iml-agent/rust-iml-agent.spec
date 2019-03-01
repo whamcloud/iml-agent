@@ -32,9 +32,11 @@ BuildRequires:  cargo
 %cargo_build
 
 %install
-%cargo_instal
-cp systemd_units/%{name}.{service,path} %{buildroot}%{_unitdir}
-cp systemd_units/00-%{name}.preset %{buildroot}%{_presetdir}
+%cargo_install
+mkdir -p %{buildroot}%{_unitdir}
+mkdir -p %{buildroot}%{_presetdir}
+cp systemd-units/%{name}.{service,path} %{buildroot}%{_unitdir}
+cp systemd-units/00-%{name}.preset %{buildroot}%{_presetdir}
 
 %files
 %{_bindir}/%{crate}
