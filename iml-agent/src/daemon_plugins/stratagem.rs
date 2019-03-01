@@ -19,6 +19,15 @@ pub struct Stratagem {}
 
 impl DaemonPlugin for Stratagem {
     fn start_session(&self) -> Box<Future<Item = Option<Output>, Error = ImlAgentError> + Send> {
-        Box::new(stratagem_data().map(Output::Stratagem).map(Some))
+        Box::new(stratagem_data().map(Output::Stratagem).map(Some).or_else(|e| {
+            match e {
+                ImlAgentError::Io(_) => {
+                    log::debug!("IO Error while reading Stratagem JSON file. It may not be installed yet.");
+
+                    Ok(None)
+                },
+                err => Err(err)
+            }
+        }))
     }
 }

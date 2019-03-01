@@ -11,8 +11,10 @@ use crate::{
         session::{Session, SessionInfo, Sessions, State},
     },
 };
+use std::time::{Duration, Instant};
 use futures::future::{loop_fn, Loop};
 use tokio::prelude::*;
+use tokio::timer::Delay;
 
 fn send_if_data(
     agent_client: AgentClient,
@@ -23,6 +25,8 @@ fn send_if_data(
         None => Box::new(future::ok(())),
     }
 }
+
+type LoopState = Loop<(), (AgentClient, Sessions, std::sync::Arc<DaemonPlugins>)>;
 
 /// Continually polls the manager for any incoming commands using a tail-recursive loop.
 ///
@@ -98,17 +102,27 @@ pub fn create_reader(
                                 Ok(())
                             }
                         },
-                        ManagerMessage::SessionTerminate { plugin, session_id } => {
-                            sessions2.terminate_session(&plugin)
-                        }
+                        ManagerMessage::SessionTerminate {
+                            plugin,
+                            session_id: _,
+                        } => sessions2.terminate_session(&plugin),
                         ManagerMessage::SessionTerminateAll => sessions2.terminate_all_sessions(),
                     }
                 })
                 .collect()
-                .map(move |_| {
-                    log::trace!("Turning GET loop");
+                .then(|r| -> Box<Future<Item = LoopState, Error=ImlAgentError> + Send> {
+                    match r {
+                        Ok(_) => Box::new(future::ok(Loop::Continue((agent_client, sessions, registry)))),
+                        Err(ImlAgentError::Reqwest(e)) => {
+                            log::warn!("Got a manager read Error {:?}. Will retry in 5 seconds.", e);
 
-                    Loop::Continue((agent_client, sessions, registry))
+                            let when = Instant::now() + Duration::from_secs(5);
+                            Box::new(Delay::new(when)
+                            .map_err(|e| e.into())
+                            .map(|_| Loop::Continue((agent_client, sessions, registry))))
+                        }
+                        Err(e) => Box::new(future::err(e))
+                    }
                 })
         },
     )

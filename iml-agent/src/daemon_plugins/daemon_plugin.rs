@@ -94,6 +94,12 @@ pub fn plugin_registry() -> DaemonPlugins {
         mk_callback(&action_runner::create),
     );
 
+    log::info!("Loaded the following DaemonPlugins:");
+
+    for PluginName(key) in hm.keys() {
+        log::info!("{}", key)
+    }
+
     hm
 }
 
