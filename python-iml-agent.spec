@@ -50,8 +50,9 @@ Requires:       python2-toolz
 Requires:       iml-device-scanner-proxy < 3
 Requires:       iml-update-check < 2
 Requires:       util-linux-ng
-Requires(post): selinux-policy
+Requires:       rust-iml-agent
 Requires:       python-urllib3
+Requires(post): selinux-policy
 %{?python_provide:%python_provide python2-%{pypi_name}}
 
 %description -n python2-%{pypi_name}
@@ -73,7 +74,6 @@ Requires:       pcapy
 Requires:       python-impacket
 Requires:       system-config-firewall-base
 Requires:       ed
-Requires:       rust-iml-agent
 
 %description -n python2-%{pypi_name}-management
 This package layers on management capabilities for Integrated Manager for Lustre Agent.
