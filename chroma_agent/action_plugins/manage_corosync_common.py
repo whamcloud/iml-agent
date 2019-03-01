@@ -87,9 +87,7 @@ def configure_network(
         )
 
     for interface in interfaces:
-        if interface.ipaddr and interface.ipaddr == ring1_ipaddr:
-            # we only want to set ring1, ring0 already set and should not be modified
-            interface.corosync_iface.set_address(interface.ipaddr, interface.prefix)
+        interface.corosync_iface.set_address(interface.ipaddr, interface.prefix)
 
     return agent_result_ok
 
