@@ -7,6 +7,6 @@ After=rust-iml-agent.path
 [Service]
 Restart=always
 EnvironmentFile=/etc/iml/manager-url.conf
-ExecStart=/usr/bin/rust-iml-agent
+ExecStart=/usr/bin/iml-agent-daemon
 StandardOutput=journal
 StandardError=journal

@@ -5,9 +5,11 @@ After=chroma-agent.service
 Requires=device-scanner.target
 After=device-scanner.target
 Requires=iml-update-check.timer
+Requires=rust-iml-agent.path
 
 [Install]
 WantedBy=multi-user.target
 Also=device-scanner.target
 Also=chroma-agent.service
 Also=iml-update-check.timer
+Also=rust-iml-agent.path
