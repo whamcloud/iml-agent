@@ -37,6 +37,12 @@ pub enum App {
     },
 }
 
+fn run_cmd<R: Send + 'static, E: Send + 'static>(
+    fut: impl Future<Item = R, Error = E> + Send + 'static,
+) -> std::result::Result<R, E> {
+    tokio::runtime::Runtime::new().unwrap().block_on_all(fut)
+}
+
 fn main() {
     env_logger::init();
 
@@ -45,8 +51,7 @@ fn main() {
     match matches {
         App::Stratagem { command } => match command {
             Command::Start => {
-                let started = manage_stratagem::status_stratagem()
-                    .wait()
+                let started = run_cmd(manage_stratagem::status_stratagem())
                     .expect("Could not check Stratagem status");
 
                 if started {
@@ -54,8 +59,7 @@ fn main() {
                     process::exit(exitcode::OK);
                 } else {
                     println!("Starting...");
-                    manage_stratagem::start_stratagem(None)
-                        .wait()
+                    run_cmd(manage_stratagem::start_stratagem(None))
                         .expect("Could not start Stratagem");
                     println!("Started");
                 }
@@ -63,16 +67,14 @@ fn main() {
                 process::exit(exitcode::OK);
             }
             Command::Stop => {
-                let started = manage_stratagem::status_stratagem()
-                    .wait()
+                let started = run_cmd(manage_stratagem::status_stratagem())
                     .expect("Could not check Stratagem status");
 
                 if !started {
                     println!("stratagem already stopped");
                 } else {
                     println!("Stopping...");
-                    manage_stratagem::stop_stratagem(None)
-                        .wait()
+                    run_cmd(manage_stratagem::stop_stratagem(None))
                         .expect("Could not stop Stratagem");
                     println!("Stopped")
                 }
@@ -80,8 +82,7 @@ fn main() {
                 process::exit(exitcode::OK);
             }
             Command::Status => {
-                let started = manage_stratagem::status_stratagem()
-                    .wait()
+                let started = run_cmd(manage_stratagem::status_stratagem())
                     .expect("Could not check Stratagem status");
 
                 if started {
@@ -93,8 +94,7 @@ fn main() {
                 }
             }
             Command::Groups => {
-                let groups = manage_stratagem::stratagem_groups()
-                    .wait()
+                let groups = run_cmd(manage_stratagem::stratagem_groups())
                     .expect("Could not get Stratagem groups");
 
                 for x in groups {

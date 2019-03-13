@@ -2,19 +2,17 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-    time::{Duration, Instant},
-};
-
 use crate::{
     action_plugins::AgentResult,
     agent_error::{ImlAgentError, Result},
     daemon_plugins::{DaemonBox, Input, Output, PluginName},
 };
-
 use futures::Future;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
 
 /// Takes a `Duration` and figures out the next duration
 /// for a bounded linear backoff.Duration

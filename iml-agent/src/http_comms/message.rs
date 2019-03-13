@@ -8,7 +8,7 @@ use crate::{
     server_properties::BOOT_TIME,
 };
 
-/// The payload sent to the manager.
+/// The payload from the agent.
 /// One or many can be packed into an `Envelope`
 #[derive(serde::Serialize, Debug)]
 #[serde(tag = "type")]

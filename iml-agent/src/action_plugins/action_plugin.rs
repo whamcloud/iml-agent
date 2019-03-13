@@ -14,6 +14,11 @@ use std::collections::HashMap;
 // They represent the interface expected from action plugins.
 static AGENT_RPC_WRAPPER_VERSION: i8 = 1;
 
+/// The result returned back
+/// to the IML manager.
+///
+/// It bears similarities to the `Result` type
+/// and is usually converted from a `Result`.
 #[derive(serde::Serialize)]
 pub enum AgentResult {
     AgentOk {
@@ -26,6 +31,7 @@ pub enum AgentResult {
     },
 }
 
+// This is not derived because we can't derive the Box<erased_serde::Serialize + Send>
 impl std::fmt::Debug for AgentResult {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -50,6 +56,7 @@ impl std::fmt::Debug for AgentResult {
     }
 }
 
+/// Convert a `Result` into an `AgentResult`
 impl<T> From<Result<T>> for AgentResult
 where
     T: erased_serde::Serialize + 'static + Send,
@@ -101,7 +108,7 @@ pub struct ActionName(pub String);
 
 type BoxedFuture = Box<Future<Item = AgentResult, Error = ()> + 'static + Send>;
 
-type Callback = Box<Fn(serde_json::value::Value) -> BoxedFuture>;
+type Callback = Box<Fn(serde_json::value::Value) -> BoxedFuture + Send + Sync>;
 
 fn mk_boxed_future<T: 'static, F: 'static, R, Fut: 'static>(
     v: serde_json::value::Value,
@@ -133,6 +140,10 @@ where
     Box::new(move |v| mk_boxed_future(v, f))
 }
 
+pub type Actions = HashMap<ActionName, Callback>;
+
+/// The registry of available actions to the AgentDaemon.
+/// Add new Actions to the fn body as they are created.
 pub fn create_registry() -> HashMap<ActionName, Callback> {
     let mut map = HashMap::new();
 

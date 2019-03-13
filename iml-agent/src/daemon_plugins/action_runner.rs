@@ -14,7 +14,7 @@ use futures::{
 };
 
 use crate::{
-    action_plugins::{agent_err, create_registry, ActionName, AgentResult},
+    action_plugins::{agent_err, create_registry, ActionName, AgentResult, Actions},
     agent_error::{ImlAgentError, RequiredError, Result},
     daemon_plugins::{DaemonPlugin, Input},
 };
@@ -40,14 +40,25 @@ pub struct Action {
     args: Option<serde_json::value::Value>,
 }
 
-#[derive(Debug)]
 pub struct ActionRunner {
     ids: Arc<Mutex<HashMap<Id, oneshot::Sender<()>>>>,
+    registry: Actions
+}
+
+impl std::fmt::Debug for ActionRunner {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(
+                f,
+                "ActionRunner {{ ids: {:?}, registry: RegistryFn }}",
+                self.ids
+            )
+    }
 }
 
 pub fn create() -> impl DaemonPlugin {
     ActionRunner {
         ids: Arc::new(Mutex::new(HashMap::new())),
+        registry: create_registry()
     }
 }
 
@@ -56,8 +67,6 @@ impl DaemonPlugin for ActionRunner {
         &mut self,
         input: Input,
     ) -> Box<Future<Item = AgentResult, Error = ImlAgentError> + Send> {
-        let mut registry = create_registry();
-
         match input {
             Input::Action(action) => match action.action_type {
                 ActionCommand::ActionStart => {
@@ -78,7 +87,7 @@ impl DaemonPlugin for ActionRunner {
                         }
                     };
 
-                    let action_plugin_fn = match registry.get_mut(&a) {
+                    let action_plugin_fn = match self.registry.get_mut(&a) {
                         Some(p) => p,
                         None => {
                             return Box::new(future::ok(agent_err(

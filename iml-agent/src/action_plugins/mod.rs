@@ -5,4 +5,4 @@
 pub mod action_plugin;
 pub mod manage_stratagem;
 
-pub use action_plugin::{agent_err, create_registry, ActionName, AgentResult};
+pub use action_plugin::{agent_err, create_registry, ActionName, AgentResult, Actions};
