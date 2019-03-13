@@ -7,6 +7,8 @@
 Corosync verification
 """
 
+import socket
+
 from chroma_agent.log import console_log
 from chroma_agent.lib.shell import AgentShell
 from chroma_agent.lib.corosync import CorosyncRingInterface
@@ -44,9 +46,11 @@ def configure_corosync2_stage_1(mcast_port, pcs_password):
         "-c",
         "echo %s | passwd --stdin %s" % (pcs_password, PCS_USER),
     ]
+    set_hostname_command = ["hostnamectl", "set-hostname", socket.getfqdn()]
 
     return agent_ok_or_error(
         AgentShell.run_canned_error_message(set_password_command)
+        or AgentShell.run_canned_error_message(set_hostname_command)
         or firewall_control.add_rule(mcast_port, "udp", "corosync", persist=True)
         or firewall_control.add_rule(PCS_TCP_PORT, "tcp", "pcs", persist=True)
         or pcsd_service.start()
