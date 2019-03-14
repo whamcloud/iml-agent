@@ -271,6 +271,7 @@ class TestConfigureCorosync(CommandCaptureTestCase):
         self.mock_corosync_service.enable.assert_called_once_with()
 
     def test_manual_ring1_config_corosync2(self):
+        import socket
         from chroma_agent.action_plugins.manage_corosync2 import (
             configure_corosync2_stage_1,
         )
@@ -305,6 +306,7 @@ class TestConfigureCorosync(CommandCaptureTestCase):
             CommandCaptureCommand(
                 ("bash", "-c", "echo bondJAMESbond | passwd --stdin hacluster")
             ),
+            CommandCaptureCommand(("hostnamectl", "set-hostname", socket.getfqdn()))
             CommandCaptureCommand(
                 tuple(
                     ["pcs", "cluster", "auth"]
