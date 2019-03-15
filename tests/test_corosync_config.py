@@ -306,7 +306,7 @@ class TestConfigureCorosync(CommandCaptureTestCase):
             CommandCaptureCommand(
                 ("bash", "-c", "echo bondJAMESbond | passwd --stdin hacluster")
             ),
-            CommandCaptureCommand(("hostnamectl", "set-hostname", socket.getfqdn()))
+            CommandCaptureCommand(("hostnamectl", "set-hostname", socket.getfqdn())),
             CommandCaptureCommand(
                 tuple(
                     ["pcs", "cluster", "auth"]
