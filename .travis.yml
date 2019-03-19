@@ -35,18 +35,16 @@ jobs:
               - export OWNER=managerforlustre
               - export PROJECT=manager-for-lustre-devel
               - export PACKAGE=python-iml-agent
-              - export CLONE_URL=https://github.com/whamcloud/iml-agent.git
               - export SPEC=python-iml-agent.spec
-              - docker run -it -e OWNER="$OWNER" -e PROJECT="$PROJECT" -e PACKAGE="$PACKAGE" -e CLONE_URL="$CLONE_URL" -e SPEC="$SPEC" -e KEY="$encrypted_253525cedcf6_key" -e IV="$encrypted_253525cedcf6_iv" -v $(pwd):/build:rw imlteam/copr
+              - docker run -it -e OWNER="$OWNER" -e PROJECT="$PROJECT" -e PACKAGE="$PACKAGE" -e SPEC="$SPEC" -e KEY="$encrypted_253525cedcf6_key" -e IV="$encrypted_253525cedcf6_iv" -v $(pwd):/build:rw imlteam/copr
         - stage: deploy-copr
           name: "Copr deploy"
           script:
               - export OWNER=managerforlustre
               - export PROJECT=manager-for-lustre
               - export PACKAGE=python-iml-agent
-              - export CLONE_URL=https://github.com/whamcloud/iml-agent.git
               - export SPEC=python-iml-agent.spec
-              - docker run -it -e OWNER="$OWNER" -e PROJECT="$PROJECT" -e PACKAGE="$PACKAGE" -e CLONE_URL="$CLONE_URL" -e SPEC="$SPEC" -e KEY="$encrypted_253525cedcf6_key" -e IV="$encrypted_253525cedcf6_iv" -v $(pwd):/build:rw imlteam/copr
+              - docker run -it -e OWNER="$OWNER" -e PROJECT="$PROJECT" -e PACKAGE="$PACKAGE" -e SPEC="$SPEC" -e KEY="$encrypted_253525cedcf6_key" -e IV="$encrypted_253525cedcf6_iv" -v $(pwd):/build:rw imlteam/copr
         - stage: deploy-pypi
           name: "PyPi deploy"
           script: skip

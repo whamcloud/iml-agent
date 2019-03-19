@@ -9,3 +9,5 @@ _topdir/
 tags
 settings.json
 *.rpm
+*.egg-info/
+.DS_Store
