@@ -7,8 +7,6 @@
 Corosync verification
 """
 
-import socket
-
 from chroma_agent.log import console_log
 from chroma_agent.lib.shell import AgentShell
 from chroma_agent.lib.corosync import CorosyncRingInterface
