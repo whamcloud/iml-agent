@@ -47,7 +47,11 @@ def configure_corosync2_stage_1(mcast_port, pcs_password, fqdn=None):
         "echo %s | passwd --stdin %s" % (pcs_password, PCS_USER),
     ]
     if fqdn is not None:
-        rc = AgentShell.run_canned_error_message(["hostnamectl", "set-hostname", fqdn])
+        error = AgentShell.run_canned_error_message(
+            ["hostnamectl", "set-hostname", fqdn]
+        )
+        if error:
+            return agent_error(error)
 
     return agent_ok_or_error(
         AgentShell.run_canned_error_message(set_password_command)
