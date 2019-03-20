@@ -17,7 +17,6 @@ jobs:
           name: "mock build test"
           script:
               - docker run -dit --name mock -v "$(pwd)":/mockdir --cap-add=SYS_ADMIN --privileged imlteam/mock
-              - docker exec -it mock bash -xec 'yum install -y dnf'
               - docker exec -it mock bash -xec 'chown root.root /mockdir/*'
               - docker exec -it mock bash -xec 'mkdir -p /tmp/build'
               - docker exec -it mock bash -xec 'cd /mockdir && make -f .copr/Makefile outdir=/tmp/build'
