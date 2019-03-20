@@ -17,7 +17,6 @@ jobs:
           name: "mock build test"
           script:
               - docker run -dit --name mock -v "$(pwd)":/mockdir --cap-add=SYS_ADMIN --privileged imlteam/mock
-              - docker exec -it mock bash -xec 'yum install -y dnf'
               - docker exec -it mock bash -xec 'chown root.root /mockdir/*'
               - docker exec -it mock bash -xec 'mkdir -p /tmp/build'
               - docker exec -it mock bash -xec 'cd /mockdir && make -f .copr/Makefile outdir=/tmp/build'
@@ -35,18 +34,16 @@ jobs:
               - export OWNER=managerforlustre
               - export PROJECT=manager-for-lustre-devel
               - export PACKAGE=python-iml-agent
-              - export CLONE_URL=https://github.com/whamcloud/iml-agent.git
               - export SPEC=python-iml-agent.spec
-              - docker run -it -e OWNER="$OWNER" -e PROJECT="$PROJECT" -e PACKAGE="$PACKAGE" -e CLONE_URL="$CLONE_URL" -e SPEC="$SPEC" -e KEY="$encrypted_253525cedcf6_key" -e IV="$encrypted_253525cedcf6_iv" -v $(pwd):/build:rw imlteam/copr
+              - docker run -it -e OWNER="$OWNER" -e PROJECT="$PROJECT" -e PACKAGE="$PACKAGE" -e SPEC="$SPEC" -e KEY="$encrypted_253525cedcf6_key" -e IV="$encrypted_253525cedcf6_iv" -v $(pwd):/build:rw imlteam/copr
         - stage: deploy-copr
           name: "Copr deploy"
           script:
               - export OWNER=managerforlustre
               - export PROJECT=manager-for-lustre
               - export PACKAGE=python-iml-agent
-              - export CLONE_URL=https://github.com/whamcloud/iml-agent.git
               - export SPEC=python-iml-agent.spec
-              - docker run -it -e OWNER="$OWNER" -e PROJECT="$PROJECT" -e PACKAGE="$PACKAGE" -e CLONE_URL="$CLONE_URL" -e SPEC="$SPEC" -e KEY="$encrypted_253525cedcf6_key" -e IV="$encrypted_253525cedcf6_iv" -v $(pwd):/build:rw imlteam/copr
+              - docker run -it -e PROD="true" -e OWNER="$OWNER" -e PROJECT="$PROJECT" -e PACKAGE="$PACKAGE" -e SPEC="$SPEC" -e KEY="$encrypted_253525cedcf6_key" -e IV="$encrypted_253525cedcf6_iv" -v $(pwd):/build:rw imlteam/copr
         - stage: deploy-pypi
           name: "PyPi deploy"
           script: skip

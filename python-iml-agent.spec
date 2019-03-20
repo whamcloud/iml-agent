@@ -5,7 +5,6 @@ BuildRequires: systemd
 
 %global pypi_name iml-agent
 %{?!version: %global version 4.1.4}
-%{?!package_release: %global package_release 1}
 %{?!python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; import sys; sys.stdout.write(get_python_lib())")}
 
 %{?dist_version: %global source https://github.com/whamcloud/%{pypi_name}/archive/%{dist_version}.tar.gz}
@@ -14,8 +13,10 @@ BuildRequires: systemd
 %{?!dist_version: %global archive_version %{version}}
 
 Name:           python-%{pypi_name}
-Version:        %{version}
-Release:        %{package_release}%{?dist}
+Version:        4.1.4
+# Release Start
+Release:    1%{?dist}
+# Release End
 Summary:        IML Agent
 License:        MIT
 URL:            https://pypi.python.org/pypi/%{pypi_name}
