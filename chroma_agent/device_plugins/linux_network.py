@@ -285,7 +285,7 @@ class LinuxNetworkDevicePlugin(DevicePlugin):
         try:
             lines = AgentShell.try_run(["lctl", "get_param", "-n", "nis"]).split("\n")
         except Exception as err:
-            daemon_log.warning("get_nids: failed to open: %s", err.message)
+            daemon_log.warning("get_nids: failed to open: {}".format(err.message))
             return LinuxNetworkDevicePlugin.cached_results
 
         # Skip header line
