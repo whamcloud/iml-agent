@@ -2,68 +2,64 @@ language: python
 python: "2.7"
 sudo: required
 services:
-    - docker
+  - docker
 addons:
-    apt:
-        packages:
-            - libpcap0.8-dev
+  apt:
+    update: true
+    packages:
+      - libpcap0.8-dev
 jobs:
-    include:
-        - stage: test
-          name: "module test"
-          script:
-              - nosetests
-        - stage: test
-          name: "mock build test"
-          script:
-              - docker run -dit --name mock -v "$(pwd)":/mockdir --cap-add=SYS_ADMIN --privileged imlteam/mock
-              - docker exec -it mock bash -xec 'yum install -y dnf'
-              - docker exec -it mock bash -xec 'chown root.root /mockdir/*'
-              - docker exec -it mock bash -xec 'mkdir -p /tmp/build'
-              - docker exec -it mock bash -xec 'cd /mockdir && make -f .copr/Makefile outdir=/tmp/build'
-              - docker exec -it mock bash -xec 'mock /tmp/build/python-iml-agent-*.el*.src.rpm -v --enable-network'
-        - stage: test
-          name: "Format Check"
-          python: "3.6"
-          install:
-              - pip install black
-          script:
-              - black --check ./
-        - stage: cd
-          name: "Continuous Deployment"
-          script:
-              - export OWNER=managerforlustre
-              - export PROJECT=manager-for-lustre-devel
-              - export PACKAGE=python-iml-agent
-              - export CLONE_URL=https://github.com/whamcloud/iml-agent.git
-              - export SPEC=python-iml-agent.spec
-              - docker run -it -e OWNER="$OWNER" -e PROJECT="$PROJECT" -e PACKAGE="$PACKAGE" -e CLONE_URL="$CLONE_URL" -e SPEC="$SPEC" -e KEY="$encrypted_253525cedcf6_key" -e IV="$encrypted_253525cedcf6_iv" -v $(pwd):/build:rw imlteam/copr
-        - stage: deploy-copr
-          name: "Copr deploy"
-          script:
-              - export OWNER=managerforlustre
-              - export PROJECT=manager-for-lustre
-              - export PACKAGE=python-iml-agent
-              - export CLONE_URL=https://github.com/whamcloud/iml-agent.git
-              - export SPEC=python-iml-agent.spec
-              - docker run -it -e OWNER="$OWNER" -e PROJECT="$PROJECT" -e PACKAGE="$PACKAGE" -e CLONE_URL="$CLONE_URL" -e SPEC="$SPEC" -e KEY="$encrypted_253525cedcf6_key" -e IV="$encrypted_253525cedcf6_iv" -v $(pwd):/build:rw imlteam/copr
-        - stage: deploy-pypi
-          name: "PyPi deploy"
-          script: skip
-          deploy:
-              provider: pypi
-              user: iml
-              password:
-                  secure: QznryPOPomArAOyHl0qTC8JBR7qAmp81SAD6jnUwYzd1JO5lk7nIw25PMA2sU24uaTSEKp37Dx+qLeYIECz/HATFP0FlXDwgfDHgLinasz0+xaKlbhzhuWkAQwHe3Jc8pjdl7npm1Kh1xJU0Rsiwm2bnhfqGT3czsvOZoVoRdOKB0oW8sex6u3evXOa9NoFLX8WUkUIEUntT3HgOrxygY9pPAyu8qo0wluL4YRDY8nYaaeTOX8hPfa883ctYiMiiGxyvqGnfE264h4JlX7OYoBr5rF0ZS0wcqekLjnLLQwh+sEsdP9PNIlh+I4Hfkku6errhbD96w2YW6WySGcngiRSal7cHOa/lOAWm74M3nMoFLl7zFuX5BkVwSoRcyjibJogXyiladEs20eVmLcKcAHfj1OA//pQwvbNow3xcUci1mjmgV/v7VmfK1bPo9cziK6SNE1k96FI92BlqpuxrhQEy+hprq/SOGB8QJ6jo5/lvXwPFrsn4DHxUlGQPFk1hCo7TPRq+a//uVRuLmz4eXvDVrEoB+MR4oo9ltPpnXI7ylVnmavGR/vgw7y23tTucGkPHlFK9ubqv2cydTqxyJfkF00iDlr1ZNWjt1LUBWCdlgyor9AM4KqiVamc3jDaHj4z//l65JNEwxPOJ18tmCX5n29cY3ibLLO5kfFkVVVI=
-              on:
-                  all_branches: true
-                  distributions: sdist bdist_wheel
-          skip_upload_docs: true
+  include:
+    - stage: test
+      name: "module test"
+      script:
+        - nosetests
+    - stage: test
+      name: "copr build test"
+      script:
+        - export SPEC=python-iml-agent.spec
+        - docker run -it -e SPEC="$SPEC" -e LOCAL_ONLY="True" -v $(pwd):/build:rw imlteam/copr
+        - ((`find _topdir/RPMS -name *.rpm | wc -l` > 0))
+    - stage: test
+      name: "Format Check"
+      python: "3.6"
+      install:
+        - pip install black
+      script:
+        - black --check ./
+    - stage: cd
+      name: "Continuous Deployment"
+      script:
+        - export OWNER=managerforlustre
+        - export PROJECT=manager-for-lustre-devel
+        - export PACKAGE=python-iml-agent
+        - export SPEC=python-iml-agent.spec
+        - docker run -it -e OWNER="$OWNER" -e PROJECT="$PROJECT" -e PACKAGE="$PACKAGE" -e SPEC="$SPEC" -e KEY="$encrypted_253525cedcf6_key" -e IV="$encrypted_253525cedcf6_iv" -v $(pwd):/build:rw imlteam/copr
+    - stage: deploy-copr
+      name: "Copr deploy"
+      script:
+        - export OWNER=managerforlustre
+        - export PROJECT=manager-for-lustre
+        - export PACKAGE=python-iml-agent
+        - export SPEC=python-iml-agent.spec
+        - docker run -it -e PROD="true" -e OWNER="$OWNER" -e PROJECT="$PROJECT" -e PACKAGE="$PACKAGE" -e SPEC="$SPEC" -e KEY="$encrypted_253525cedcf6_key" -e IV="$encrypted_253525cedcf6_iv" -v $(pwd):/build:rw imlteam/copr
+    - stage: deploy-pypi
+      name: "PyPi deploy"
+      script: skip
+      deploy:
+        provider: pypi
+        user: iml
+        password:
+          secure: QznryPOPomArAOyHl0qTC8JBR7qAmp81SAD6jnUwYzd1JO5lk7nIw25PMA2sU24uaTSEKp37Dx+qLeYIECz/HATFP0FlXDwgfDHgLinasz0+xaKlbhzhuWkAQwHe3Jc8pjdl7npm1Kh1xJU0Rsiwm2bnhfqGT3czsvOZoVoRdOKB0oW8sex6u3evXOa9NoFLX8WUkUIEUntT3HgOrxygY9pPAyu8qo0wluL4YRDY8nYaaeTOX8hPfa883ctYiMiiGxyvqGnfE264h4JlX7OYoBr5rF0ZS0wcqekLjnLLQwh+sEsdP9PNIlh+I4Hfkku6errhbD96w2YW6WySGcngiRSal7cHOa/lOAWm74M3nMoFLl7zFuX5BkVwSoRcyjibJogXyiladEs20eVmLcKcAHfj1OA//pQwvbNow3xcUci1mjmgV/v7VmfK1bPo9cziK6SNE1k96FI92BlqpuxrhQEy+hprq/SOGB8QJ6jo5/lvXwPFrsn4DHxUlGQPFk1hCo7TPRq+a//uVRuLmz4eXvDVrEoB+MR4oo9ltPpnXI7ylVnmavGR/vgw7y23tTucGkPHlFK9ubqv2cydTqxyJfkF00iDlr1ZNWjt1LUBWCdlgyor9AM4KqiVamc3jDaHj4z//l65JNEwxPOJ18tmCX5n29cY3ibLLO5kfFkVVVI=
+        on:
+          all_branches: true
+          distributions: sdist bdist_wheel
+      skip_upload_docs: true
 stages:
-    - test
-    - name: cd
-      if: branch = master AND type = push AND fork = false
-    - name: deploy-pypi
-      if: branch =~ ^v\d+\.\d+\.\d+$
-    - name: deploy-copr
-      if: branch =~ ^v\d+\.\d+\.\d+$
+  - test
+  - name: cd
+    if: branch = master AND type = push AND fork = false
+  - name: deploy-pypi
+    if: branch =~ ^v\d+\.\d+\.\d+$
+  - name: deploy-copr
+    if: branch =~ ^v\d+\.\d+\.\d+$
