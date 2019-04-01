@@ -109,11 +109,8 @@ Arguments read from standard input take the form of:
         for node in PacemakerConfig().fenceable_nodes:
             print("%s," % node.name)
     elif ns.action == "monitor":
-        # TODO: What does "monitor" mean for this agent? We have to have it
-        # to keep pacemaker happy, but longer-term it might make sense to
-        # make this a meta-monitor, in that it invokes the monitor action for
-        # all sub-agents and aggregates the results.
-        sys.exit(0)
+        rc = PacemakerConfig().get_node(ns.port).fence_monitor()
+        sys.exit(rc)
     else:
         # Supposedly impossible to get here with argparse, but one never
         # knows...
