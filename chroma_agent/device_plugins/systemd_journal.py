@@ -16,6 +16,7 @@ import datetime
 import pytz
 from tzlocal import get_localzone
 import systemd.journal
+import syslog
 
 # FIXME: shonky scope of this, it should be part of SYslogdeviceplugin and get set up and torn down appropriately
 _queue = Queue.Queue()
@@ -47,7 +48,7 @@ def parse_journal(data):
 
     return {
         "datetime": datetime.datetime.isoformat(utc_dt),
-        "severity": data["PRIORITY"],
+        "severity": data.get("PRIORITY", syslog.LOG_INFO),
         "facility": data.get("SYSLOG_FACILITY", 3),
         "source": data.get("SYSLOG_IDENTIFIER", "unknown"),
         "message": data["MESSAGE"],
