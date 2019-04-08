@@ -478,12 +478,6 @@ def _configure_target_ha(ha_label, info, enabled=False):
     else:
         extra = ["--disabled"]
 
-    # FIXME: This is a hack for ocf:lustre:Lustre up to Lustre 2.10.7/2.12 see LU-11461
-    if info["device_type"] == "linux":
-        result = AgentShell.run(["realpath", info["bdev"]])
-        if result.rc == 0 and result.stdout.startswith("/dev/sd"):
-            info["bdev"] = result.stdout.strip()
-
     xmlid = ha_label
     res = _resource_xml(
         ha_label,
