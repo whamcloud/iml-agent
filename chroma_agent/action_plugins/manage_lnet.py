@@ -35,7 +35,11 @@ def start_lnet():
     """
     console_log.info("Starting LNet")
 
-    return agent_ok_or_error(AgentShell.run_canned_error_message(["lctl", "net", "up"]))
+    return agent_ok_or_error(
+        # Do modprobe because stop does rmmod
+        AgentShell.run_canned_error_message(["modprobe", "lnet"])
+        or AgentShell.run_canned_error_message(["lctl", "network", "up"])
+    )
 
 
 def stop_lnet():
@@ -49,7 +53,7 @@ def stop_lnet():
     # network down" won't work...) call lustre_rmmod to shutdown network
 
     # Teardown to ksocklnd - ignore error
-    result = AgentShell.run(["lustre_rmmod"])
+    result = AgentShell.run(["/usr/sbin/lnet", "stop"])
     if result.rc == 0:
         return agent_result_ok
     return agent_ok_or_error(
@@ -61,9 +65,7 @@ def load_lnet():
     """
     Load the lnet modules from disk into memory including an modules using the modprobe command.
     """
-    return agent_ok_or_error(
-        AgentShell.run_canned_error_message(["/usr/sbin/lnet", "start"])
-    )
+    return agent_ok_or_error(AgentShell.run_canned_error_message(["modprobe", "lnet"]))
 
 
 def unload_lnet():
@@ -73,6 +75,8 @@ def unload_lnet():
 
     Lnet must be stopped before unload_lnet is called.
     """
+    if not os.path.exists("/dev/lnet"):
+        return agent_ok
     return agent_ok_or_error(
         AgentShell.run_canned_error_message(["/usr/sbin/lnet", "stop"])
     )
