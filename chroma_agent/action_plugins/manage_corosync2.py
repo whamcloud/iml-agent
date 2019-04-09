@@ -36,7 +36,7 @@ def stop_corosync2():
     return agent_ok_or_error(corosync_service.stop())
 
 
-def configure_corosync2_stage_1(mcast_port, pcs_password):
+def configure_corosync2_stage_1(mcast_port, pcs_password, fqdn=None):
     # need to use user "hacluster" which is created on install of "pcs" package,
     # WARNING: clear text password
     set_password_command = [
@@ -44,6 +44,12 @@ def configure_corosync2_stage_1(mcast_port, pcs_password):
         "-c",
         "echo %s | passwd --stdin %s" % (pcs_password, PCS_USER),
     ]
+    if fqdn is not None:
+        error = AgentShell.run_canned_error_message(
+            ["hostnamectl", "set-hostname", fqdn]
+        )
+        if error:
+            return agent_error(error)
 
     return agent_ok_or_error(
         AgentShell.run_canned_error_message(set_password_command)

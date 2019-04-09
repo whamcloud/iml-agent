@@ -271,7 +271,10 @@ class PacemakerConfig(object):
 
     @property
     def is_dc(self):
-        return self.dc == self.get_node(socket.gethostname()).name
+        try:
+            return self.dc == self.get_node(socket.gethostname()).name
+        except (IndexError, StopIteration) as _:
+            return False
 
     @property
     def configured(self):

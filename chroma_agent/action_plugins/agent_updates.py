@@ -25,6 +25,7 @@ def configure_repo(filename, file_contents):
     full_filename = os.path.join(REPO_PATH, filename)
     temp_full_filename = full_filename + ".tmp"
 
+    # this format needs to match create_repo() in manager agent-bootstrap-script
     file_contents = file_contents.format(
         crypto.AUTHORITY_FILE, crypto.PRIVATE_KEY_FILE, crypto.CERTIFICATE_FILE
     )
