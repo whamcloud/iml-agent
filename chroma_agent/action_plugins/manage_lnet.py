@@ -76,7 +76,7 @@ def unload_lnet():
     Lnet must be stopped before unload_lnet is called.
     """
     if not os.path.exists("/dev/lnet"):
-        return agent_ok
+        return agent_result_ok
     return agent_ok_or_error(
         AgentShell.run_canned_error_message(["/usr/sbin/lnet", "stop"])
     )
