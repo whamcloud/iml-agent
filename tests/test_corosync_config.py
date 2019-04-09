@@ -270,7 +270,8 @@ class TestConfigureCorosync(CommandCaptureTestCase):
         self.mock_add_port.assert_has_calls([mock.call(new_mcast_port, "udp")])
         self.mock_corosync_service.enable.assert_called_once_with()
 
-    def test_manual_ring1_config_corosync2(self):
+    def _test_manual_ring1_config_corosync2(self, fqdn=False):
+        import socket
         from chroma_agent.action_plugins.manage_corosync2 import (
             configure_corosync2_stage_1,
         )
@@ -302,6 +303,13 @@ class TestConfigureCorosync(CommandCaptureTestCase):
                     ring1_name,
                 )
             ),
+        )
+        if fqdn:
+            self.add_commands(
+                CommandCaptureCommand(("hostnamectl", "set-hostname", new_node_fqdn))
+            )
+
+        self.add_commands(
             CommandCaptureCommand(
                 ("bash", "-c", "echo bondJAMESbond | passwd --stdin hacluster")
             ),
@@ -366,9 +374,16 @@ class TestConfigureCorosync(CommandCaptureTestCase):
         )
 
         # ...then corosync / pcsd
-        self.assertEqual(
-            agent_result_ok, configure_corosync2_stage_1(mcast_port, pcs_password)
-        )
+        if fqdn:
+            self.assertEqual(
+                agent_result_ok,
+                configure_corosync2_stage_1(mcast_port, pcs_password, new_node_fqdn),
+            )
+        else:
+            self.assertEqual(
+                agent_result_ok, configure_corosync2_stage_1(mcast_port, pcs_password)
+            )
+
         self.assertEqual(
             agent_result_ok,
             configure_corosync2_stage_2(
@@ -414,6 +429,12 @@ class TestConfigureCorosync(CommandCaptureTestCase):
             self.mock_corosync_service.enable.assert_any_call()
 
         self.assertRanAllCommandsInOrder()
+
+    def test_manual_ring1_config_corosync2(self):
+        self._test_manual_ring1_config_corosync2(False)
+
+    def test_manual_ring1_config_corosync2_fqdn(self):
+        self._test_manual_ring1_config_corosync2(True)
 
     def test_unconfigure_corosync2(self):
         from chroma_agent.action_plugins.manage_corosync2 import unconfigure_corosync2
