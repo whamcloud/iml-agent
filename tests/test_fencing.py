@@ -267,27 +267,6 @@ class TestFenceAgent(FencingTestCase):
 
         self.assertRanAllCommands()
 
-    def test_fence_agent_monitor(self):
-        patcher = mock.patch("sys.exit")
-        exit = patcher.start()
-
-        # Kind of a silly test, but we just want to make sure that our
-        # agent's monitor option doesn't barf.
-        from chroma_agent.fence_chroma import main as agent_main
-
-        agent_main(["-o", "monitor"])
-        exit.assert_called_with(0)
-
-        # Make sure running with args from stdin works...
-        self.stdin_lines = ["nodename=%s" % self.fake_node_hostname, "action=monitor"]
-        agent_main()
-        exit.assert_called_with(0)
-
-        # Apparently stonithd sometimes(?) uses option instead of action...
-        self.stdin_lines = ["nodename=%s" % self.fake_node_hostname, "option=monitor"]
-        agent_main()
-        exit.assert_called_with(0)
-
     def test_standby_node_not_fenced(self):
         self.reset_command_capture()
         self.add_command(("cibadmin", "--query", "--local"))
@@ -302,3 +281,48 @@ class TestFenceAgent(FencingTestCase):
         agent_main(agent_args)
 
         self.assertRanAllCommandsInOrder()
+
+
+class TestFenceAgentMonitor(FencingTestCase):
+    def setUp(self):
+        super(TestFenceAgentMonitor, self).setUp()
+
+        self.fake_node_attributes = {
+            "0_fence_agent": "fence_apc",
+            "0_fence_login": "admin",
+            "0_fence_password": "yourmom",
+            "0_fence_ipaddr": "1.2.3.4",
+            "0_fence_plug": "1",
+        }
+
+        call_template = (
+            "%(0_fence_agent)s -a %(0_fence_ipaddr)s -u 23 -l %(0_fence_login)s -p %(0_fence_password)s -n %(0_fence_plug)s"
+            % self.fake_node_attributes
+        )
+        call_base = tuple(call_template.split())
+
+        self.add_commands(
+            CommandCaptureCommand(("cibadmin", "--query", "--local")),
+            CommandCaptureCommand((call_base + ("-o", "monitor"))),
+        )
+
+    def test_fence_agent_monitor(self):
+        patcher = mock.patch("sys.exit")
+        exit = patcher.start()
+
+        # Kind of a silly test, but we just want to make sure that our
+        # agent's monitor option doesn't barf.
+        from chroma_agent.fence_chroma import main as agent_main
+
+        agent_main(["-o", "monitor", "-n", self.fake_node_hostname])
+        exit.assert_called_with(0)
+
+        # Make sure running with args from stdin works...
+        self.stdin_lines = ["nodename=%s" % self.fake_node_hostname, "action=monitor"]
+        agent_main()
+        exit.assert_called_with(0)
+
+        # Apparently stonithd sometimes(?) uses option instead of action...
+        self.stdin_lines = ["nodename=%s" % self.fake_node_hostname, "option=monitor"]
+        agent_main()
+        exit.assert_called_with(0)

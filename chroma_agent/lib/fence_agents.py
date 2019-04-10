@@ -31,6 +31,10 @@ class FenceAgent(object):
     def status(self):
         AgentShell.try_run(self.base_cmd + ["-n", self.plug, "-o", "status"])
 
+    def monitor(self):
+        result = AgentShell.run(self.base_cmd + ["-n", self.plug, "-o", "monitor"])
+        return result.rc
+
     def off(self):
         self.toggle_outlet("off")
 
