@@ -53,11 +53,10 @@ def stop_lnet():
     # network down" won't work...) call lustre_rmmod to shutdown network
 
     # Teardown to ksocklnd - ignore error
-    result = AgentShell.run(["/usr/sbin/lnet", "stop"])
-    if result.rc == 0:
-        return agent_result_ok
     return agent_ok_or_error(
-        AgentShell.run_canned_error_message(["lctl", "network", "down"])
+        AgentShell.run_canned_error_message(["lustre_rmmod", "ptlrpc"])
+        or AgentShell.run_canned_error_message(["lnetctl", "lnet", "unconfigure"])
+        or AgentShell.run_canned_error_message(["lctl", "network", "down"])
     )
 
 
@@ -75,11 +74,7 @@ def unload_lnet():
 
     Lnet must be stopped before unload_lnet is called.
     """
-    if not os.path.exists("/dev/lnet"):
-        return agent_result_ok
-    return agent_ok_or_error(
-        AgentShell.run_canned_error_message(["/usr/sbin/lnet", "stop"])
-    )
+    return agent_ok_or_error(AgentShell.run_canned_error_message(["lustre_rmmod"]))
 
 
 def configure_lnet(lnet_configuration):
