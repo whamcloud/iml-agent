@@ -68,6 +68,12 @@ class PacemakerNode(object):
             for agent in self.fence_agents:
                 agent.on()
 
+    def fence_monitor(self):
+        arr = [0]
+        for agent in self.fence_agents:
+            arr.append(agent.monitor())
+        return max(arr)
+
     @property
     def fence_agents(self):
         agents = []
