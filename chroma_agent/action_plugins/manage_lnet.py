@@ -48,7 +48,7 @@ def stop_lnet():
 
     return agent_ok_or_error(
         AgentShell.run_canned_error_message(["lustre_rmmod", "ptlrpc"])
-        and AgentShell.run_canned_error_message(["lnetctl", "lnet", "unconfigure"])
+        or AgentShell.run_canned_error_message(["lnetctl", "lnet", "unconfigure"])
     )
 
 
