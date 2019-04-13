@@ -35,12 +35,7 @@ def start_lnet():
     """
     console_log.info("Starting LNet")
 
-    # modprobe lustre is a hack for HYD-1263 - Fix or work around LU-1279 - failure trying to mount
-    # should be removed when LU-1279 is fixed
-    return agent_ok_or_error(
-        AgentShell.run_canned_error_message(["modprobe", "lnet"])
-        or AgentShell.run_canned_error_message(["lnetctl", "lnet", "configure"])
-    )
+    return AgentShell.run_canned_error_message(["lnetctl", "lnet", "configure"])
 
 
 def stop_lnet():
@@ -53,7 +48,7 @@ def stop_lnet():
 
     return agent_ok_or_error(
         AgentShell.run_canned_error_message(["lustre_rmmod", "ptlrpc"])
-        or AgentShell.run_canned_error_message(["lnetctl", "lnet", "unconfigure"])
+        and AgentShell.run_canned_error_message(["lnetctl", "lnet", "unconfigure"])
     )
 
 
