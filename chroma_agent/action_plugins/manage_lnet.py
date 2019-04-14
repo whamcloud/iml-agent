@@ -35,7 +35,9 @@ def start_lnet():
     """
     console_log.info("Starting LNet")
 
-    return AgentShell.run_canned_error_message(["lnetctl", "lnet", "configure"])
+    return AgentShell.run_canned_error_message(
+        ["lnetctl", "lnet", "configure", "--all"]
+    )
 
 
 def stop_lnet():
