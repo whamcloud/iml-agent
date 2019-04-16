@@ -463,7 +463,7 @@ class CorosyncRingInterface(object):
             time_left = 10
 
         def _has_link():
-            # Command passed to ioctrl to populate an ifr structure
+            # Command passed to ioctl to populate an ifr structure
             SIOCGIFFLAGS = 0x8913
             # interface is up. Note this will be true even when the cord is disconnected.
             IFF_UP = 0x1
