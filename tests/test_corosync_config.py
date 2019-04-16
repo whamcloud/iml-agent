@@ -46,13 +46,13 @@ class TestConfigureCorosync(CommandCaptureTestCase):
         from chroma_agent.lib.corosync import env
 
         def get_ring0():
-            return CorosyncRingInterface("eth0.1.1?1b34*430")
+            return CorosyncRingInterface("eth0.1.1?1b34*43")
 
         mock.patch("chroma_agent.lib.corosync.get_ring0", get_ring0).start()
 
         self.interfaces = {
-            "eth0.1.1?1b34*430": {
-                "device": "eth0.1.1?1b34*430",
+            "eth0.1.1?1b34*43": {
+                "device": "eth0.1.1?1b34*43",
                 "mac_address": "de:ad:be:ef:ca:fe",
                 "ipv4_address": "192.168.1.1",
                 "ipv4_netmask": "255.255.255.0",
@@ -190,7 +190,7 @@ class TestConfigureCorosync(CommandCaptureTestCase):
         from chroma_agent.action_plugins.manage_corosync_common import configure_network
         from chroma_agent.action_plugins.manage_corosync import configure_corosync
 
-        ring0_name = "eth0.1.1?1b34*430"
+        ring0_name = "eth0.1.1?1b34*43"
         ring1_name = "eth1"
         ring1_ipaddr = "10.42.42.42"
         ring1_netmask = "255.255.255.0"
@@ -282,7 +282,7 @@ class TestConfigureCorosync(CommandCaptureTestCase):
         from chroma_agent.action_plugins.manage_corosync2 import PCS_TCP_PORT
         from chroma_agent.action_plugins.manage_corosync_common import configure_network
 
-        ring0_name = "eth0.1.1?1b34*430"
+        ring0_name = "eth0.1.1?1b34*43"
         ring1_name = "eth1"
         ring1_ipaddr = "10.42.42.42"
         ring1_netmask = "255.255.255.0"

@@ -473,7 +473,7 @@ class CorosyncRingInterface(object):
             # Data structure to store information about the network interface
             class ifreq(ctypes.Structure):
                 _fields_ = [
-                    ("ifr_name", ctypes.c_char * 17),
+                    ("ifr_name", ctypes.c_char * 16),
                     ("ifr_flags", ctypes.c_short),
                 ]
 
