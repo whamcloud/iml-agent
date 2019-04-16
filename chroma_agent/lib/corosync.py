@@ -449,9 +449,8 @@ class CorosyncRingInterface(object):
 
     @property
     def has_link(self):
-        import array
-        import struct
         import fcntl
+        import ctypes
 
         old_link_state_up = self.is_up
 
@@ -464,14 +463,34 @@ class CorosyncRingInterface(object):
             time_left = 10
 
         def _has_link():
-            SIOCETHTOOL = 0x8946
-            ETHTOOL_GLINK = 0x0000000A
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            ecmd = array.array("B", struct.pack("2I", ETHTOOL_GLINK, 0))
-            ifreq = struct.pack("16sP", self.name, ecmd.buffer_info()[0])
-            fcntl.ioctl(sock.fileno(), SIOCETHTOOL, ifreq)
-            sock.close()
-            return bool(struct.unpack("4xI", ecmd.tostring())[0])
+            # Command passed to ioctrl to populate an ifr structure
+            SIOCGIFFLAGS = 0x8913
+            # interface is up. Note this will be true even when the cord is disconnected.
+            IFF_UP = 0x1
+            # interface operation is active.
+            IFF_RUNNING = 0x40
+
+            # Data structure to store information about the network interface
+            class ifreq(ctypes.Structure):
+                _fields_ = [
+                    ("ifr_name", ctypes.c_char * 16),
+                    ("ifr_flags", ctypes.c_short),
+                ]
+
+            # Create a TCP IPv4 socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+            ifr = ifreq()
+            ifr.ifr_name = self.name
+
+            # Retrieve the information about the interface and store it in the data structure
+            fcntl.ioctl(s.fileno(), SIOCGIFFLAGS, ifr)
+
+            s.close()
+
+            # To be considered "up", both IFF_RUNNING and IFF_UP should pass the bitwise and test against the ifr_flags. IFF_UP
+            # online cannot be used as the bit will still be set when the interface cable is unplugged.
+            return bool((ifr.ifr_flags & IFF_RUNNING) and (ifr.ifr_flags & IFF_UP))
 
         try:
             while time_left:
