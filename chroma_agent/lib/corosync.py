@@ -28,6 +28,8 @@ firewall_control = FirewallControl.create(logger=console_log)
 # Used to make noise on ring1 to enable corosync detection.
 talker_thread = None
 
+operstate = "/sys/class/net/{}/operstate"
+
 
 class RingDetectionError(Exception):
     pass
@@ -462,35 +464,19 @@ class CorosyncRingInterface(object):
             AgentShell.try_run(["/sbin/ip", "link", "set", "dev", self.name, "up"])
             time_left = 10
 
+        def _get_device_state(name):
+            try:
+                filepath = operstate.format(name)
+                if os.path.exists(filepath):
+                    with open(filepath, "r") as f:
+                        return f.read().strip()
+                else:
+                    return "unknown"
+            except IOError:
+                print("Could not read state of ethernet device {}".format(name))
+
         def _has_link():
-            # Command passed to ioctl to populate an ifr structure
-            SIOCGIFFLAGS = 0x8913
-            # interface is up. Note this will be true even when the cord is disconnected.
-            IFF_UP = 0x1
-            # interface operation is active.
-            IFF_RUNNING = 0x40
-
-            # Data structure to store information about the network interface
-            class ifreq(ctypes.Structure):
-                _fields_ = [
-                    ("ifr_name", ctypes.c_char * 16),
-                    ("ifr_flags", ctypes.c_short),
-                ]
-
-            # Create a TCP IPv4 socket
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-            ifr = ifreq()
-            ifr.ifr_name = self.name
-
-            # Retrieve the information about the interface and store it in the data structure
-            fcntl.ioctl(s.fileno(), SIOCGIFFLAGS, ifr)
-
-            s.close()
-
-            # To be considered "up", both IFF_RUNNING and IFF_UP should pass the bitwise and test against the ifr_flags. IFF_UP
-            # online cannot be used as the bit will still be set when the interface cable is unplugged.
-            return bool((ifr.ifr_flags & IFF_RUNNING) and (ifr.ifr_flags & IFF_UP))
+            return _get_device_state(self.name) == "up"
 
         try:
             while time_left:
