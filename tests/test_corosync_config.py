@@ -46,13 +46,13 @@ class TestConfigureCorosync(CommandCaptureTestCase):
         from chroma_agent.lib.corosync import env
 
         def get_ring0():
-            return CorosyncRingInterface("eth0.1.1?1b34*43")
+            return CorosyncRingInterface("eth0.1.1?1b34*430")
 
         mock.patch("chroma_agent.lib.corosync.get_ring0", get_ring0).start()
 
         self.interfaces = {
-            "eth0.1.1?1b34*43": {
-                "device": "eth0.1.1?1b34*43",
+            "eth0.1.1?1b34*430": {
+                "device": "eth0.1.1?1b34*430",
                 "mac_address": "de:ad:be:ef:ca:fe",
                 "ipv4_address": "192.168.1.1",
                 "ipv4_netmask": "255.255.255.0",
@@ -190,7 +190,7 @@ class TestConfigureCorosync(CommandCaptureTestCase):
         from chroma_agent.action_plugins.manage_corosync_common import configure_network
         from chroma_agent.action_plugins.manage_corosync import configure_corosync
 
-        ring0_name = "eth0.1.1?1b34*43"
+        ring0_name = "eth0.1.1?1b34*430"
         ring1_name = "eth1"
         ring1_ipaddr = "10.42.42.42"
         ring1_netmask = "255.255.255.0"
@@ -282,7 +282,7 @@ class TestConfigureCorosync(CommandCaptureTestCase):
         from chroma_agent.action_plugins.manage_corosync2 import PCS_TCP_PORT
         from chroma_agent.action_plugins.manage_corosync_common import configure_network
 
-        ring0_name = "eth0.1.1?1b34*43"
+        ring0_name = "eth0.1.1?1b34*430"
         ring1_name = "eth1"
         ring1_ipaddr = "10.42.42.42"
         ring1_netmask = "255.255.255.0"
@@ -475,34 +475,29 @@ class TestConfigureCorosync(CommandCaptureTestCase):
         for args, output in test_map.items():
             self.assertEqual(output, find_subnet(*args))
 
-    def test_failed_has_link(self):
-        self.link_patcher.stop()
+    def test_link_state_unknown(self):
+        with mock.patch("__builtin__.open", mock.mock_open(read_data="unknown")):
+            with mock.patch(
+                "chroma_agent.lib.corosync.CorosyncRingInterface.__getattr__",
+                return_value=False,
+            ):
+                with mock.patch("os.path.exists", return_value=True):
+                    self.link_patcher.stop()
 
-        mock.patch(
-            "chroma_agent.lib.corosync.CorosyncRingInterface.__getattr__",
-            return_value=False,
-        ).start()
+                    from chroma_agent.lib.corosync import get_ring0
 
-        import errno
+                    iface = get_ring0()
 
-        def boom(*args):
-            # EMULTIHOP is what gets raised with IB interfaces
-            raise IOError(errno.EMULTIHOP)
+                    # add shell commands to be expected
+                    self.add_commands(
+                        CommandCaptureCommand(
+                            ("/sbin/ip", "link", "set", "dev", iface.name, "up")
+                        ),
+                        CommandCaptureCommand(
+                            ("/sbin/ip", "link", "set", "dev", iface.name, "down")
+                        ),
+                    )
 
-        mock.patch("fcntl.ioctl", side_effect=boom).start()
+                    self.assertFalse(iface.has_link)
 
-        from chroma_agent.lib.corosync import get_ring0
-
-        iface = get_ring0()
-
-        # add shell commands to be expected
-        self.add_commands(
-            CommandCaptureCommand(("/sbin/ip", "link", "set", "dev", iface.name, "up")),
-            CommandCaptureCommand(
-                ("/sbin/ip", "link", "set", "dev", iface.name, "down")
-            ),
-        )
-
-        self.assertFalse(iface.has_link)
-
-        self.assertRanAllCommandsInOrder()
+                    self.assertRanAllCommandsInOrder()

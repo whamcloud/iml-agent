@@ -451,9 +451,6 @@ class CorosyncRingInterface(object):
 
     @property
     def has_link(self):
-        import fcntl
-        import ctypes
-
         old_link_state_up = self.is_up
 
         # HYD-2003: Some NICs require the interface to be in an UP state
@@ -474,6 +471,7 @@ class CorosyncRingInterface(object):
                     return "unknown"
             except IOError:
                 print("Could not read state of ethernet device {}".format(name))
+                return "unknown"
 
         def _has_link():
             return _get_device_state(self.name) == "up"
