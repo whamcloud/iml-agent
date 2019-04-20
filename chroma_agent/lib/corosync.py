@@ -28,6 +28,8 @@ firewall_control = FirewallControl.create(logger=console_log)
 # Used to make noise on ring1 to enable corosync detection.
 talker_thread = None
 
+operstate = "/sys/class/net/{}/operstate"
+
 
 class RingDetectionError(Exception):
     pass
@@ -449,10 +451,6 @@ class CorosyncRingInterface(object):
 
     @property
     def has_link(self):
-        import array
-        import struct
-        import fcntl
-
         old_link_state_up = self.is_up
 
         # HYD-2003: Some NICs require the interface to be in an UP state
@@ -463,15 +461,20 @@ class CorosyncRingInterface(object):
             AgentShell.try_run(["/sbin/ip", "link", "set", "dev", self.name, "up"])
             time_left = 10
 
+        def _get_device_state(name):
+            try:
+                filepath = operstate.format(name)
+                if os.path.exists(filepath):
+                    with open(filepath, "r") as f:
+                        return f.read().strip()
+                else:
+                    return "unknown"
+            except IOError:
+                print("Could not read state of ethernet device {}".format(name))
+                return "unknown"
+
         def _has_link():
-            SIOCETHTOOL = 0x8946
-            ETHTOOL_GLINK = 0x0000000A
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            ecmd = array.array("B", struct.pack("2I", ETHTOOL_GLINK, 0))
-            ifreq = struct.pack("16sP", self.name, ecmd.buffer_info()[0])
-            fcntl.ioctl(sock.fileno(), SIOCETHTOOL, ifreq)
-            sock.close()
-            return bool(struct.unpack("4xI", ecmd.tostring())[0])
+            return _get_device_state(self.name) == "up"
 
         try:
             while time_left:
