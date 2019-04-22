@@ -95,6 +95,13 @@ def update_profile(profile):
     return agent_result_ok
 
 
+def remove_packages(packages):
+    if packages != []:
+        yum_util("remove", packages=packages)
+
+    return agent_result_ok
+
+
 def install_packages(repos, packages):
     """
     Explicitly evaluate and install or update any specific-version dependencies and satisfy even if
@@ -224,6 +231,7 @@ ACTIONS = [
     configure_repo,
     unconfigure_repo,
     install_packages,
+    remove_packages,
     kernel_status,
     restart_agent,
     update_profile,
