@@ -18,11 +18,12 @@ def set_profile(profile_json):
 
     try:
         config.set("settings", "profile", profile)
-        set_iml_profile(
-            profile.get("name"), profile.get("bundles"), profile.get("packages")
-        )
     except ConfigKeyExistsError:
         config.update("settings", "profile", profile)
+
+    set_iml_profile(
+        profile.get("name"), profile.get("bundles"), profile.get("packages")
+    )
 
 
 def set_agent_config(key, val):
