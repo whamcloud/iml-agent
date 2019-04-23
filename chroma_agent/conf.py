@@ -30,9 +30,9 @@ def set_iml_profile(name, repos, packages):
         if name:
             f.write("IML_PROFILE_NAME={}\n".format(name))
         if repos:
-            f.write("IML_PROFILE_REPOS={}\n".format(repos.join(",")))
+            f.write("IML_PROFILE_REPOS={}\n".format(",".join(repos)))
         if packages:
-            f.write("IML_PROFILE_PACKAGES={}\n".format(packages.join(",")))
+            f.write("IML_PROFILE_PACKAGES={}\n".format(",".join(packages)))
 
 
 def remove_iml_profile():
