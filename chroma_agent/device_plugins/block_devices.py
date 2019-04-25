@@ -38,16 +38,22 @@ def scanner_cmd(cmd):
     client.sendall(json.dumps(cmd) + "\n")
 
     out = ""
+    begin = 0
 
     while True:
         out += client.recv(1024)
+        # Messages are expected to be separated by a newline
+        # But sometimes it is not placed in the end of the line
+        # Thus, take out only the first one
+        idx = out.find("\n", begin)
 
-        if out.endswith("\n"):
+        if idx >= 0:
 
             try:
-                return json.loads(out)
+                return json.loads(out[:idx])
             except ValueError:
-                pass
+                return None
+        begin = len(out)
 
 
 def get_default(prop, default_value, x):
