@@ -142,7 +142,8 @@ setenforce 0
 
 rm -f /var/lib/iml/zfs_store.json
 
-systemctl preset %{unit_name} >/dev/null 2>&1
+systemctl preset iml-storage-server.target
+systemctl preset %{unit_name}
 
 # this will either convert an old (pre-4.1) config or initialize
 chroma-agent convert_agent_config
