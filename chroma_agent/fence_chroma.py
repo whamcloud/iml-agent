@@ -11,6 +11,7 @@ from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from chroma_agent.cli import configure_logging
 from chroma_agent.action_plugins import manage_node
 from chroma_agent.lib.pacemaker import PacemakerConfig
+import socket
 
 
 def stdin_to_args(stdin_lines=None):
@@ -109,7 +110,7 @@ Arguments read from standard input take the form of:
         for node in PacemakerConfig().fenceable_nodes:
             print("%s," % node.name)
     elif ns.action == "monitor":
-        rc = PacemakerConfig().get_node(ns.port).fence_monitor()
+        rc = PacemakerConfig().get_node(ns.port or socket.gethostname()).fence_monitor()
         sys.exit(rc)
     else:
         # Supposedly impossible to get here with argparse, but one never
