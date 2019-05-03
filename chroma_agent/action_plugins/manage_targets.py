@@ -850,6 +850,10 @@ def _move_target(target_label, dest_node):
     # Now before we start cleanup anything that has gone on before. HA is a fickle
     # old thing and this will make sure that everything is clean before we start.
     AgentShell.try_run(["crm_resource", "--resource", target_label, "--cleanup"])
+    if _resource_exists(_zfs_name(target_label)):
+        AgentShell.try_run(
+            ["crm_resource", "--resource", _zfs_name(target_label), "--cleanup"]
+        )
 
     result = AgentShell.run(arg_list)
 
