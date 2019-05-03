@@ -852,7 +852,7 @@ def _move_target(target_label, dest_node):
     AgentShell.try_run(["crm_resource", "--resource", target_label, "--cleanup"])
     if _resource_exists(_zfs_name(target_label)):
         AgentShell.try_run(
-            ["crm_resource", "--resource", _zfs_name(tatarget_label), "--cleanup"]
+            ["crm_resource", "--resource", _zfs_name(target_label), "--cleanup"]
         )
 
     result = AgentShell.run(arg_list)
