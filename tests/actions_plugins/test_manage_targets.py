@@ -28,6 +28,9 @@ class TestManagePacemaker(CommandCaptureTestCase):
                 ("crm_resource", "-W", "-r", self.target_disk + "-zfs")
             ),
             CommandCaptureCommand(
+                ("crm_resource", "--resource", self.target_disk + "-zfs", "--cleanup")
+            ),
+            CommandCaptureCommand(
                 (
                     "crm_resource",
                     "--resource",

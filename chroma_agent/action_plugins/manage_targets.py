@@ -872,10 +872,6 @@ def _move_target(target_label, dest_node):
         time.sleep(1)
         timeout -= 1
 
-    if timeout <= 0:
-        # if we timed out, add debug query to check state
-        AgentShell.run(["cibadmin", "--query"])
-
     # now delete the constraint that crm_resource --move created
     AgentShell.try_run(
         ["crm_resource", "--resource", target_label, "--un-move", "--node", dest_node]
