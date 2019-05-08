@@ -963,9 +963,14 @@ def target_running(uuid):
 
     filesystem = FileSystem(info["backfstype"], info["bdev"])
 
-    for device, mntpnt in get_local_mounts()[0:2]:
-        if (mntpnt == info["mntpt"]) and filesystem.devices_match(
-            device, info["bdev"], uuid
+    for devices, mntpnt, _ in get_local_mounts():
+        if (mntpnt == info["mntpt"]) and next(
+            (
+                True
+                for device in devices
+                if filesystem.devices_match(device, info["bdev"], uuid)
+            ),
+            False,
         ):
             _exit(0)
 

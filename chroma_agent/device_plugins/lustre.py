@@ -14,8 +14,7 @@ from chroma_agent import version as agent_version
 from chroma_agent.plugin_manager import DevicePlugin
 from chroma_agent import plugin_manager
 from chroma_agent.device_plugins.linux import LinuxDevicePlugin
-from iml_common.lib.exception_sandbox import exceptionSandBox
-from chroma_agent.device_plugins.block_devices import parse_local_mounts, scanner_cmd
+from chroma_agent.device_plugins.block_devices import get_lustre_mount_info, scanner_cmd
 from chroma_agent.lib.yum_utils import yum_util
 from iml_common.lib.date_time import IMLDateTime
 
@@ -29,56 +28,6 @@ from chroma_agent.device_plugins.audit import local
 VersionInfo = namedtuple("VersionInfo", ["epoch", "version", "release", "arch"])
 
 
-def process_zfs_mount(device, data, zfs_mounts):
-    # If zfs-backed target/dataset, lookup underlying pool to get uuid
-    # and nested dataset in zed structures to access lustre svname (label).
-    dev_root = device.split("/")[0]
-    if not dev_root:
-        return None, None
-
-    if dev_root not in [d for d, _, _ in zfs_mounts]:
-        daemon_log.debug("lustre device has no mounted zfs pool")
-        # Do not skip the check below if pool's canmount=off
-        # We do not have the pool properties ATM here
-        # So we can't check if it's canmount=off
-
-    try:
-        pool = next(p for p in data["zed"].values() if p["name"] == dev_root)
-        dataset = next(d for d in pool["datasets"] if d["name"] == device)
-
-        fs_label = next(
-            p["value"]
-            for p in dataset["props"]
-            if p["name"] == "lustre:svname"  # used to be fsname
-        )
-
-        fs_uuid = dataset["guid"]
-
-        return fs_label, fs_uuid
-    except StopIteration:
-        daemon_log.debug("lustre device is not zfs")
-        return None, None
-
-
-def process_lvm_mount(device, data):
-    try:
-        bdev = next(
-            (v["paths"], v["lvUuid"])
-            for v in data["blockDevices"].itervalues()
-            if device in v["paths"] and v.get("lvUuid")
-        )
-    except StopIteration:
-        daemon_log.debug("lustre device is not lvm")
-        return None, None
-
-    label_prefix = "/dev/disk/by-label/"
-    fs_label = next(
-        p.split(label_prefix, 1)[1] for p in bdev[0] if p.startswith(label_prefix)
-    )
-
-    return fs_label, bdev[1]
-
-
 class LustrePlugin(DevicePlugin):
     delta_fields = ["capabilities", "properties", "mounts", "resource_locations"]
 
@@ -87,75 +36,49 @@ class LustrePlugin(DevicePlugin):
         super(LustrePlugin, self).__init__(session)
 
     def reset_state(self):
-        self._mount_cache = defaultdict(dict)
+        pass
 
-    @exceptionSandBox(console_log, {})
     def _scan_mounts(self):
-        mounts = {}
+        try:
+            mounts = {}
 
-        data = scanner_cmd("Stream")
-        local_mounts = parse_local_mounts(data["localMounts"])
-        zfs_mounts = [(d, m, f) for d, m, f in local_mounts if f == "zfs"]
-        lustre_mounts = [(d, m, f) for d, m, f in local_mounts if f == "lustre"]
+            (kind, dev_tree) = scanner_cmd("Stream").items().pop()
 
-        for device, mntpnt, _ in lustre_mounts:
-            fs_label, fs_uuid = process_zfs_mount(device, data, zfs_mounts)
+            lustre_info = []
+            get_lustre_mount_info(kind, dev_tree, lustre_info)
 
-            if not fs_label:
-                fs_label, fs_uuid = process_lvm_mount(device, data)
+            for mount, fs_uuid, fs_label in lustre_info:
+                device = mount.get("source")
+                mntpnt = mount.get("target")
 
-                if not fs_label:
-                    # todo: derive information directly from device-scanner output for ldiskfs
-                    # Assume that while a filesystem is mounted, its UUID and LABEL don't change.
-                    # Therefore we can avoid repeated blkid calls with a little caching.
-                    if device in self._mount_cache:
-                        fs_uuid = self._mount_cache[device]["fs_uuid"]
-                        fs_label = self._mount_cache[device]["fs_label"]
-                    else:
-                        # Sending none as the type means BlockDevice will use it's local
-                        # cache to work the type.  This is not a good method, and we
-                        # should work on a way of not storing such state but for the
-                        # present it is the best we have.
-                        try:
-                            fs_uuid = BlockDevice(None, device).uuid
-                            fs_label = FileSystem(None, device).label
+                recovery_status = {}
 
-                            # If we have scanned the devices then it is safe to cache the values.
-                            if LinuxDevicePlugin.devices_scanned:
-                                self._mount_cache[device]["fs_uuid"] = fs_uuid
-                                self._mount_cache[device]["fs_label"] = fs_label
-                        except AgentShell.CommandExecutionError:
+                try:
+                    lines = AgentShell.try_run(
+                        ["lctl", "get_param", "-n", "*.%s.recovery_status" % fs_label]
+                    )
+                    for line in lines.split("\n"):
+                        tokens = line.split(":")
+                        if len(tokens) != 2:
                             continue
+                        k = tokens[0].strip()
+                        v = tokens[1].strip()
+                        recovery_status[k] = v
+                except Exception:
+                    # If the recovery_status file doesn't exist,
+                    # we will return an empty dict for recovery info
+                    pass
 
-            recovery_status = {}
-            try:
-                lines = AgentShell.try_run(
-                    ["lctl", "get_param", "-n", "*.%s.recovery_status" % fs_label]
-                )
-                for line in lines.split("\n"):
-                    tokens = line.split(":")
-                    if len(tokens) != 2:
-                        continue
-                    k = tokens[0].strip()
-                    v = tokens[1].strip()
-                    recovery_status[k] = v
-            except Exception:
-                # If the recovery_status file doesn't exist,
-                # we will return an empty dict for recovery info
-                pass
+                mounts[device] = {
+                    "fs_uuid": fs_uuid,
+                    "mount_point": mntpnt,
+                    "recovery_status": recovery_status,
+                }
 
-            mounts[device] = {
-                "fs_uuid": fs_uuid,
-                "mount_point": mntpnt,
-                "recovery_status": recovery_status,
-            }
-
-        # Drop cached info about anything that is no longer mounted
-        for k in self._mount_cache.keys():
-            if k not in mounts:
-                del self._mount_cache[k]
-
-        return mounts.values()
+            return mounts.values()
+        except Exception as e:
+            console_log.warning("Error scanning mounts: {}".format(e))
+            return {}
 
     def _scan(self, initial=False):
         started_at = IMLDateTime.utcnow().isoformat()
