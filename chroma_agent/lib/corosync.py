@@ -20,7 +20,7 @@ from iml_common.lib.firewall_control import FirewallControl
 from iml_common.lib.service_control import ServiceControl
 from chroma_agent.lib import networking
 from chroma_agent.lib.talker_thread import TalkerThread
-from scapy.all import sniff
+from scapy.all import sniff, UDP, IP
 
 env = Environment(loader=PackageLoader("chroma_agent", "templates"))
 
@@ -183,21 +183,33 @@ def find_unused_port(ring0, timeout=10, batch_count=10000):
     )
 
     try:
-        f = "host {} and udp and portrange {}".format(dest_addr, portrange_str)
-
-        console_log.info("Sniffing for packets on %s with filter %s" % (ring0.name, f))
-
-        xs = sniff(
-            iface=ring0.name,
-            filter="host {} and udp and portrange {}".format(dest_addr, portrange_str),
-            timeout=timeout,
+        console_log.info(
+            "Sniffing packets on {}({}) within range: {}".format(
+                ring0.name, dest_addr, portrange_str
+            )
         )
 
-        dports = set(map(lambda x: int(x.sprintf("%UDP.dport%")), xs))
+        dports = sniff(
+            iface=ring0.name,
+            lfilter=lambda x: x.haslayer(UDP)
+            and isinstance(x[UDP].dport, (int, long))
+            and x[UDP].dport >= port_min
+            and x[UDP].dport <= port_max
+            and x[IP].dst == dest_addr,
+            timeout=timeout,
+        )
 
         console_log.info(
             "Finished after %d seconds, sniffed: %d" % (timeout, len(dports))
         )
+
+        for dport in set(dports):
+            try:
+                ports.remove(dport)
+            except ValueError:
+                # already removed
+                pass
+
     finally:
         firewall_control.remove_rule(
             0, "tcp", "find unused port", persist=False, address=ring0.mcastaddr
@@ -233,11 +245,9 @@ def _stop_talker_thread():
 
 
 def discover_existing_mcastport(ring1, timeout=10):
-    f = "ip multicast and dst host {} and not src host {}".format(
-        ring1.mcastaddr, ring1.ipv4_address
+    console_log.info(
+        "Sniffing for packets on {}({})".format(ring1.name, ring1.mcastaddr)
     )
-
-    console_log.info("Sniffing for packets on %s with filter %s" % (ring1.name, f))
 
     # Stop the talker thread if it is running.
     _stop_talker_thread()
@@ -248,12 +258,20 @@ def discover_existing_mcastport(ring1, timeout=10):
     ring1_original_mcast_port = ring1.mcastport
 
     try:
-        xs = sniff(iface=ring1.name, filter=f, timeout=timeout / 10, count=1)
+        dports = sniff(
+            lfilter=lambda x: x.haslayer(UDP)
+            and isinstance(x[UDP].dport, (int, long))
+            and x[IP].dst == ring1.mcastaddr
+            and x[IP].src != ring1.ipv4_address,
+            iface=ring1.name,
+            count=1,
+            timeout=timeout,
+        )
 
-        dports = set(map(lambda x: int(x.sprintf("%UDP.dport%")), xs))
+        dports = map(lambda x: x[UDP].dport, dports)
 
         console_log.debug(
-            "Finished after %d seconds, sniffed: %d" % (timeout, packet_count)
+            "Finished after %d seconds, sniffed: %d" % (timeout, len(dports))
         )
 
         if len(dports):
