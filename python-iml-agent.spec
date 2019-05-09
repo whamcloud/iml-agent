@@ -70,7 +70,7 @@ Requires:       libxml2-python
 Requires:       python-netaddr
 Requires:       python-ethtool
 Requires:       python-jinja2
-Requires:       scapy
+Requires:       python2-scapy
 Requires:       system-config-firewall-base
 Requires:       ed
 
