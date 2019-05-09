@@ -10,7 +10,7 @@ Corosync verification
 from collections import namedtuple
 
 from chroma_agent.lib.corosync import (
-    get_ring0,
+    get_shared_ring,
     generate_ring1_network,
     detect_ring1,
     RingDetectionError,
@@ -27,7 +27,7 @@ def get_corosync_autoconfig():
     Automatically detect the configuration for corosync.
     :return: dictionary containing 'result' or 'error'.
     """
-    ring0 = get_ring0()
+    ring0 = get_shared_ring()
 
     if not ring0:
         return agent_error("Failed to detect ring0 interface")

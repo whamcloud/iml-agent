@@ -45,10 +45,10 @@ class TestConfigureCorosync(CommandCaptureTestCase):
         from chroma_agent.lib.corosync import CorosyncRingInterface
         from chroma_agent.lib.corosync import env
 
-        def get_ring0():
+        def get_shared_ring():
             return CorosyncRingInterface("eth0.1.1?1b34*430")
 
-        mock.patch("chroma_agent.lib.corosync.get_ring0", get_ring0).start()
+        mock.patch("chroma_agent.lib.corosync.get_shared_ring", get_shared_ring).start()
 
         self.interfaces = {
             "eth0.1.1?1b34*430": {
@@ -484,9 +484,9 @@ class TestConfigureCorosync(CommandCaptureTestCase):
                 with mock.patch("os.path.exists", return_value=True):
                     self.link_patcher.stop()
 
-                    from chroma_agent.lib.corosync import get_ring0
+                    from chroma_agent.lib.corosync import get_shared_ring
 
-                    iface = get_ring0()
+                    iface = get_shared_ring()
 
                     # add shell commands to be expected
                     self.add_commands(
