@@ -6,18 +6,6 @@
 import socket
 import sys
 
-try:
-    import impacket
-    import impacket.ImpactDecoder
-    import pcapy
-except ImportError:
-    import platform
-
-    # Maybe OK if we are running on a mac or nosetests because the unittest
-    # machines don't have impacket installed.
-    if platform.system() != "Darwin" and "nosetests" not in sys.argv[0]:
-        raise
-
 from netaddr import IPNetwork, IPAddress
 
 
@@ -58,22 +46,3 @@ def subscribe_multicast(interface):
     sock.bind(("", 52122))
 
     return sock
-
-
-def start_cap(interface, timeout, filter):
-    try:
-        cap = pcapy.open_live(interface.name, 64, True, timeout * 1000)
-        cap.setfilter(filter)
-    except Exception as e:
-        raise RuntimeError("Error doing open_live() / setfilter(): %s" % e)
-
-    return cap
-
-
-def get_dport_from_packet(data):
-    decoder = impacket.ImpactDecoder.EthDecoder()
-    try:
-        packet = decoder.decode(data)
-        return packet.child().child().get_uh_dport()
-    except Exception as e:
-        raise RuntimeError("Error decoding network packet: %s" % str(e))

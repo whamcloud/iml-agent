@@ -20,6 +20,7 @@ from iml_common.lib.firewall_control import FirewallControl
 from iml_common.lib.service_control import ServiceControl
 from chroma_agent.lib import networking
 from chroma_agent.lib.talker_thread import TalkerThread
+from scapy.all import sniff
 
 env = Environment(loader=PackageLoader("chroma_agent", "templates"))
 
@@ -62,8 +63,8 @@ def generate_ring1_network(ring0):
     return address, str(subnet.prefixlen)
 
 
-def get_ring0():
-    # ring0 will always be on the interface used for agent->manager comms
+def get_shared_ring():
+    # The shared ring will always be on the interface used for agent->manager comms
     from urlparse import urlparse
 
     server_url = urljoin(os.environ["IML_MANAGER_URL"], "agent")
@@ -73,17 +74,19 @@ def get_ring0():
     if match:
         manager_dev = match.groups()[0]
     else:
-        raise RuntimeError("Unable to find ring0 dev in %s" % out)
+        raise RuntimeError("Unable to find ring0 dev in {}".format(out))
 
     console_log.info("Chose %s for corosync ring0" % manager_dev)
-    ring0 = CorosyncRingInterface(manager_dev)
+    shared_ring = CorosyncRingInterface(manager_dev, ringnumber=1)
 
-    if ring0.ipv4_prefixlen < 9:
+    if shared_ring.ipv4_prefixlen < 9:
         raise RuntimeError(
-            "%s subnet is too large (/%s)" % (ring0.name, ring0.ipv4_prefixlen)
+            "{} subnet is too large (/{})".format(
+                shared_ring.name, shared_ring.ipv4_prefixlen
+            )
         )
 
-    return ring0
+    return shared_ring
 
 
 def detect_ring1(ring0, ring1_address, ring1_prefix):
@@ -127,7 +130,7 @@ def detect_ring1(ring0, ring1_address, ring1_prefix):
             continue
 
         # This toggles things like multicast group, etc.
-        iface.ringnumber = 1
+        iface.ringnumber = 0
 
         # Now we need to agree on a mcastport for these peers.
         # First we have to find a free one since we can't spend
@@ -180,37 +183,20 @@ def find_unused_port(ring0, timeout=10, batch_count=10000):
     )
 
     try:
-        networking.subscribe_multicast(ring0)
-        console_log.info(
-            "Sniffing for packets to %s on %s within port range %s"
-            % (dest_addr, ring0.name, portrange_str)
+        f = "host {} and udp and portrange {}".format(dest_addr, portrange_str)
+
+        console_log.info("Sniffing for packets on %s with filter %s" % (ring0.name, f))
+
+        xs = sniff(
+            iface=ring0.name,
+            filter="host {} and udp and portrange {}".format(dest_addr, portrange_str),
+            timeout=timeout,
         )
-        cap = networking.start_cap(
-            ring0,
-            timeout,
-            "host %s and udp and portrange %s" % (dest_addr, portrange_str),
-        )
 
-        def recv_packets(header, data):
-            tgt_port = networking.get_dport_from_packet(data)
-
-            try:
-                ports.remove(tgt_port)
-            except ValueError:
-                # already removed
-                pass
-
-        packet_count = 0
-        start = time.time()
-        while time.time() - start < timeout:
-            try:
-                packet_count += cap.dispatch(batch_count, recv_packets)
-            except Exception as e:
-                raise RuntimeError("Error reading from the network: %s" % str(e))
+        dports = set(map(lambda x: int(x.sprintf("%UDP.dport%")), xs))
 
         console_log.info(
-            "Finished after %d seconds, sniffed: %d"
-            % (time.time() - start, packet_count)
+            "Finished after %d seconds, sniffed: %d" % (timeout, len(dports))
         )
     finally:
         firewall_control.remove_rule(
@@ -247,49 +233,32 @@ def _stop_talker_thread():
 
 
 def discover_existing_mcastport(ring1, timeout=10):
-    console_log.debug(
-        "Sniffing for packets to %s on %s (%s)"
-        % (ring1.mcastaddr, ring1.name, ring1.ipv4_address)
+    f = "ip multicast and dst host {} and not src host {}".format(
+        ring1.mcastaddr, ring1.ipv4_address
     )
 
-    console_log.debug(
-        "Sniffing for packets to %s on %s" % (ring1.mcastaddr, ring1.name)
-    )
-    networking.subscribe_multicast(ring1)
-
-    cap = networking.start_cap(
-        ring1,
-        timeout / 10,
-        "ip multicast and dst host %s and not src host %s"
-        % (ring1.mcastaddr, ring1.ipv4_address),
-    )
+    console_log.info("Sniffing for packets on %s with filter %s" % (ring1.name, f))
 
     # Stop the talker thread if it is running.
     _stop_talker_thread()
 
+    # Start the talker thread
+    _start_talker_thread(ring1)
+
     ring1_original_mcast_port = ring1.mcastport
 
-    def recv_packets(header, data):
-        ring1.mcastport = networking.get_dport_from_packet(data)
-        console_log.debug("Sniffed multicast traffic on %d" % ring1.mcastport)
-
     try:
-        packet_count = 0
-        start_time = time.time()
-        while packet_count < 1 and time.time() < start_time + timeout:
-            try:
-                packet_count += cap.dispatch(1, recv_packets)
-            except Exception as e:
-                raise RuntimeError("Error reading from the network: %s" % str(e))
+        xs = sniff(iface=ring1.name, filter=f, timeout=timeout / 10, count=1)
 
-            # If we haven't seen anything yet, make sure we are blathering...
-            if packet_count < 1:
-                _start_talker_thread(ring1)
+        dports = set(map(lambda x: int(x.sprintf("%UDP.dport%")), xs))
 
         console_log.debug(
-            "Finished after %d seconds, sniffed: %d"
-            % (time.time() - start_time, packet_count)
+            "Finished after %d seconds, sniffed: %d" % (timeout, packet_count)
         )
+
+        if len(dports):
+            ring1.mcastport = dports.pop()
+            console_log.debug("Sniffed multicast traffic on %d" % ring1.mcastport)
     finally:
         # If we heard someone else talking (ring1_original_mcast_post != ring1.mcast_post)
         # then stop the talker thread, otherwise we should continue to fill the dead air until we start corosync.

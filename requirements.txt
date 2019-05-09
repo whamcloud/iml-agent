@@ -8,7 +8,6 @@ tablib==0.9.11
 toolz
 netaddr
 jinja2
-impacket
 pyyaml
-pcapy
+scapy
 pkginfo
