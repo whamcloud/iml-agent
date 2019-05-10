@@ -107,6 +107,26 @@ sslclientcert = {2}
                 },
             )
 
+    def test_selinux_status(self):
+        def run(arg_list):
+            values = {("getenforce",): "Enforcing\n"}
+            return Shell.RunResult(0, values[tuple(arg_list)], "", False)
+
+        with patch("chroma_agent.lib.shell.AgentShell.run", side_effect=run):
+            result = agent_updates.selinux_status()
+            self.assertDictEqual(result, {"status": "Enforcing"})
+
+    def test_selinux_status_missing(self):
+        def run(arg_list):
+            values = {("getenforce",): ""}
+            return Shell.RunResult(
+                127, values[tuple(arg_list)], "getenforce: command not found", False
+            )
+
+        with patch("chroma_agent.lib.shell.AgentShell.run", side_effect=run):
+            result = agent_updates.selinux_status()
+            self.assertDictEqual(result, {"status": "Disabled"})
+
     def test_install_packages(self):
         self.add_commands(
             CommandCaptureCommand(("yum", "clean", "all", "--enablerepo=*")),

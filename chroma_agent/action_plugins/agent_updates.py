@@ -217,6 +217,19 @@ def kernel_status():
     }
 
 
+def selinux_status():
+    """
+    Get selinux status on node
+    :return: {'status': 'Disabled'}
+    """
+    status = "Disabled"
+    rc = AgentShell.run(["getenforce"])
+    if rc.rc == 0:
+        status = rc.stdout.strip()
+
+    return {"status": status}
+
+
 def restart_agent():
     def _shutdown():
         daemon_log.info("Restarting iml-storage-server.target")
@@ -233,6 +246,7 @@ ACTIONS = [
     install_packages,
     remove_packages,
     kernel_status,
+    selinux_status,
     restart_agent,
     update_profile,
 ]
