@@ -1,4 +1,4 @@
-# Copyright (c) 2018 DDN. All rights reserved.
+# Copyright (c) 2019 DDN. All rights reserved.
 # Use of this source code is governed by a MIT-style
 # license that can be found in the LICENSE file.
 
@@ -19,7 +19,7 @@ def remove_server_url():
     os.unlink("{}/manager-url.conf".format(ENV_PATH))
 
 
-def set_iml_profile(name, repos, packages):
+def set_iml_profile(name, repos):
     """
     Setup /etc/iml/profile.conf
     """
@@ -31,8 +31,6 @@ def set_iml_profile(name, repos, packages):
             f.write("IML_PROFILE_NAME={}\n".format(name))
         if repos:
             f.write("IML_PROFILE_REPOS={}\n".format(",".join(repos)))
-        if packages:
-            f.write("IML_PROFILE_PACKAGES={}\n".format(",".join(packages)))
 
 
 def remove_iml_profile():

@@ -1,4 +1,4 @@
-# Copyright (c) 2018 DDN. All rights reserved.
+# Copyright (c) 2019 DDN. All rights reserved.
 # Use of this source code is governed by a MIT-style
 # license that can be found in the LICENSE file.
 
@@ -21,9 +21,7 @@ def set_profile(profile_json):
     except ConfigKeyExistsError:
         config.update("settings", "profile", profile)
 
-    set_iml_profile(
-        profile.get("name"), profile.get("bundles"), profile.get("packages")
-    )
+    set_iml_profile(profile.get("name"), profile.get("repolist"))
 
 
 def set_agent_config(key, val):
