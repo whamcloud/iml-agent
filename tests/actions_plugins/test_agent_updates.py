@@ -254,7 +254,8 @@ lustre-backend-fs
 
         self.assertRanAllCommandsInOrder()
 
-    def test_set_profile_success(self):
+    @patch("chroma_agent.action_plugins.agent_updates.set_iml_profile")
+    def test_set_profile_success(self, mock_set_profile):
         config.update("settings", "profile", {"managed": False})
 
         # Go from managed = False to managed = True
@@ -269,9 +270,13 @@ lustre-backend-fs
             )
         )
         self.assertEqual(
-            agent_updates.update_profile({"managed": True}), agent_result_ok
+            agent_updates.update_profile(
+                {"managed": True, "name": "base_managed_rh7", "repolist": ["base"]}
+            ),
+            agent_result_ok,
         )
         self.assertRanAllCommandsInOrder()
+        mock_set_profile.assert_called_once_with("base_managed_rh7", ["base"])
 
         # Go from managed = True to managed = False
         self.reset_command_capture()
@@ -288,7 +293,8 @@ lustre-backend-fs
         )
         self.assertRanAllCommandsInOrder()
 
-    def test_set_profile_fail(self):
+    @patch("chroma_agent.action_plugins.agent_updates.set_iml_profile")
+    def test_set_profile_fail(self, _):
         # Three times because yum will try three times.
         self.add_commands(
             CommandCaptureCommand(
