@@ -13,7 +13,7 @@ BuildRequires: systemd
 %{?!dist_version: %global archive_version %{version}}
 
 Name:           python-%{pypi_name}
-Version:        4.1.7
+Version:        4.1.8
 # Release Start
 Release:    1%{?dist}
 # Release End
@@ -42,6 +42,7 @@ Requires:       python-daemon
 Requires:       python-setuptools
 Requires:       python-requests >= 2.6.0
 Requires:       python2-tablib
+Requires:       python-jinja2
 Requires:       yum-utils
 Requires:       iml_sos_plugin
 Requires:       python2-iml-common1.4
@@ -69,7 +70,6 @@ Requires:       python2-%{pypi_name} = %{version}-%{release}
 Requires:       libxml2-python
 Requires:       python-netaddr
 Requires:       python-ethtool
-Requires:       python-jinja2
 Requires:       python2-scapy
 Requires:       system-config-firewall-base
 Requires:       ed
