@@ -6,14 +6,13 @@ from chroma_agent.lib.shell import AgentShell
 from chroma_agent.log import daemon_log
 
 
-def yum_util(action, packages=[], fromrepo=None, enablerepo=None, narrow_updates=False):
+def yum_util(action, packages=[], fromrepo=None, enablerepo=None):
     """
     A wrapper to perform yum actions in encapsulated way.
     :param action:  clean, install, remove, update, requires etc
     :param packages: Packages to install or remove
     :param fromrepo: The repo the action should be carried out from, others are disabled.
     :param enablerepo: The repo to enable for the action, others are not disabled or enabled
-    :param narrow_updates: ?
     :return: No return but throws CommandExecutionError on error.
     """
 
@@ -27,8 +26,6 @@ def yum_util(action, packages=[], fromrepo=None, enablerepo=None, narrow_updates
         repo_arg = ["--disablerepo=*"] + ["--enablerepo=%s" % r for r in fromrepo]
     elif enablerepo:
         repo_arg = ["--enablerepo=%s" % r for r in enablerepo]
-    if narrow_updates and action == "query":
-        repo_arg.extend(["--upgrades"])
 
     if action == "clean":
         cmd = ["yum", "clean", "all"] + (repo_arg if repo_arg else ["--enablerepo=*"])
@@ -46,6 +43,8 @@ def yum_util(action, packages=[], fromrepo=None, enablerepo=None, narrow_updates
             + repo_arg
             + list(packages)
         )
+    elif action == "get_update_version":
+        cmd = ["repoquery", "--pkgnarrow", "updates"] + repo_arg + list(packages)
     elif action == "requires":
         cmd = ["repoquery", "--requires"] + repo_arg + list(packages)
     elif action == "query":

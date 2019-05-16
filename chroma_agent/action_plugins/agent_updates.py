@@ -117,12 +117,23 @@ def install_packages(repos, packages):
     if packages != []:
         yum_util("clean")
 
-        out = yum_util("requires", enablerepo=repos, packages=packages)
-        for requirement in [l.strip() for l in out.strip().split("\n")]:
-            match = re.match("([^\)/]*) = (.*)", requirement)
-            if match:
-                require_package, require_version = match.groups()
-                packages.append("%s-%s" % (require_package, require_version))
+        r = re.compile("[=|<|>|<=|>=]")
+
+        updates = []
+
+        for p in packages:
+            if not yum_util("get_update_version", enablerepo=repos, packages=[p]):
+                out = yum_util("requires", enablerepo=repos, packages=[p])
+                deps = [l.strip() for l in out.strip().split("\n")]
+                deps = map(lambda x: r.split(x).pop(0).strip(), deps)
+                deps = yum_util("get_update_version", deps)
+                deps = [l.strip() for l in deps.strip().split("\n")]
+                updates += deps
+
+        packages += updates
+
+        daemon_log.info("updates: {}".format(updates))
+        daemon_log.info("packages: {}".format(packages))
 
         yum_util("install", enablerepo=repos, packages=packages)
 
