@@ -10,7 +10,10 @@ import shutil
 
 from chroma_agent.conf import set_server_url, set_iml_profile, ENV_PATH
 from chroma_agent import config
+from chroma_agent.lib.shell import AgentShell
+from chroma_agent.lib.yum_utils import yum_util
 from chroma_agent.config_store import ConfigKeyExistsError
+from iml_common.lib.agent_rpc import agent_error
 
 
 def set_profile(profile_json):
@@ -22,6 +25,16 @@ def set_profile(profile_json):
         config.update("settings", "profile", profile)
 
     set_iml_profile(profile.get("name"), profile.get("repolist"))
+
+    if profile["managed"]:
+        try:
+            yum_util("install", packages=["python2-iml-agent-management"])
+        except AgentShell.CommandExecutionError as cee:
+            return agent_error(
+                "Unable to set profile because yum returned {}".format(
+                    cee.result.stdout
+                )
+            )
 
 
 def set_agent_config(key, val):
