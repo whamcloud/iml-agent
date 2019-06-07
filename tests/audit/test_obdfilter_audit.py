@@ -81,7 +81,7 @@ class TestObdfilterAuditReadingJobStats(unittest.TestCase):
         res = self.audit.get_job_stats("OST0000")
         self.assertEqual(
             self.audit.job_stat_last_snapshot_time,
-            {"OST000016": 1416616379},
+            {"OST0000": {16: 1416616379}},
             self.audit.job_stat_last_snapshot_time,
         )
         self.assertEqual(len(res), 1, res)
@@ -91,7 +91,7 @@ class TestObdfilterAuditReadingJobStats(unittest.TestCase):
         self.assertEqual(res, [], res)
         self.assertEqual(
             self.audit.job_stat_last_snapshot_time,
-            {"OST000016": 1416616379},
+            {"OST0000": {16: 1416616379}},
             self.audit.job_stat_last_snapshot_time,
         )
 
@@ -120,13 +120,13 @@ class TestObdfilterAuditReadingJobStats(unittest.TestCase):
         #  Test that only one record is in the cache, the latest record, and that this new record is returned
         res = self.audit.get_job_stats("OST0000")
         self.assertTrue(
-            {"OST000016": 1416616379}
+            {"OST0000": {16: 1416616379}}
             not in self.audit.job_stat_last_snapshot_time.items(),
             self.audit.job_stat_last_snapshot_time,
         )
         self.assertEqual(
             self.audit.job_stat_last_snapshot_time,
-            {"OST000016": 1416616599},
+            {"OST0000": {16: 1416616599}},
             self.audit.job_stat_last_snapshot_time,
         )
         self.assertEqual(len(res), 1, res)
@@ -186,7 +186,7 @@ class TestObdfilterAuditReadingJobStats(unittest.TestCase):
         res = self.audit.get_job_stats("OST0000")
         self.assertEqual(
             self.audit.job_stat_last_snapshot_time,
-            {"OST000017": 1416616399},
+            {"OST0000": {17: 1416616399}},
             self.audit.job_stat_last_snapshot_time,
         )
         self.assertEqual(len(res), 1, res)

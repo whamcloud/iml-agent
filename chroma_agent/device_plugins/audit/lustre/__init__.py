@@ -430,7 +430,7 @@ class ObdfilterAudit(TargetAudit):
                 "tot_pending": "tot_pending",
             }
         )
-        self.job_stat_last_snapshot_time = defaultdict(int)
+        self.job_stat_last_snapshot_time = defaultdict(lambda: defaultdict(int))
 
     def get_brw_stats(self, target):
         """Return a dict representation of an OST's brw_stats histograms."""
@@ -565,7 +565,7 @@ class ObdfilterAudit(TargetAudit):
 
         #  Initialize this dict in preparation to collect just these latest snapshot
         #  times as seen in this stats sample
-        latest_job_stat_snapshot_times = defaultdict(int)
+        latest_job_stat_snapshot_times = defaultdict(lambda: defaultdict(int))
 
         stats_to_return = []
         for stat in stats:
@@ -573,14 +573,17 @@ class ObdfilterAudit(TargetAudit):
             stat["read"] = stat.pop("read_bytes")
             stat["write"] = stat.pop("write_bytes")
 
-            # Tagging by job_id and target name so the one job for different targets is not ignored.
-            job_tag = str(target_name) + str(stat["job_id"])
-
+            #  Tagging by target name and job_id so the one job for different targets is not ignored
             #  Record that we know about this stat
-            latest_job_stat_snapshot_times[job_tag] = stat["snapshot_time"]
+            latest_job_stat_snapshot_times[target_name][stat["job_id"]] = stat[
+                "snapshot_time"
+            ]
 
             #  if we knew about this last run, and the time is new, then report it
-            if self.job_stat_last_snapshot_time[job_tag] < stat["snapshot_time"]:
+            if (
+                self.job_stat_last_snapshot_time[target_name][stat["job_id"]]
+                < stat["snapshot_time"]
+            ):
                 stats_to_return.append(stat)
 
         #  The local dict will have all the current times for jobs we are tracking, so update the instance copy.
