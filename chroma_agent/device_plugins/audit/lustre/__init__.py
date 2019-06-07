@@ -573,11 +573,14 @@ class ObdfilterAudit(TargetAudit):
             stat["read"] = stat.pop("read_bytes")
             stat["write"] = stat.pop("write_bytes")
 
+            # Tagging by job_id and target name so the one job for different targets is not ignored.
+            job_tag = str(target_name) + str(stat["job_id"])
+
             #  Record that we know about this stat
-            latest_job_stat_snapshot_times[stat["job_id"]] = stat["snapshot_time"]
+            latest_job_stat_snapshot_times[job_tag] = stat["snapshot_time"]
 
             #  if we knew about this last run, and the time is new, then report it
-            if self.job_stat_last_snapshot_time[stat["job_id"]] < stat["snapshot_time"]:
+            if self.job_stat_last_snapshot_time[job_tag] < stat["snapshot_time"]:
                 stats_to_return.append(stat)
 
         #  The local dict will have all the current times for jobs we are tracking, so update the instance copy.
