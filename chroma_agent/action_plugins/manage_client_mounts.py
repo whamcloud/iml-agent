@@ -40,15 +40,21 @@ def create_fstab_entry(mountspec, mountpoint):
         f.write(FSTAB_ENTRY_TEMPLATE % (mountspec, mountpoint))
 
 
-def mount_lustre_filesystem(mountspec, mountpoint):
-    try:
-        os.makedirs(mountpoint, 0o755)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
+def lustre_filesystem_mount_exists(mountpoint):
+    out = AgentShell.try_run(["cat", "/proc/mounts"])
+    return mountpoint in out
 
-    create_fstab_entry(mountspec, mountpoint)
-    AgentShell.try_run(["/bin/mount", mountpoint])
+
+def mount_lustre_filesystem(mountspec, mountpoint):
+    if not (lustre_filesystem_mount_exists(mountpoint)):
+        try:
+            os.makedirs(mountpoint, 0o755)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
+
+        create_fstab_entry(mountspec, mountpoint)
+        AgentShell.try_run(["/bin/mount", mountpoint])
 
 
 def mount_lustre_filesystems(filesystems):
