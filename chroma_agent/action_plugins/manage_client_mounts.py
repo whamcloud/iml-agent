@@ -6,7 +6,10 @@
 import os
 import errno
 
+from toolz.functoolz import pipe, partial
+
 from chroma_agent.lib.shell import AgentShell
+from chroma_agent.device_plugins.block_devices import get_local_mounts
 
 
 FSTAB_ENTRY_TEMPLATE = "%s\t%s\t\tlustre\tdefaults,_netdev\t0 0\n"
@@ -41,8 +44,14 @@ def create_fstab_entry(mountspec, mountpoint):
 
 
 def lustre_filesystem_mount_exists(mountpoint):
-    out = AgentShell.try_run(["cat", "/proc/mounts"])
-    return mountpoint in out
+    out = get_local_mounts()
+
+    def mountpoint_matches(mountpoint, item):
+        return mountpoint in item
+
+    mountpoint_matches_item = partial(mountpoint_matches, mountpoint)
+
+    return pipe(out, partial(filter, partial(filter, mountpoint_matches_item)))
 
 
 def mount_lustre_filesystem(mountspec, mountpoint):
