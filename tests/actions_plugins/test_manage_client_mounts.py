@@ -18,7 +18,6 @@ class TestClientMountManagement(CommandCaptureTestCase):
     @patch("chroma_agent.action_plugins.manage_client_mounts.delete_fstab_entry")
     @patch("chroma_agent.action_plugins.manage_client_mounts.create_fstab_entry")
     def test_mount_lustre_filesystem(self, create, delete):
-        self.add_command(("cat", "/proc/mounts"))
         self.add_command(("/bin/mount", "/mnt/lustre_clients/foobar"))
 
         from chroma_agent.action_plugins.manage_client_mounts import (
