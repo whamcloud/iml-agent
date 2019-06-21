@@ -9,6 +9,7 @@ from iml_common.lib.service_control import ServiceControl
 
 
 ntp_service = ServiceControl.create("ntpd")
+chrony_service = ServiceControl.create("chronyd")
 
 
 def unconfigure_ntp():
@@ -30,6 +31,9 @@ def configure_ntp(ntp_server):
     if error:
         return error
     else:
+        chrony_service.stop(validate_time=0.5)
+        chrony_service.disable()
+        ntp_service.enable()
         return agent_ok_or_error(ntp_service.restart())
 
 
