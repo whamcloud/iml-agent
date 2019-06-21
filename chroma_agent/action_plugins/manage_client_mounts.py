@@ -6,8 +6,6 @@
 import os
 import errno
 
-from toolz.functoolz import pipe, partial
-
 from chroma_agent.lib.shell import AgentShell
 from chroma_agent.device_plugins.block_devices import get_local_mounts
 
