@@ -44,14 +44,12 @@ def create_fstab_entry(mountspec, mountpoint):
 
 
 def lustre_filesystem_mount_exists(mountpoint):
-    out = get_local_mounts()
-
-    def mountpoint_matches(mountpoint, item):
-        return mountpoint in item
-
-    mountpoint_matches_item = partial(mountpoint_matches, mountpoint)
-
-    return pipe(out, partial(filter, partial(filter, mountpoint_matches_item)))
+    return next(
+        iter(
+            [m for m in get_local_mounts() if m[2] == "lustre" and m[1] == mountpoint]
+        ),
+        None,
+    )
 
 
 def mount_lustre_filesystem(mountspec, mountpoint):
