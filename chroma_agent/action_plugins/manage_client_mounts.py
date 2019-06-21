@@ -51,15 +51,17 @@ def lustre_filesystem_mount_exists(mountpoint):
 
 
 def mount_lustre_filesystem(mountspec, mountpoint):
-    if not (lustre_filesystem_mount_exists(mountpoint)):
-        try:
-            os.makedirs(mountpoint, 0o755)
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise
+    if lustre_filesystem_mount_exists(mountpoint):
+        return
 
-        create_fstab_entry(mountspec, mountpoint)
-        AgentShell.try_run(["/bin/mount", mountpoint])
+    try:
+        os.makedirs(mountpoint, 0o755)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+
+    create_fstab_entry(mountspec, mountpoint)
+    AgentShell.try_run(["/bin/mount", mountpoint])
 
 
 def mount_lustre_filesystems(filesystems):
