@@ -7,6 +7,7 @@ import os
 import errno
 
 from chroma_agent.lib.shell import AgentShell
+from chroma_agent.device_plugins.block_devices import get_local_mounts
 
 
 FSTAB_ENTRY_TEMPLATE = "%s\t%s\t\tlustre\tdefaults,_netdev\t0 0\n"
@@ -40,7 +41,19 @@ def create_fstab_entry(mountspec, mountpoint):
         f.write(FSTAB_ENTRY_TEMPLATE % (mountspec, mountpoint))
 
 
+def lustre_filesystem_mount_exists(mountpoint):
+    return next(
+        iter(
+            [m for m in get_local_mounts() if m[2] == "lustre" and m[1] == mountpoint]
+        ),
+        None,
+    )
+
+
 def mount_lustre_filesystem(mountspec, mountpoint):
+    if lustre_filesystem_mount_exists(mountpoint):
+        return
+
     try:
         os.makedirs(mountpoint, 0o755)
     except OSError as e:
