@@ -58,10 +58,9 @@ class LocalTargets(object):
 
             mounts = get_local_mounts()
 
-            def compare(x):
-                return ndp.normalized_device_path(x[0]) == path
-
-            _, mnt_point, _ = next(iter(filter(compare, mounts)), (None, None, None))
+            _, mnt_point, _ = next(
+                iter([x for x in mounts if ndp.normalized_device_path(x[0]) == path])
+            )
 
             mounted = mnt_point is not None
 
