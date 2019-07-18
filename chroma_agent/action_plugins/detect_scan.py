@@ -1,4 +1,4 @@
-# Copyright (c) 2018 DDN. All rights reserved.
+# Copyright (c) 2019 DDN. All rights reserved.
 # Use of this source code is governed by a MIT-style
 # license that can be found in the LICENSE file.
 
@@ -54,14 +54,24 @@ class LocalTargets(object):
 
             ndp = get_normalized_device_table()
 
-            mounted = ndp.normalized_device_path(device["path"]) in set(
-                [ndp.normalized_device_path(path) for path, _, _ in get_local_mounts()]
+            path = ndp.normalized_device_path(device["path"])
+
+            mounts = get_local_mounts()
+
+            _, mnt_point, _ = next(
+                iter(
+                    filter(lambda x: ndp.normalized_device_path(x[0]) == path, mounts)
+                ),
+                (None, None, None),
             )
+
+            mounted = mnt_point is not None
 
             for name in targets.names:
                 daemon_log.info(
-                    "Device %s contained name:%s and is %smounted"
-                    % (device["path"], name, "" if mounted else "un")
+                    "Device {} contained name: {} and is {}mounted".format(
+                        device["path"], name, "" if mounted else "un"
+                    )
                 )
 
                 try:
@@ -74,6 +84,7 @@ class LocalTargets(object):
                         "params": targets.params,
                         "device_paths": [device["path"]],
                         "mounted": mounted,
+                        "mount_point": mnt_point,
                         "type": device["type"],
                     }
                     uuid_name_to_target[(device["uuid"], name)] = target_dict
