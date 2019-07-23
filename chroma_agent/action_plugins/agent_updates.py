@@ -1,4 +1,4 @@
-# Copyright (c) 2018 DDN. All rights reserved.
+# Copyright (c) 2019 DDN. All rights reserved.
 # Use of this source code is governed by a MIT-style
 # license that can be found in the LICENSE file.
 
@@ -11,7 +11,7 @@ from chroma_agent.lib.shell import AgentShell
 from chroma_agent.device_plugins.action_runner import CallbackAfterResponse
 from chroma_agent.log import daemon_log
 from chroma_agent import config
-from chroma_agent.conf import ENV_PATH
+from chroma_agent.conf import ENV_PATH, set_iml_profile
 from chroma_agent.crypto import Crypto
 from chroma_agent.lib.yum_utils import yum_util
 from iml_common.lib.agent_rpc import agent_result, agent_error, agent_result_ok
@@ -92,6 +92,8 @@ def update_profile(profile):
 
     config.update("settings", "profile", profile)
 
+    set_iml_profile(profile.get("name"), profile.get("repolist"))
+
     return agent_result_ok
 
 
@@ -115,12 +117,23 @@ def install_packages(repos, packages):
     if packages != []:
         yum_util("clean")
 
-        out = yum_util("requires", enablerepo=repos, packages=packages)
-        for requirement in [l.strip() for l in out.strip().split("\n")]:
-            match = re.match("([^\)/]*) = (.*)", requirement)
-            if match:
-                require_package, require_version = match.groups()
-                packages.append("%s-%s" % (require_package, require_version))
+        r = re.compile("[=|<|>|<=|>=]")
+
+        updates = []
+
+        for p in packages:
+            if not yum_util("get_update_version", enablerepo=repos, packages=[p]):
+                out = yum_util("requires", enablerepo=repos, packages=[p])
+                deps = [l.strip() for l in out.strip().split("\n")]
+                deps = map(lambda x: r.split(x).pop(0).strip(), deps)
+                deps = yum_util("get_update_version", deps)
+                deps = [l.strip() for l in deps.strip().split("\n")]
+                updates += deps
+
+        packages += updates
+
+        daemon_log.info("updates: {}".format(updates))
+        daemon_log.info("packages: {}".format(packages))
 
         yum_util("install", enablerepo=repos, packages=packages)
 
