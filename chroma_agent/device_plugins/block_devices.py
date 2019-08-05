@@ -50,15 +50,24 @@ def get_default(prop, default_value, x):
 
 
 def get_mounted_path(path, dev_tree):
-    if path in get_default("paths", [], dev_tree) and get_default(
-        "mount", None, dev_tree
-    ):
+    if path is None:
+        return None
+
+    mount = get_default("mount", None, dev_tree)
+
+    if mount is None:
+        return None
+
+    if mount.get("source") == path:
+        return True
+
+    if path in get_default("paths", [], dev_tree):
         return True
 
     children = cmap(lambda x: x.values().pop(), get_default("children", [], dev_tree))
 
     return next(
-        (c.get("mount").get("source") for c in children if get_mounted_path(path, c)),
+        (x.get("mount").get("source") for x in children if get_mounted_path(path, x)),
         None,
     )
 
