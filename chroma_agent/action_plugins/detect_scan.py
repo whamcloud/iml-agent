@@ -6,7 +6,7 @@
 from datetime import datetime
 
 from chroma_agent.lib.shell import AgentShell
-from chroma_agent.device_plugins.block_devices import get_local_mounts
+from chroma_agent.device_plugins.block_devices import get_mounted_path, scanner_cmd
 from iml_common.blockdevices.blockdevice import BlockDevice
 from chroma_agent.log import daemon_log
 from chroma_agent import config
@@ -49,12 +49,8 @@ class LocalTargets(object):
 
             targets = block_device.targets(uuid_name_to_target, device, daemon_log)
 
-            path = device["path"]
-
-            mounts = get_local_mounts()
-
-            mnt_point = next(iter([x[1] for x in mounts if x[0] == path]), None)
-
+            dev_tree = scanner_cmd("Stream").get("Root")
+            mnt_point = get_mounted_path(device["path"], dev_tree)
             mounted = mnt_point is not None
 
             for name in targets.names:

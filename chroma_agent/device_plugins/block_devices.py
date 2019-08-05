@@ -49,7 +49,7 @@ def get_default(prop, default_value, x):
     return y if y is not None else default_value
 
 
-def is_path_mounted(path, dev_tree):
+def get_mounted_path(path, dev_tree):
     if path in get_default("paths", [], dev_tree) and get_default(
         "mount", None, dev_tree
     ):
@@ -57,7 +57,10 @@ def is_path_mounted(path, dev_tree):
 
     children = cmap(lambda x: x.values().pop(), get_default("children", [], dev_tree))
 
-    return next((True for c in children if is_path_mounted(path, c)), False)
+    return next(
+        (c.get("mount").get("source") for c in children if get_mounted_path(path, c)),
+        None,
+    )
 
 
 def get_lustre_mount_info(kind, dev_tree, xs):
