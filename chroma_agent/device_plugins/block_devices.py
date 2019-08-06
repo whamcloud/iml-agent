@@ -55,21 +55,19 @@ def get_mounted_path(path, dev_tree):
 
     mount = get_default("mount", None, dev_tree)
 
-    if mount is None:
-        return None
+    if mount and mount.get("source") == path:
+        return mount.get("source")
 
-    if mount.get("source") == path:
-        return True
-
-    if path in get_default("paths", [], dev_tree):
-        return True
+    if mount and path in get_default("paths", [], dev_tree):
+        return mount.get("source")
 
     children = cmap(lambda x: x.values().pop(), get_default("children", [], dev_tree))
 
-    return next(
-        (x.get("mount").get("source") for x in children if get_mounted_path(path, x)),
-        None,
-    )
+    for x in children:
+        mnt_path = get_mounted_path(path, x)
+
+        if mnt_path:
+            return mnt_path
 
 
 def get_lustre_mount_info(kind, dev_tree, xs):
