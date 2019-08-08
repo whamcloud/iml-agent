@@ -13,7 +13,7 @@ class TestClientAudit(PatchedContextTestCase):
         client_mount = {
             "target": "/mnt/lustre_clients/testfs",
             "source": "10.0.0.129@tcp:/testfs",
-            "fstype": "lustre",
+            "fs_type": "lustre",
             "opts": "rw",
         }
 
