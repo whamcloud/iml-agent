@@ -17,10 +17,14 @@ class TestClientAudit(PatchedContextTestCase):
             "opts": "rw",
         }
 
-        device_map = {"blockDevices": {}, "zed": {}, "localMounts": [client_mount]}
+        def mock_scanner_cmd(cmd):
+            if cmd == "GetMounts":
+                return []
+            else:
+                return {"blockDevices": {}, "zed": {}, "localMounts": []}
+
         mock.patch(
-            "chroma_agent.device_plugins.block_devices.scanner_cmd",
-            return_value=device_map,
+            "chroma_agent.device_plugins.block_devices.scanner_cmd", mock_scanner_cmd
         ).start()
 
         self.audit = ClientAudit()
