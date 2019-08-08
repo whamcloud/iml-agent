@@ -55,7 +55,7 @@ class TestFormattedBlockDevices(TestBase):
     def get_patched_local_mounts(self, fixture):
         with patch(
             "chroma_agent.device_plugins.block_devices.scanner_cmd",
-            return_value=fixture,
+            return_value=fixture.get("localMounts"),
         ):
             return get_local_mounts()
 
