@@ -12,10 +12,14 @@ class PatchedContextTestCase(unittest.TestCase):
         self._test_root = None
         self._orig_root = None
 
-        empty_map = {"blockDevices": {}, "zed": {}, "localMounts": []}
+        def mock_scanner_cmd(cmd):
+            if cmd == "GetMounts":
+                return []
+            else:
+                return {"blockDevices": {}, "zed": {}, "localMounts": []}
+
         mock.patch(
-            "chroma_agent.device_plugins.block_devices.scanner_cmd",
-            return_value=empty_map,
+            "chroma_agent.device_plugins.block_devices.scanner_cmd", mock_scanner_cmd
         ).start()
 
     def setUp(self):

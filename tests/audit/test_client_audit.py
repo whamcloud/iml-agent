@@ -13,14 +13,18 @@ class TestClientAudit(PatchedContextTestCase):
         client_mount = {
             "target": "/mnt/lustre_clients/testfs",
             "source": "10.0.0.129@tcp:/testfs",
-            "fstype": "lustre",
+            "fs_type": "lustre",
             "opts": "rw",
         }
 
-        device_map = {"blockDevices": {}, "zed": {}, "localMounts": [client_mount]}
+        def mock_scanner_cmd(cmd):
+            if cmd == "GetMounts":
+                return [client_mount]
+            else:
+                return {"blockDevices": {}, "zed": {}, "localMounts": [client_mount]}
+
         mock.patch(
-            "chroma_agent.device_plugins.block_devices.scanner_cmd",
-            return_value=device_map,
+            "chroma_agent.device_plugins.block_devices.scanner_cmd", mock_scanner_cmd
         ).start()
 
         self.audit = ClientAudit()
