@@ -19,9 +19,9 @@ class TestClientAudit(PatchedContextTestCase):
 
         def mock_scanner_cmd(cmd):
             if cmd == "GetMounts":
-                return []
+                return [client_mount]
             else:
-                return {"blockDevices": {}, "zed": {}, "localMounts": []}
+                return {"blockDevices": {}, "zed": {}, "localMounts": [client_mount]}
 
         mock.patch(
             "chroma_agent.device_plugins.block_devices.scanner_cmd", mock_scanner_cmd
