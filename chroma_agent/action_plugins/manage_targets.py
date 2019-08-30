@@ -841,16 +841,27 @@ def _move_target(target_label, dest_node):
 
 
 def _find_resource_constraint(ha_label, primary):
-    result = cibxpath(
-        "query",
-        '//constraints/rsc_location[@id="{}"]'.format(_constraint(ha_label, primary)),
-    )
+    """
+    Return node name that satisfies the constraint type
+    """
+    result = cibxpath("query", '//constraints/rsc_location[@rsc="{}"]'.format(ha_label))
 
-    # Single line: <rsc_location id="HA_LABEL-PRIMARY" node="NODE" rsc="HA_LABEL" score="20"/>
-    match = re.match(r".*node=.([^\"]+)", result.stdout)
+    if result.rc != 0:
+        return None
 
-    if match:
-        return match.group(1)
+    def _byscore(elem):
+        return int(elem.get("score"))
+
+    # Higher score is primary, lower score is secondary
+    dom = ET.fromstring(result.stdout)
+
+    if primary:
+        elem = max(dom.findall("rsc_location"), key=_byscore)
+    else:
+        elem = min(dom.findall("rsc_location"), key=_byscore)
+
+    if node:
+        return elem.get("node")
 
     return None
 
