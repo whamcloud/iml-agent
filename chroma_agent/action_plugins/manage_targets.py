@@ -287,8 +287,10 @@ def _zfs_name(ha_label, lookup=True):
             info = get_label_info(ha_label)
             if info is not None:
                 return info["zfs"]
+            else:
+                return None
 
-        except Exception:
+        except TypeError:
             pass
 
     return "{}-zfs".format(ha_label)
@@ -301,8 +303,10 @@ def _group_name(ha_label, lookup=True):
             info = get_label_info(ha_label)
             if info is not None:
                 return info["group"]
+            else:
+                return None
 
-        except Exception:
+        except TypeError:
             pass
 
     return "group-{}".format(ha_label)
@@ -860,7 +864,7 @@ def _find_resource_constraint(ha_label, primary):
     else:
         elem = min(dom.findall("rsc_location"), key=_byscore)
 
-    if node:
+    if elem:
         return elem.get("node")
 
     return None
@@ -931,10 +935,7 @@ def set_label_info(ha_label, uuid, zfs_label=None, group_label=None):
 
 
 def delete_label_info(ha_label):
-    try:
-        config.delete("labels", ha_label)
-    except Exception:
-        pass
+    config.delete("labels", ha_label)
 
 
 def purge_configuration(mgs_device_path, mgs_device_type, filesystem_name):

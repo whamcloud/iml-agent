@@ -2,7 +2,7 @@ BUILDROOT:=$(shell [ -d "/build" ] && echo "/build" || echo ".")
 TMPDIR:=$(shell mktemp -d)
 
 srpm:
-	python --version || dnf -y install python2-setuptools
+	python2 --version || dnf -y install python2-setuptools
 	mkdir -p ${TMPDIR}/_topdir/SOURCES
 	mkdir -p ${TMPDIR}/scratch
 	rm -rf ${BUILDROOT}/_topdir
