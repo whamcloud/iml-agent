@@ -542,7 +542,9 @@ def _configure_target_ha(ha_label, info, enabled=False):
     return result
 
 
-def configure_target_ha(primary, device, ha_label, uuid, mount_point):
+def configure_target_ha(
+    primary, device, ha_label, uuid, mount_point, zfs_ha_label=None, group_ha_label=None
+):
     """
     Configure the target high availability
 
@@ -552,16 +554,25 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
     _mkdir_p_concurrent(mount_point)
     info = get_target_config(uuid)
 
+    if info["device_type"] == "zfs":
+        if zfs_ha_label is None:
+            zfs_ha_label = _zfs_name(ha_label, False)
+        if group_ha_label is None:
+            group_ha_label = _group_name(ha_label, False)
+        set_label_info(ha_label, info["uuid"], zfs_ha_label, group_ha_label)
+    else:
+        set_label_info(ha_label, info["uuid"])
+
+    # If the target already exists with the same params, skip.
+    # If it already exists with different params, that is an error
     if primary:
-        # If the target already exists with the same params, skip.
-        # If it already exists with different params, that is an error
         if _resource_exists(ha_label):
             if info["bdev"] == device and info["mntpt"] == mount_point:
                 return agent_result_ok
-
             return agent_error(
                 "A resource with the name {} already exists".format(ha_label)
             )
+
         if info["bdev"] != device or info["mntpt"] != mount_point:
             console_log.error(
                 "Mismatch for %s do not match configured (%s on %s) != (%s on %s)",
@@ -575,15 +586,9 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
         if result.rc != 0:
             return agent_error("Failed to create {}: {}".format(ha_label, result.rc))
 
-    if info["device_type"] == "zfs":
-        set_label_info(
-            ha_label,
-            info["uuid"],
-            _zfs_name(ha_label, False),
-            _group_name(ha_label, False),
-        )
-    else:
-        set_label_info(ha_label, info["uuid"])
+    elif _find_resource_constraint(ha_label, primary):
+        # Secondary server already had resource constraint - assume configure only
+        return agent_result_ok
 
     result = _configure_target_priority(primary, ha_label, _this_node())
     if result.rc != 0:
