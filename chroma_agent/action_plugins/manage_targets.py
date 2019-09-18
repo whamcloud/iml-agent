@@ -862,15 +862,16 @@ def _find_resource_constraint(ha_label, primary):
         return int(elem.get("score"))
 
     # Higher score is primary, lower score is secondary
-    dom = ET.fromstring(result.stdout)
+    locations = ET.fromstring(result.stdout).findall("rsc_location")
 
-    if primary:
-        elem = max(dom.findall("rsc_location"), key=_byscore)
-    else:
-        elem = min(dom.findall("rsc_location"), key=_byscore)
+    if len(locations) > 0:
+        if primary:
+            elem = max(locations, key=_byscore)
+        else:
+            elem = min(locations, key=_byscore)
 
-    if elem:
-        return elem.get("node")
+        if elem is not None:
+            return elem.get("node")
 
     return None
 
