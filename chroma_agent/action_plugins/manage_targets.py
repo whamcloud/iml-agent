@@ -287,8 +287,7 @@ def _zfs_name(ha_label, lookup=True):
             info = get_label_info(ha_label)
             if info is not None:
                 return info["zfs"]
-            else:
-                return None
+            return None
 
         except TypeError:
             pass
@@ -303,8 +302,7 @@ def _group_name(ha_label, lookup=True):
             info = get_label_info(ha_label)
             if info is not None:
                 return info["group"]
-            else:
-                return None
+            return None
 
         except TypeError:
             pass
@@ -864,7 +862,7 @@ def _find_resource_constraint(ha_label, primary):
     # Higher score is primary, lower score is secondary
     locations = ET.fromstring(result.stdout).findall("rsc_location")
 
-    if len(locations) > 0:
+    if locations:
         if primary:
             elem = max(locations, key=_byscore)
         else:
