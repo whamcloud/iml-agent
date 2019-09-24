@@ -10,19 +10,26 @@ import time
 import socket
 import xml.etree.ElementTree as ET
 
-from chroma_agent.lib.pacemaker import cibcreate, cibxpath
+from chroma_agent.lib.pacemaker import (
+    cibcreate,
+    cibxpath,
+    PacemakerConfig,
+    PacemakerConfigurationError,
+)
 from chroma_agent import config
 from chroma_agent.action_plugins.manage_pacemaker import PreservePacemakerCorosyncState
 from chroma_agent.lib.shell import AgentShell
 from chroma_agent.log import console_log
 from iml_common.blockdevices.blockdevice import BlockDevice
 from iml_common.filesystems.filesystem import FileSystem
-from iml_common.lib.agent_rpc import agent_error
-from iml_common.lib.agent_rpc import agent_result
-from iml_common.lib.agent_rpc import agent_result_ok
-from iml_common.lib.agent_rpc import agent_ok_or_error
-from iml_common.lib.agent_rpc import agent_result_is_error
-from iml_common.lib.agent_rpc import agent_result_is_ok
+from iml_common.lib.agent_rpc import (
+    agent_error,
+    agent_result,
+    agent_result_ok,
+    agent_ok_or_error,
+    agent_result_is_error,
+    agent_result_is_ok,
+)
 
 
 def writeconf_target(
@@ -955,29 +962,15 @@ def convert_targets(force=False):
     Convert existing ocf:chroma:Target to ZFS + Lustre
     """
     try:
-        result = AgentShell.run(["cibadmin", "--query"])
+        dom = PacemakerConfig.root()
     except OSError as err:
         if err.errno != errno.ENOENT:
             raise err
-        return {
-            "crm_mon_error": {
-                "rc": err.errno,
-                "stdout": err.message,
-                "stderr": err.strerror,
-            }
-        }
-
-    if result.rc != 0:
-        # Pacemaker not running, or no resources configured yet
-        return {
-            "crm_mon_error": {
-                "rc": result.rc,
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-            }
-        }
-
-    dom = ET.fromstring(result.stdout)
+        return agent_error(str(err))
+    except AgentShell.CommandExecutionError as err:
+        return agent_error(str(err))
+    except PacemakerConfigurationError as err:
+        return agent_error(str(err))
 
     this_node = _this_node()
 
@@ -994,7 +987,7 @@ def convert_targets(force=False):
 
     if dcuuid != this_node and not force:
         console_log.info("This is not Pacemaker DC %s this is %s", dcuuid, this_node)
-        return
+        return agent_result_ok
 
     # Build map of resource -> [ primary node, secondary node ]
     locations = {}
@@ -1065,15 +1058,18 @@ def convert_targets(force=False):
     for wait in wait_list:
         console_log.info("Waiting on %s", wait[0])
         _wait_target(*wait)
-    AgentShell.try_run(
-        [
-            "crm_attribute",
-            "--type",
-            "crm_config",
-            "--name",
-            "maintenance-mode",
-            "--delete",
-        ]
+
+    return agent_ok_or_error(
+        AgentShell.run_canned_error_message(
+            [
+                "crm_attribute",
+                "--type",
+                "crm_config",
+                "--name",
+                "maintenance-mode",
+                "--delete",
+            ]
+        )
     )
 
 
