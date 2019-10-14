@@ -43,13 +43,13 @@ Requires:       python-setuptools
 Requires:       python-requests >= 2.6.0
 Requires:       python2-tablib
 Requires:       yum-utils
-Requires:       iml_sos_plugin
-Requires:       python2-iml-common1.4
+Requires:       iml_sos_plugin >= 2.3.0
+Requires:       python2-iml-common1.4 >= 1.4.5
 Requires:       systemd-python
 Requires:       python-tzlocal
 Requires:       python2-toolz
-Requires:       iml-device-scanner-proxy < 4
-Requires:       iml-update-check < 2
+Requires:       iml-device-scanner-proxy >= 3.0.0
+Requires:       iml-update-check >= 1.0.3
 Requires:       util-linux-ng
 Requires(post): selinux-policy
 Requires:       python-urllib3
@@ -170,6 +170,9 @@ grubby --set-default=/boot/vmlinuz-$MOST_RECENT_KERNEL_VERSION
 %defattr(-,root,root)
 
 %changelog
+* Mon Oct 14 2019 Joe Grund <jgrund@whamcloud.com> - 4.2.0-1
+- Pin mimimum IML version requirements
+
 * Mon Jan 7 2019 Joe Grund <jgrund@whamcloud.com> - 4.1.2.0-1
 - Use Docker copr image instead of module-tools
 
