@@ -203,7 +203,7 @@ def find_unused_port(ring0, timeout=10, batch_count=10000):
             "Finished after %d seconds, sniffed: %d" % (timeout, len(dports))
         )
 
-        for dport in set(dports):
+        for dport in dports:
             try:
                 ports.remove(dport)
             except ValueError:
