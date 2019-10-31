@@ -191,10 +191,18 @@ def kver_gt(kver1, kver2, arch):
     )
 
 
-def kernel_ok(kernel, modlist):
-    okay = True
-    kver = kernel.split("-", 1)[1]
-    return AgentShell.run(["modinfo", "-n", "-k", kver] + modlist).rc == 0
+def latest_kernel(kernel_list, modlist):
+    required_kernel = None
+    arch = AgentShell.try_run(["uname", "-m"]).strip()
+
+    for kernel in kernel_list:
+        if not kver_gt(kernel, required_kernel, arch):
+            continue
+        kver = kernel.split("-", 1)[1]
+        if AgentShell.run(["modinfo", "-n", "-k", kver] + modlist).rc == 0:
+            required_kernel = kernel
+
+    return required_kernel
 
 
 def kernel_status():
@@ -203,12 +211,9 @@ def kernel_status():
     """
     running_kernel = "kernel-%s" % AgentShell.try_run(["uname", "-r"]).strip()
 
-    available_kernels = []
-    for installed_kernel in AgentShell.try_run(["rpm", "-q", "kernel"]).split("\n"):
-        if installed_kernel:
-            available_kernels.append(installed_kernel)
-
-    arch = AgentShell.try_run(["uname", "-m"]).strip()
+    available_kernels = [
+        k for k in AgentShell.try_run(["rpm", "-q", "kernel"]).split("\n") if k
+    ]
 
     if AgentShell.run(["rpm", "-q", "--whatprovides", "kmod-lustre"]).rc == 0:
         try:
@@ -220,12 +225,7 @@ def kernel_status():
                 if k.endswith(".ko")
             ]
 
-            required_kernel = None
-            for kernel in available_kernels:
-                if not kver_gt(kernel, required_kernel, arch):
-                    continue
-                if kernel_ok(kernel, modlist):
-                    required_kernel = kernel
+            required_kernel = latest_kernel(available_kernels, modlist)
 
         except (AgentShell.CommandExecutionError, StopIteration):
             required_kernel = None
@@ -242,12 +242,7 @@ def kernel_status():
                 if k.endswith(".ko")
             ]
 
-            required_kernel = None
-            for kernel in available_kernels:
-                if not kver_gt(kernel, required_kernel, arch):
-                    continue
-                if kernel_ok(kernel, modlist):
-                    required_kernel = kernel
+            required_kernel = latest_kernel(available_kernels, modlist)
 
         except (AgentShell.CommandExecutionError, StopIteration):
             required_kernel = None
