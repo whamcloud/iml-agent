@@ -81,17 +81,49 @@ sslclientcert = {2}
     def test_kernel_status(self):
         def run(arg_list):
             values = {
+                ("rpm", "-q", "kernel"): {
+                    "rc": 0,
+                    "stdout": "kernel-2.6.32-358.2.1.el6.x86_64\n"
+                    "kernel-2.6.32-358.18.1.el6_lustre.x86_64\n",
+                },
+                ("rpm", "-q", "--whatprovides", "kmod-lustre"): {
+                    "rc": 0,
+                    "stdout": "kmod-lustre-1.2.3-1.el6.x86_64\n",
+                },
+                ("rpm", "-ql", "--whatprovides", "lustre-osd", "kmod-lustre"): {
+                    "rc": 0,
+                    "stdout": "/lib/modules/2.6.32-358.18.1.el7_lustre.x86_64/extra/lustre/fs/lustre.ko\n"
+                    "/lib/modules/2.6.32-358.18.1.el7_lustre.x86_64/extra/lustre-osd-ldiskfs/fs/osd_ldiskfs.ko\n",
+                },
                 (
-                    "rpm",
-                    "-q",
-                    "--whatprovides",
-                    "kmod-lustre",
-                ): "kmod-lustre-1.2.3-1.el6.x86_64\n",
-                ("uname", "-r"): "2.6.32-358.2.1.el6.x86_64\n",
-                ("rpm", "-q", "kernel"): "kernel-2.6.32-358.2.1.el6.x86_64\n"
-                "kernel-2.6.32-358.18.1.el6_lustre.x86_64\n",
+                    "modinfo",
+                    "-n",
+                    "-k",
+                    "2.6.32-358.2.1.el6.x86_64",
+                    "lustre",
+                    "osd_ldiskfs",
+                ): {"rc": 1, "stdout": ""},
+                (
+                    "modinfo",
+                    "-n",
+                    "-k",
+                    "2.6.32-358.18.1.el6_lustre.x86_64",
+                    "lustre",
+                    "osd_ldiskfs",
+                ): {
+                    "rc": 0,
+                    "stdout": "/lib/modules/2.6.32-358.18.1.el7_lustre.x86_64/extra/lustre/fs/lustre.ko\n"
+                    "/lib/modules/2.6.32-358.18.1.el7_lustre.x86_64/extra/lustre-osd-ldiskfs/fs/osd_ldiskfs.ko\n",
+                },
+                ("uname", "-m"): {"rc": 0, "stdout": "x86_64\n"},
+                ("uname", "-r"): {"rc": 0, "stdout": "2.6.32-358.2.1.el6.x86_64\n"},
             }
-            return Shell.RunResult(0, values[tuple(arg_list)], "", False)
+            return Shell.RunResult(
+                values[tuple(arg_list)]["rc"],
+                values[tuple(arg_list)]["stdout"],
+                "",
+                False,
+            )
 
         with patch("chroma_agent.lib.shell.AgentShell.run", side_effect=run):
             result = agent_updates.kernel_status()

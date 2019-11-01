@@ -6,6 +6,7 @@ import subprocess
 import re
 import os
 import errno
+from distutils.version import LooseVersion
 
 from chroma_agent.lib.shell import AgentShell
 from chroma_agent.device_plugins.action_runner import CallbackAfterResponse
@@ -166,49 +167,87 @@ def _check_HYD4050():
     return None
 
 
+def kver_gt(kver1, kver2, arch):
+    """
+    True if kern1 is greater than kern2
+    kern is of the form: "kernel-3.10.0-1062.el7.x86_64" (`rpm -q kernel`)
+    """
+
+    def kver_split(kver, arch):
+        if not kver:
+            return "0", "0"
+        v, r = (kver.split("-", 2) + ["0", "0"])[1:3]
+        ra = r.split(".")
+        if ra[-1] == arch:
+            ra.pop()
+        if ra[-1].startswith("el"):
+            ra.pop()
+        return v, ".".join(ra)
+
+    kv1, kr1 = kver_split(kver1, arch)
+    kv2, kr2 = kver_split(kver2, arch)
+    return LooseVersion(kv1) > LooseVersion(kv2) or LooseVersion(kr1) > LooseVersion(
+        kr2
+    )
+
+
+def latest_kernel(kernel_list, modlist):
+    required_kernel = None
+    arch = AgentShell.try_run(["uname", "-m"]).strip()
+
+    for kernel in kernel_list:
+        if not kver_gt(kernel, required_kernel, arch):
+            continue
+        kver = kernel.split("-", 1)[1]
+        if AgentShell.run(["modinfo", "-n", "-k", kver] + modlist).rc == 0:
+            required_kernel = kernel
+
+    return required_kernel
+
+
 def kernel_status():
     """
     :return: {'running': {'kernel-X.Y.Z'}, 'required': <'kernel-A.B.C' or None>}
     """
     running_kernel = "kernel-%s" % AgentShell.try_run(["uname", "-r"]).strip()
 
+    available_kernels = [
+        k for k in AgentShell.try_run(["rpm", "-q", "kernel"]).split("\n") if k
+    ]
+
     if AgentShell.run(["rpm", "-q", "--whatprovides", "kmod-lustre"]).rc == 0:
-        # on a server, a required kernel is a lustre patched kernel since we
-        # are building storage servers that can support both ldiskfs and zfs
         try:
-            required_kernel = next(
-                k
-                for k in sorted(
-                    AgentShell.try_run(["rpm", "-q", "kernel"]).split("\n"),
-                    reverse=True,
-                )
-                if "_lustre" in k
-            )
+            modlist = [
+                os.path.splitext(os.path.basename(k))[0]
+                for k in AgentShell.try_run(
+                    ["rpm", "-ql", "--whatprovides", "lustre-osd", "kmod-lustre"]
+                ).split("\n")
+                if k.endswith(".ko")
+            ]
+
+            required_kernel = latest_kernel(available_kernels, modlist)
+
         except (AgentShell.CommandExecutionError, StopIteration):
             required_kernel = None
+
     elif AgentShell.run(["rpm", "-q", "kmod-lustre-client"]).rc == 0:
         # but on a worker, we can ask kmod-lustre-client what the required
         # kernel is
         try:
-            required_kernel_prefix = next(
-                k
+            modlist = [
+                os.path.splitext(os.path.basename(k))[0]
                 for k in AgentShell.try_run(
-                    ["rpm", "-q", "--requires", "kmod-lustre-client"]
+                    ["rpm", "-ql", "--whatprovides", "kmod-lustre-client"]
                 ).split("\n")
-                if "kernel >=" in k
-            ).split(" >= ")[1]
-            required_kernel = AgentShell.try_run(
-                ["rpm", "-q", "kernel-%s*" % required_kernel_prefix]
-            ).split("\n")[0]
+                if k.endswith(".ko")
+            ]
+
+            required_kernel = latest_kernel(available_kernels, modlist)
+
         except (AgentShell.CommandExecutionError, StopIteration):
             required_kernel = None
     else:
         required_kernel = None
-
-    available_kernels = []
-    for installed_kernel in AgentShell.try_run(["rpm", "-q", "kernel"]).split("\n"):
-        if installed_kernel:
-            available_kernels.append(installed_kernel)
 
     return {
         "running": running_kernel,

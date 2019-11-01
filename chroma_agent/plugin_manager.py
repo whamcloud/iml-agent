@@ -96,8 +96,8 @@ class DevicePlugin(object):
     """
 
     FAILSAFEDUPDATE = (
-        60
-    )  # We always send an update every 60 cycles (60*10)seconds - 10 minutes.
+        60  # We always send an update every 60 cycles (60*10)seconds - 10 minutes.
+    )
 
     def __init__(self, session):
         self._session = session
