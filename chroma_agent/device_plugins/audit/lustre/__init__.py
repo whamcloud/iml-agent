@@ -368,13 +368,16 @@ class MdtAudit(TargetAudit):
                 ef9b5ecf-b9c1-110c-199a-ea910b02d998
           This function finds the second type of entries and counts those as
           clients."""
+
         count = 0
         fs_name = target[: target.rfind("MDT")]
         path = self.join_param(self.target_root, "mdt", target, "exports", "*", "uuid")
+
         for export in self.list_params(path):
-            uuid = self.get_param_string(export)
-            if uuid and uuid.find(fs_name + "MDT") < 0:
-                count = count + 1
+            for uuid in self.get_param_lines(export):
+                if uuid and uuid.find(fs_name + "MDT") < 0:
+                    count = count + 1
+
         return count
 
     def _gather_raw_metrics(self):
