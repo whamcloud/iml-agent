@@ -13,7 +13,6 @@ import xml.etree.ElementTree as ET
 from chroma_agent.lib.pacemaker import cibcreate, cibxpath
 from chroma_agent import config
 from chroma_agent.action_plugins.manage_pacemaker import PreservePacemakerCorosyncState
-from chroma_agent.device_plugins.block_devices import get_local_mounts
 from chroma_agent.lib.shell import AgentShell
 from chroma_agent.log import console_log
 from iml_common.blockdevices.blockdevice import BlockDevice
@@ -281,13 +280,33 @@ def _mkdir_p_concurrent(path):
     mkdir_silent(path)
 
 
-def _zfs_name(ha_label):
+def _zfs_name(ha_label, lookup=True):
     # Name of zfs resource in resource group for given lustre ha_label
+    if lookup:
+        try:
+            info = get_label_info(ha_label)
+            if info is not None:
+                return info["zfs"]
+            return None
+
+        except TypeError:
+            pass
+
     return "{}-zfs".format(ha_label)
 
 
-def _group_name(ha_label):
+def _group_name(ha_label, lookup=True):
     # Name of resource group for given ha_label
+    if lookup:
+        try:
+            info = get_label_info(ha_label)
+            if info is not None:
+                return info["group"]
+            return None
+
+        except TypeError:
+            pass
+
     return "group-{}".format(ha_label)
 
 
@@ -339,13 +358,14 @@ def unconfigure_target_ha(primary, ha_label, uuid):
      """
 
     with PreservePacemakerCorosyncState():
-        info = _get_target_config(uuid)
+        info = get_target_config(uuid)
         if get_resource_location(ha_label):
             return agent_error(
                 "cannot unconfigure-ha: {} is still running ".format(ha_label)
             )
 
         _unconfigure_target_priority(primary, ha_label)
+        delete_label_info(ha_label)
 
         if primary:
             result = _unconfigure_target_ha(ha_label)
@@ -365,7 +385,7 @@ def unconfigure_target_store(uuid):
     :param uuid: UUID identifying target
     """
     try:
-        target = _get_target_config(uuid)
+        target = get_target_config(uuid)
         os.rmdir(target["mntpt"])
     except KeyError:
         console_log.warn("Cannot retrieve target information")
@@ -478,6 +498,8 @@ def _configure_target_ha(ha_label, info, enabled=False):
     else:
         extra = ["--disabled"]
 
+    grouplabel = None
+    zfslabel = None
     xmlid = ha_label
     res = _resource_xml(
         ha_label,
@@ -486,12 +508,13 @@ def _configure_target_ha(ha_label, info, enabled=False):
     )
 
     if info["device_type"] == "zfs":
-        xmlid = _group_name(ha_label)
-        grp = ET.Element("group", {"id": xmlid})
+        grouplabel = _group_name(ha_label, False)
+        zfslabel = _zfs_name(ha_label, False)
+
+        xmlid = grouplabel
+        grp = ET.Element("group", {"id": grouplabel})
         zpool = info["bdev"].split("/")[0]
-        grp.append(
-            _resource_xml(_zfs_name(ha_label), "ocf:chroma:ZFS", {"pool": zpool})
-        )
+        grp.append(_resource_xml(zfslabel, "ocf:chroma:ZFS", {"pool": zpool}))
         grp.append(res)
         res = grp
 
@@ -517,7 +540,9 @@ def _configure_target_ha(ha_label, info, enabled=False):
     return result
 
 
-def configure_target_ha(primary, device, ha_label, uuid, mount_point):
+def configure_target_ha(
+    primary, device, ha_label, uuid, mount_point, zfs_ha_label=None, group_ha_label=None
+):
     """
     Configure the target high availability
 
@@ -525,18 +550,27 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
     """
 
     _mkdir_p_concurrent(mount_point)
+    info = get_target_config(uuid)
 
+    if info["device_type"] == "zfs":
+        if zfs_ha_label is None:
+            zfs_ha_label = _zfs_name(ha_label, False)
+        if group_ha_label is None:
+            group_ha_label = _group_name(ha_label, False)
+        set_label_info(ha_label, info["uuid"], zfs_ha_label, group_ha_label)
+    else:
+        set_label_info(ha_label, info["uuid"])
+
+    # If the target already exists with the same params, skip.
+    # If it already exists with different params, that is an error
     if primary:
-        info = _get_target_config(uuid)
-        # If the target already exists with the same params, skip.
-        # If it already exists with different params, that is an error
         if _resource_exists(ha_label):
             if info["bdev"] == device and info["mntpt"] == mount_point:
                 return agent_result_ok
-
             return agent_error(
                 "A resource with the name {} already exists".format(ha_label)
             )
+
         if info["bdev"] != device or info["mntpt"] != mount_point:
             console_log.error(
                 "Mismatch for %s do not match configured (%s on %s) != (%s on %s)",
@@ -550,6 +584,10 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
         if result.rc != 0:
             return agent_error("Failed to create {}: {}".format(ha_label, result.rc))
 
+    elif _find_resource_constraint(ha_label, primary):
+        # Secondary server already had resource constraint - assume configure only
+        return agent_result_ok
+
     result = _configure_target_priority(primary, ha_label, _this_node())
     if result.rc != 0:
         return agent_error(
@@ -557,82 +595,6 @@ def configure_target_ha(primary, device, ha_label, uuid, mount_point):
         )
 
     return agent_result_ok
-
-
-def mount_target(uuid, pacemaker_ha_operation):
-    # This is called by the Target RA from corosync
-    info = _get_target_config(uuid)
-
-    import_retries = 60
-    succeeded = False
-
-    while import_retries > 0:
-        # This loop is needed due pools not being immediately importable during
-        # STONITH operations. Track: https://github.com/zfsonlinux/zfs/issues/6727
-        result = import_target(
-            info["device_type"], info["bdev"], pacemaker_ha_operation
-        )
-        succeeded = agent_result_is_ok(result)
-        if succeeded:
-            break
-        elif (not pacemaker_ha_operation) or (info["device_type"] != "zfs"):
-            exit(-1)
-        time.sleep(1)
-        import_retries -= 1
-
-    if succeeded is False:
-        exit(-1)
-
-    filesystem = FileSystem(info["backfstype"], info["bdev"])
-
-    try:
-        filesystem.mount(info["mntpt"])
-    except RuntimeError as err:
-        # Make sure we export any pools when a mount fails
-        export_target(info["device_type"], info["bdev"])
-
-        raise err
-
-
-def unmount_target(uuid):
-    # This is called by the Target RA from corosync
-
-    # only unmount targets that are controlled by chroma:Target
-    try:
-        result = cibxpath("query", "//primitive")
-    except OSError as err:
-        if err.rc == errno.ENOENT:
-            exit(-1)
-        raise err
-
-    dom = ET.fromstring(result.stdout)
-
-    # Searches for <nvpair name="target" value=uuid> in
-    # <primitive provider="chroma" type="Target"> in dom
-    if (
-        next(
-            (
-                ops
-                for res in dom.findall(".//primitive")
-                if res.get("provider") == "chroma" and res.get("type") == "Target"
-                for ops in res.findall(".//nvpair")
-                if ops.get("name") == "target" and ops.get("value") == uuid
-            ),
-            None,
-        )
-        is not None
-    ):
-        return
-    dom.unlink()
-
-    info = _get_target_config(uuid)
-
-    filesystem = FileSystem(info["backfstype"], info["bdev"])
-
-    filesystem.umount()
-
-    if agent_result_is_error(export_target(info["device_type"], info["bdev"])):
-        exit(-1)
 
 
 def import_target(device_type, path, pacemaker_ha_operation):
@@ -721,6 +683,8 @@ def _resource_exists(ha_label):
     Check if a resource exists in current configuration.
     :return: True if exists
     """
+    if ha_label is None:
+        return False
     result = AgentShell.run(["crm_resource", "-W", "-r", ha_label])
     return result.rc == 0
 
@@ -884,16 +848,28 @@ def _move_target(target_label, dest_node):
 
 
 def _find_resource_constraint(ha_label, primary):
-    result = cibxpath(
-        "query",
-        '//constraints/rsc_location[@id="{}"]'.format(_constraint(ha_label, primary)),
-    )
+    """
+    Return node name that satisfies the constraint type
+    """
+    result = cibxpath("query", '//constraints/rsc_location[@rsc="{}"]'.format(ha_label))
 
-    # Single line: <rsc_location id="HA_LABEL-PRIMARY" node="NODE" rsc="HA_LABEL" score="20"/>
-    match = re.match(r".*node=.([^\"]+)", result.stdout)
+    if result.rc != 0:
+        return None
 
-    if match:
-        return match.group(1)
+    def _byscore(elem):
+        return int(elem.get("score"))
+
+    # Higher score is primary, lower score is secondary
+    locations = ET.fromstring(result.stdout).findall("rsc_location")
+
+    if locations:
+        if primary:
+            elem = max(locations, key=_byscore)
+        else:
+            elem = min(locations, key=_byscore)
+
+        if elem is not None:
+            return elem.get("node")
 
     return None
 
@@ -937,7 +913,7 @@ def failback_target(ha_label):
     return _failoverback_target(ha_label, True)
 
 
-def _get_target_config(uuid):
+def get_target_config(uuid):
     info = config.get("targets", uuid)
 
     # Some history, previously the backfstype, device_type was not stored so if
@@ -946,38 +922,24 @@ def _get_target_config(uuid):
         info["backfstype"] = info.get("backfstype", "ldiskfs")
         info["device_type"] = info.get("device_type", "linux")
         config.update("targets", uuid, info)
+    info["uuid"] = uuid
     return info
 
 
-def target_running(uuid):
-    # This is called by the Target RA from corosync
-    from os import _exit
-
+def get_label_info(ha_label):
     try:
-        info = _get_target_config(uuid)
-    except (KeyError, TypeError) as err:
-        # it can't possibly be running here if the config entry for
-        # it doesn't even exist, or if the store doesn't even exist!
-        console_log.warning("Exception getting target config: %s", err)
-        _exit(1)
+        return config.get("labels", ha_label)
+    except KeyError:
+        return None
 
-    filesystem = FileSystem(info["backfstype"], info["bdev"])
 
-    for devices, mntpnt, _ in get_local_mounts():
-        if (mntpnt == info["mntpt"]) and next(
-            (
-                True
-                for device in devices
-                if filesystem.devices_match(device, info["bdev"], uuid)
-            ),
-            False,
-        ):
-            _exit(0)
+def set_label_info(ha_label, uuid, zfs_label=None, group_label=None):
+    info = {"uuid": uuid, "label": ha_label, "zfs": zfs_label, "group": group_label}
+    config.update("labels", ha_label, info)
 
-    console_log.warning(
-        "Did not find mount with matching mntpt and device for %s", uuid
-    )
-    _exit(1)
+
+def delete_label_info(ha_label):
+    config.delete("labels", ha_label)
 
 
 def purge_configuration(mgs_device_path, mgs_device_type, filesystem_name):
@@ -1070,11 +1032,11 @@ def convert_targets(force=False):
 
         ha_label = res.get("id")
 
-        # _get_target_config() will raise KeyError if uuid doesn't exist locally
+        # get_target_config() will raise KeyError if uuid doesn't exist locally
         # next() will raise StopIteration if it doesn't find attribute target
         try:
             info = next(
-                _get_target_config(ops.get("value"))
+                get_target_config(ops.get("value"))
                 for ops in res.findall('.//nvpair[@name="target"]')
             )
         except Exception as err:
@@ -1088,6 +1050,16 @@ def convert_targets(force=False):
         _configure_target_priority(True, ha_label, locations[ha_label][0])
         _configure_target_priority(False, ha_label, locations[ha_label][1])
         wait_list.append([ha_label, (active.get(ha_label) is not None)])
+
+        if info["device_type"] == "zfs":
+            set_label_info(
+                ha_label,
+                info["uuid"],
+                _zfs_name(ha_label, False),
+                _group_name(ha_label, False),
+            )
+        else:
+            set_label_info(ha_label, info["uuid"])
 
     # wait for last item
     for wait in wait_list:
@@ -1110,8 +1082,6 @@ ACTIONS = [
     register_target,
     configure_target_ha,
     unconfigure_target_ha,
-    mount_target,
-    unmount_target,
     import_target,
     export_target,
     start_target,
@@ -1121,7 +1091,6 @@ ACTIONS = [
     writeconf_target,
     failback_target,
     failover_target,
-    target_running,
     convert_targets,
     configure_target_store,
     unconfigure_target_store,
