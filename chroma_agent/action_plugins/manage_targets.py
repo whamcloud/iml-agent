@@ -863,11 +863,17 @@ def _find_resource_constraint(ha_label, primary):
     if result.rc != 0:
         return None
 
+    et = ET.fromstring(result.stdout)
+
+    # Handle single location case.
+    if et.tag == "rsc_location":
+        return et.get("node")
+
     def _byscore(elem):
         return int(elem.get("score"))
 
     # Higher score is primary, lower score is secondary
-    locations = ET.fromstring(result.stdout).findall("rsc_location")
+    locations = et.findall("rsc_location")
 
     if locations:
         if primary:
