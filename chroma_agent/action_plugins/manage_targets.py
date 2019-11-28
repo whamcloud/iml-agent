@@ -591,7 +591,7 @@ def configure_target_ha(
         if result.rc != 0:
             return agent_error("Failed to create {}: {}".format(ha_label, result.rc))
 
-    elif _find_resource_constraint(ha_label, primary):
+    elif _find_resource_constraint(_constraint(ha_label, primary), primary):
         # Secondary server already had resource constraint - assume configure only
         return agent_result_ok
 
