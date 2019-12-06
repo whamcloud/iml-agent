@@ -27,16 +27,13 @@ class LustreGetParamMixin(object):
         """
         stdout = self._get_param("-n", path).strip()
 
-        if not stdout:
-            yield None
-            return
-
-        for line in stdout.split("\n"):
-            if filter_f:
-                if filter_f(line):
+        if stdout:
+            for line in stdout.split("\n"):
+                if filter_f:
+                    if filter_f(line):
+                        yield line
+                else:
                     yield line
-            else:
-                yield line
 
     def get_param_raw(self, path):
         return self._get_param("-n", path)
