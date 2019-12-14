@@ -566,7 +566,7 @@ def configure_target_ha(
             group_ha_label = _group_name(ha_label, False)
         set_label_info(ha_label, info["uuid"], zfs_ha_label, group_ha_label)
     else:
-        set_label_info(ha_label, info["uuid"])
+        set_label_info(ha_label, info["uuid"], zfs_ha_label, group_ha_label)
 
     # If the target already exists with the same params, skip.
     # If it already exists with different params, that is an error
@@ -747,7 +747,8 @@ def start_target(ha_label):
         _res_set_started(ha_label, True)
         if _resource_exists(_zfs_name(ha_label)):
             _res_set_started(_zfs_name(ha_label), True)
-            # enable group also, in case group was disabled
+
+        if _resource_exists(_group_name(ha_label)):
             _res_set_started(_group_name(ha_label), True)
 
         # now wait for it to start
@@ -778,7 +779,7 @@ def stop_target(ha_label):
     """
     try:
         # Issue the command to Pacemaker to stop the target
-        if _resource_exists(_zfs_name(ha_label)):
+        if _resource_exists(_group_name(ha_label)):
             _res_set_started(_group_name(ha_label), False)
         else:
             _res_set_started(ha_label, False)
@@ -1050,15 +1051,16 @@ def convert_targets(force=False):
         _configure_target_priority(False, ha_label, locations[ha_label][1])
         wait_list.append([ha_label, (active.get(ha_label) is not None)])
 
+        zfs_label = None
+        group_label = None
         if info["device_type"] == "zfs":
-            set_label_info(
-                ha_label,
-                info["uuid"],
-                _zfs_name(ha_label, False),
-                _group_name(ha_label, False),
-            )
-        else:
-            set_label_info(ha_label, info["uuid"])
+            zfs_label = _zfs_name(ha_label)
+            group_label = _group_name(ha_label)
+
+        elif _resource_exists(_group_name(ha_label)):
+            group_label = _group_name(ha_label)
+
+        set_label_info(ha_label, info["uuid"], zfs_label, group_label)
 
     # wait for last item
     for wait in wait_list:
