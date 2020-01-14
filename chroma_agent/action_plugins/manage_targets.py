@@ -32,81 +32,6 @@ from iml_common.lib.agent_rpc import (
 )
 
 
-def writeconf_target(
-    device=None,
-    target_types=(),
-    mgsnode=(),
-    fsname=None,
-    failnode=(),
-    servicenode=(),
-    param=None,
-    index=None,
-    comment=None,
-    mountfsoptions=None,
-    network=(),
-    erase_params=False,
-    nomgs=False,
-    writeconf=False,
-    dryrun=False,
-    verbose=False,
-    quiet=False,
-):
-    # freeze a view of the namespace before we start messing with it
-    args = dict(locals())
-
-    options = []
-
-    # Workaround for tunefs.lustre being sensitive to argument order:
-    # erase-params has to come first or it overrides preceding options.
-    # (LU-1462)
-    early_flag_options = {"erase_params": "--erase-params"}
-    options += [early_flag_options[arg] for arg in early_flag_options if args[arg]]
-
-    single = "--{}".format
-    double = "--{}={}".format
-
-    tuple_options = ["target_types", "mgsnode", "failnode", "servicenode", "network"]
-    for name in tuple_options:
-        arg = args[name]
-        # ensure that our tuple arguments are always tuples, and not strings
-        if not hasattr(arg, "__iter__"):
-            arg = (arg,)
-
-        if name == "target_types":
-            options += [single(target) for target in arg]
-        elif name == "mgsnode":
-            options += [double(name, ",".join(mgs_nids)) for mgs_nids in arg]
-        elif len(arg) > 0:
-            options.append(double(name, ",".join(arg)))
-
-    dict_options = ["param"]
-    for name in dict_options:
-        arg = args[name]
-        if arg:
-            options += [
-                x
-                for key in arg
-                if arg[key] is not None
-                for x in [single(name), "{}={}".format(key, arg[key])]
-            ]
-
-    # flag options
-    flag_options = ["writeconf", "quiet", "dryrun", "nomgs", "verbose"]
-    options += [single(arg) for arg in flag_options if args[arg]]
-
-    # everything else
-    handled = set(
-        flag_options + early_flag_options.keys() + tuple_options + dict_options
-    )
-    options += [
-        double(name, args[name])
-        for name in set(args.keys()) - handled
-        if name != "device" and args[name] is not None
-    ]
-
-    AgentShell.try_run(["tunefs.lustre"] + options + [device])
-
-
 def get_resource_location(resource_name):
     """
     Given a resource name testfs-MDT0000_f64edc for example, return the host it is mounted on
@@ -1092,7 +1017,6 @@ ACTIONS = [
     stop_target,
     format_target,
     check_block_device,
-    writeconf_target,
     failback_target,
     failover_target,
     convert_targets,
