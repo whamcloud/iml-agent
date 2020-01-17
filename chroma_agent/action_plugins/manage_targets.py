@@ -51,9 +51,12 @@ def _get_resource_locations(xml):
     for res in dom.findall(".//resource"):
         if res.get("resource_agent") in [
             "ocf::chroma:Target",
-            "ocf::lustre:Lustre",
             "ocf::chroma:ZFS",
+            "ocf::lustre:Lustre",
             "ocf::heartbeat:ZFS",
+            "ocf::heartbeat:LVM",
+            "ocf::ddn:Ticketer",
+            "ocf::ddn:lustre-server",
         ]:
             resid = res.get("id")
             if (
@@ -796,7 +799,7 @@ def _find_resource_constraint(ha_label, primary):
         return et.get("node")
 
     def _byscore(elem):
-        return int(elem.get("score"))
+        return int(elem.get("score") or 0)
 
     # Higher score is primary, lower score is secondary
     locations = et.findall("rsc_location")
