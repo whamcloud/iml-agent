@@ -86,6 +86,10 @@ def get_resource_locations():
         )
         return {}
 
+    xml = result.stdout.strip()
+    if len(xml) == 0:
+        return {}
+
     return _get_resource_locations(result.stdout)
 
 
