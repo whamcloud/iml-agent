@@ -86,7 +86,11 @@ def get_resource_locations():
         )
         return {}
 
-    return _get_resource_locations(result.stdout)
+    xml = result.stdout.strip()
+    if xml.len():
+        return _get_resource_locations(result.stdout)
+    else:
+        return {}
 
 
 def check_block_device(path, device_type):
