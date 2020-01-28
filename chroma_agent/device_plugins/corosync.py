@@ -10,9 +10,10 @@ from chroma_agent.lib.shell import AgentShell
 from chroma_agent.log import daemon_log
 from chroma_agent.plugin_manager import DevicePlugin
 from iml_common.lib.exception_sandbox import exceptionSandBox
-from chroma_agent.lib.corosync import corosync_running
+from chroma_agent.lib.corosync import corosync_running, filter_unclean_nodes
 from chroma_agent.lib.pacemaker import pacemaker_running
 from iml_common.lib.date_time import IMLDateTime
+from functools import reduce
 
 try:
     # Python 2.7
@@ -65,6 +66,15 @@ class CorosyncPlugin(DevicePlugin):
         else:
             return_dict = {}
 
+            nodes = filter_unclean_nodes(root.findall("nodes/node"))
+
+            if nodes is None:
+                return None
+
+            return_dict["nodes"] = dict(
+                reduce(lambda acc, y: acc + [(y.get("name"), y.attrib)], nodes, [])
+            )
+
             #  Got node info, pack it up and return
             tm_str = root.find("summary/last_update").get("time")
             tm_datetime = IMLDateTime.strptime(tm_str, "%a %b %d %H:%M:%S %Y")
@@ -75,13 +85,6 @@ class CorosyncPlugin(DevicePlugin):
                     ).strftime("%Y-%m-%dT%H:%M:%S+00:00")
                 }
             )
-
-            nodes = {}
-            for node in root.findall("nodes/node"):
-                host = node.get("name")
-                nodes.update({host: node.attrib})
-
-            return_dict["nodes"] = nodes
 
             return_dict["options"] = {"stonith_enabled": False}
 
@@ -142,6 +145,6 @@ class CorosyncPlugin(DevicePlugin):
         self._reset_delta()
         return self.update_session()
 
-    @exceptionSandBox(daemon_log, ["state", "nodes"])
+    @exceptionSandBox(daemon_log, {})
     def update_session(self):
         return self._delta_result(self._scan())

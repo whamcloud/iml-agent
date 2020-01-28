@@ -7,7 +7,6 @@ import errno
 import os
 import re
 import time
-import socket
 import xml.etree.ElementTree as ET
 
 from chroma_agent.lib.pacemaker import (
@@ -19,6 +18,7 @@ from chroma_agent.lib.pacemaker import (
 from chroma_agent import config
 from chroma_agent.action_plugins.manage_pacemaker import PreservePacemakerCorosyncState
 from chroma_agent.lib.shell import AgentShell
+from chroma_agent.lib.corosync import get_cluster_node_name, filter_unclean_nodes
 from chroma_agent.log import console_log
 from iml_common.blockdevices.blockdevice import BlockDevice
 from iml_common.filesystems.filesystem import FileSystem
@@ -45,9 +45,21 @@ def get_resource_location(resource_name):
 
 def _get_resource_locations(xml):
     # allow testing
-    dom = ET.fromstring(xml)
 
     locations = {}
+
+    try:
+        dom = ET.fromstring(xml)
+    except ET.ParseError as e:
+        console_log.warn("Tried to parse XML {}, but got an error: {}".format(xml, e))
+
+        return locations
+
+    nodes = filter_unclean_nodes(dom.findall("nodes/node"))
+
+    if nodes is None or nodes == []:
+        return locations
+
     for res in dom.findall(".//resource"):
         if res.get("resource_agent") in [
             "ocf::chroma:Target",
@@ -93,7 +105,7 @@ def get_resource_locations():
     if len(xml) == 0:
         return {}
 
-    return _get_resource_locations(result.stdout)
+    return _get_resource_locations(xml)
 
 
 def check_block_device(path, device_type):
@@ -351,10 +363,6 @@ def configure_target_store(device, uuid, mount_point, backfstype, device_type):
     )
 
 
-def _this_node():
-    return socket.getfqdn()
-
-
 def _unconfigure_target_priority(primary, ha_label):
     return cibxpath(
         "delete", '//rsc_location[@id="{}"]'.format(_constraint(ha_label, primary))
@@ -535,7 +543,7 @@ def configure_target_ha(
         # Secondary server already had resource constraint - assume configure only
         return agent_result_ok
 
-    result = _configure_target_priority(primary, ha_label, _this_node())
+    result = _configure_target_priority(primary, ha_label, get_cluster_node_name())
     if result.rc != 0:
         return agent_error(
             "Failed to create location constraint on {}: {}".format(ha_label, result.rc)
@@ -919,7 +927,7 @@ def convert_targets(force=False):
     except PacemakerConfigurationError as err:
         return agent_error(str(err))
 
-    this_node = _this_node()
+    this_node = get_cluster_node_name()
 
     # node elements are numbered from 1
     # dc-uuid is the node id of the domain controller
