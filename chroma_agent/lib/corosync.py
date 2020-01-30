@@ -35,16 +35,9 @@ operstate = "/sys/class/net/{}/operstate"
 
 def filter_unclean_nodes(nodes):
     """ Given a list of nodes,
-    returns either the clean nodes, or None if the local node is unclean.
+    returns the clean ones.
     """
     x = groupby(lambda x: x.get("unclean"), nodes)
-
-    local_node = get_cluster_node_name()
-
-    unclean_local = any(True for y in x.get("true", []) if y.get("name") == local_node)
-
-    if unclean_local:
-        return None
 
     return x.get("false", [])
 

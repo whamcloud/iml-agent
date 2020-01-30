@@ -77,7 +77,6 @@ class TestCorosync(CommandCaptureTestCase):
 
         self.add_commands(
             CommandCaptureCommand(CMD, stdout=crm_one_shot_xml),
-            CommandCaptureCommand(("crm_node", "-n"), rc=0, stdout="storage0.node"),
             CommandCaptureCommand(("systemctl", "is-active", "corosync"), rc=0),
             CommandCaptureCommand(("systemctl", "is-active", "pacemaker"), rc=0),
         )

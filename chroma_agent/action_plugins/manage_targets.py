@@ -57,7 +57,7 @@ def _get_resource_locations(xml):
 
     nodes = filter_unclean_nodes(dom.findall("nodes/node"))
 
-    if nodes is None or nodes == []:
+    if nodes == []:
         return locations
 
     for res in dom.findall(".//resource"):

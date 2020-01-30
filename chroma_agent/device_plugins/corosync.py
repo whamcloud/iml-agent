@@ -68,7 +68,7 @@ class CorosyncPlugin(DevicePlugin):
 
             nodes = filter_unclean_nodes(root.findall("nodes/node"))
 
-            if nodes is None:
+            if nodes == []:
                 return None
 
             return_dict["nodes"] = dict(
