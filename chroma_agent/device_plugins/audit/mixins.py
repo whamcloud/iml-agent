@@ -56,7 +56,12 @@ class LustreGetParamMixin(object):
         return ".".join(arr)
 
     def list_params(self, path):
-        return self._get_param("-N", path).strip().split("\n")
+        """ Return list of parameters found in path.  Or [] if none, or get_param fails.
+        """
+        try:
+            return self._get_param("-N", path).strip().split("\n")
+        except AgentShell.CommandExecutionError:
+            return []
 
 
 class FileSystemMixin(object):
