@@ -445,6 +445,11 @@ def _configure_target_ha(ha_label, info, enabled=False):
         "ocf:lustre:Lustre",
         {"target": info["bdev"], "mountpoint": info["mntpt"]},
     )
+    if not enabled:
+        meta = ET.SubElement(
+            res, "meta_attributes", {"id": "{}-{}".format(xmlid, "meta_attributes")}
+        )
+        _nvpair_xml(meta, "target-role", "Stopped")
 
     if info["device_type"] == "zfs":
         grouplabel = _group_name(ha_label, False)
@@ -453,15 +458,18 @@ def _configure_target_ha(ha_label, info, enabled=False):
         xmlid = grouplabel
         grp = ET.Element("group", {"id": grouplabel})
         zpool = info["bdev"].split("/")[0]
-        grp.append(_resource_xml(zfslabel, "ocf:chroma:ZFS", {"pool": zpool}))
+        zfsres = _resource_xml(zfslabel, "ocf:chroma:ZFS", {"pool": zpool})
+        if not enabled:
+            meta = ET.SubElement(
+                zfsres,
+                "meta_attributes",
+                {"id": "{}-{}".format(xmlid, "meta_attributes")},
+            )
+            _nvpair_xml(meta, "target-role", "Stopped")
+
+        grp.append(zfsres)
         grp.append(res)
         res = grp
-
-    if not enabled:
-        meta = ET.SubElement(
-            res, "meta_attributes", {"id": "{}-{}".format(xmlid, "meta_attributes")}
-        )
-        _nvpair_xml(meta, "target_role", "Stopped")
 
     # Create Lustre resource and add target=uuid as an attribute
     result = cibcreate("resources", ET.tostring(res))
@@ -661,9 +669,9 @@ def start_target(ha_label):
 
     # if resource already started but not on primary, move it
     location = get_resource_location(ha_label)
-    primary = _find_resource_constraint(ha_label, True)
     if location:
-        if location != primary:
+        primary = _find_resource_constraint(ha_label, True)
+        if primary and location != primary:
             console_log.info(
                 "Resource %s already started, moving to primary node %s",
                 ha_label,
@@ -814,7 +822,7 @@ def _find_resource_constraint(ha_label, primary):
         else:
             elem = min(locations, key=_byscore)
 
-        if elem is not None:
+        if elem is not None and elem.get("score") is not None:
             return elem.get("node")
 
     return None
