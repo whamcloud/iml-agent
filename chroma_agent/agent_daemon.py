@@ -29,6 +29,17 @@ from chroma_agent.lib.agent_startup_functions import agent_daemon_startup_functi
 from chroma_agent.lib.agent_teardown_functions import agent_daemon_teardown_functions
 
 
+# Disable insecure requests warning
+# So we don't break our syslog handler.
+# This (disabled) warning is expected due to our use of
+# self-signed certificates when we communicate between
+# the agent and manager.
+import warnings
+from urllib3.exceptions import InsecureRequestWarning
+
+warnings.simplefilter("ignore", InsecureRequestWarning)
+
+
 class ServerProperties(object):
     @property
     def fqdn(self):
