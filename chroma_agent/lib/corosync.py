@@ -21,6 +21,7 @@ from iml_common.lib.service_control import ServiceControl
 from chroma_agent.lib import networking
 from chroma_agent.lib.talker_thread import TalkerThread
 from scapy.all import sniff, UDP, IP
+from toolz import groupby
 
 env = Environment(loader=PackageLoader("chroma_agent", "templates"))
 
@@ -30,6 +31,28 @@ firewall_control = FirewallControl.create(logger=console_log)
 talker_thread = None
 
 operstate = "/sys/class/net/{}/operstate"
+
+
+def filter_unclean_nodes(nodes):
+    """ Given a list of nodes,
+    returns the clean ones.
+    """
+    x = groupby(lambda x: x.get("unclean"), nodes)
+
+    return x.get("false", [])
+
+
+def get_cluster_node_name():
+    try:
+        return AgentShell.try_run(["crm_node", "-n"]).strip()
+    except Exception as e:
+        console_log.info(
+            "Could not get cluster node name {}. Falling back to socket.getfqdn()".format(
+                e
+            )
+        )
+
+        return socket.getfqdn()
 
 
 class RingDetectionError(Exception):

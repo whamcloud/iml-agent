@@ -278,7 +278,6 @@ class TestConfigureCorosync(CommandCaptureTestCase):
         from chroma_agent.action_plugins.manage_corosync2 import (
             configure_corosync2_stage_2,
         )
-        from chroma_agent.action_plugins.manage_corosync2 import change_mcast_port
         from chroma_agent.action_plugins.manage_corosync2 import PCS_TCP_PORT
         from chroma_agent.action_plugins.manage_corosync_common import configure_network
 
@@ -403,30 +402,6 @@ class TestConfigureCorosync(CommandCaptureTestCase):
         self.mock_remove_port.reset_mock()
         self.mock_add_port.reset_mock()
         self.mock_corosync_service.reset_mock()
-
-        # ...now change corosync mcast port
-        old_mcast_port = "4242"
-        new_mcast_port = "4246"
-
-        # add shell command to be expected when updating corosync.conf file with new mcast port value
-        self.add_command(
-            (
-                "sed",
-                "-i.bak",
-                "s/mcastport:.*/mcastport: %s/g" % new_mcast_port,
-                "/etc/corosync/corosync.conf",
-            )
-        )
-
-        self.assertEqual(
-            agent_result_ok, change_mcast_port(old_mcast_port, new_mcast_port)
-        )
-
-        # check correct firewall and service calls were made
-        self.mock_add_port.assert_has_calls([mock.call(new_mcast_port, "udp")])
-        self.mock_remove_port.assert_has_calls([mock.call(old_mcast_port, "udp")])
-        with self.assertRaises(AssertionError):
-            self.mock_corosync_service.enable.assert_any_call()
 
         self.assertRanAllCommandsInOrder()
 
