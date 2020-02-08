@@ -843,11 +843,11 @@ def _failoverback_target(ha_label, primary):
     """
     node = _find_resource_constraint(ha_label, primary)
     if not node:
-        return agent_error(
-            "Unable to find the {} server for '{}'".format(
-                "primary" if primary else "secondary", ha_label
-            )
+        console_log.info(
+            "failoverback: Host move to %s requested, no constraints, so moving here",
+            "primary" if primary else "secondary",
         )
+        node = get_cluster_node_name()
 
     error = _move_target(ha_label, node)
 
