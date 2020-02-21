@@ -70,6 +70,10 @@ class LocalTargets(object):
                     continue
                 mount_point_map[mount] = res.get("id")
         except PacemakerConfigurationError:
+            # pacemaker isn't running
+            pass
+        except OSError:
+            # pacemaker isn't installed
             pass
 
         for device in sorted(target_devices, cmp=LocalTargets.comparator):
