@@ -912,6 +912,7 @@ def purge_configuration(mgs_device_path, mgs_device_type, filesystem_name):
     )
 
 
+# @Todo: What should happen here?
 def convert_targets(force=False):
     """
     Convert existing ocf:chroma:Target to ZFS + Lustre

@@ -80,6 +80,15 @@ This package layers on management capabilities for Integrated Manager for Lustre
 If using with pacemaker: pcs, fencing and resource agents should be installed.
 RPMS: pcs fence-agents lustre-resource-agents
 
+%package -n     python2-%{pypi_name}-compat
+Summary:        Management functionality layer.
+Group:          System Environment/Daemons
+Requires:       chroma-agent
+Requires:       grep
+
+%description -n python2-%{pypi_name}-compat
+Compatibility package for management capabilities for Integrated Manager for Lustre Agent.
+
 %prep
 %if %{?dist_version:1}%{!?dist_version:0}
 %setup -n %{pypi_name}-%(echo %{archive_version} | sed -Ee '/^v([0-9]+\.)[0-9]+/s/^v(.*)/\1/')
@@ -91,6 +100,7 @@ rm -rf %{pypi_name}.egg-info
 
 %build
 %{__python} setup.py build
+cp Target %{buildroot}
 
 %install
 rm -rf %{buildroot}
@@ -107,12 +117,13 @@ install -m 644 50-chroma-agent.preset %{buildroot}%{_presetdir}/
 mkdir -p $RPM_BUILD_ROOT/etc/{init,logrotate}.d/
 install -m 644 logrotate.cfg $RPM_BUILD_ROOT/etc/logrotate.d/chroma-agent
 mkdir -p %{buildroot}%{_unitdir}/device-scanner.target.d/
+mkdir -p %{_usr}/lib/ocf/resource.d/chroma/
+install -m 644 Target %{buildroot}/%{_usr}/lib/ocf/resource.d/chroma/
 
 touch management.files
 cat <<EndOfList>>management.files
 %{python_sitelib}/chroma_agent/action_plugins/manage_*.py*
 %{python_sitelib}/chroma_agent/templates/
-%{_usr}/lib/ocf/resource.d/chroma/Target
 # ZFS is pulled from resource-agents master (see README.md)
 %{_usr}/lib/ocf/resource.d/chroma/ZFS
 %{_sbindir}/fence_chroma
@@ -168,6 +179,10 @@ grubby --set-default=/boot/vmlinuz-$MOST_RECENT_KERNEL_VERSION
 
 %files -f management.files -n python2-%{pypi_name}-management
 %defattr(-,root,root)
+
+%files -n python2-%{pypi_name}-compat
+%defattr(-,root,root)
+%{_usr}/lib/ocf/resource.d/chroma/Target
 
 %changelog
 * Mon Oct 14 2019 Joe Grund <jgrund@whamcloud.com> - 4.2.0-1
