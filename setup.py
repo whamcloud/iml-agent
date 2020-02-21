@@ -4,7 +4,6 @@
 # Use of this source code is governed by a MIT-style
 # license that can be found in the LICENSE file.
 
-
 from setuptools import setup, find_packages
 from chroma_agent import package_version
 
@@ -22,7 +21,7 @@ excludes = ["*tests*"]
 setup(
     name="iml-agent",
     version=package_version(),
-    author="whamCloud Team",
+    author="Whamcloud Team",
     author_email="iml@whamcloud.com",
     url="https://pypi.python.org/pypi/iml-agent",
     packages=find_packages(exclude=excludes),
@@ -37,7 +36,7 @@ setup(
         "Programming Language :: Python :: 2.7",
     ],
     keywords="IML lustre high-availability",
-    data_files=[("/usr/lib/ocf/resource.d/chroma", ["Target", "ZFS"])],
+    data_files=[("/usr/lib/ocf/resource.d/chroma", ["ZFS"])],
     entry_points={
         "console_scripts": [
             "chroma-agent = chroma_agent.cli:main",
