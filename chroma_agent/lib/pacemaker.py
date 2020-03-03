@@ -259,30 +259,6 @@ class PacemakerConfig(object):
     def fenceable_nodes(self):
         return [n for n in self.nodes if len(n.fence_agents) > 0]
 
-    @property
-    def resource_list(self):
-        try:
-            return (
-                AgentShell.try_run(["crm_resource", "--list-raw"]).strip().split("\n")
-            )
-        except AgentShell.CommandExecutionError:
-            return []
-
-    def get_resource(self, label):
-        try:
-            res = AgentShell.try_run(
-                ["crm_resource", "--query-xml", "--resource", label]
-            ).strip()
-        except AgentShell.CommandExecutionError:
-            return None
-        i = res.find("\nxml:\n")
-        if not i:
-            return None
-        try:
-            return xml.fromstring(res[i + 6 :])
-        except ParseError:
-            return None
-
     def get_node(self, node_name):
         try:
             return next(

@@ -5,7 +5,6 @@
 
 from datetime import datetime
 
-from chroma_agent.lib.pacemaker import PacemakerConfig, PacemakerConfigurationError
 from chroma_agent.lib.shell import AgentShell
 from chroma_agent.device_plugins.block_devices import get_mounted_path, scanner_cmd
 from iml_common.blockdevices.blockdevice import BlockDevice
@@ -28,53 +27,6 @@ class LocalTargets(object):
         # as well as UUID is that two logical targets can have the same UUID
         # when we see a combined MGS+MDT
         uuid_name_to_target = {}
-
-        mount_point_map = {}
-        try:
-            pc = PacemakerConfig()
-            for res in pc.resource_list:
-                res = pc.get_resource(res)
-                if not res:
-                    continue
-                agent = "%s:%s:%s" % (
-                    res.get("class"),
-                    res.get("provider"),
-                    res.get("type"),
-                )
-                if agent == "ocf:lustre:Lustre":
-                    mount = next(
-                        i.get("value")
-                        for i in res.findall("./instance_attributes/nvpair")
-                        if i.get("name") == "mountpoint"
-                    )
-                elif agent == "ocf:ddn:lustre-server":
-                    mount = next(
-                        i.get("value")
-                        for i in res.findall("./instance_attributes/nvpair")
-                        if i.get("name") == "directory"
-                    )
-                elif agent == "ocf:chroma:Target":
-                    # if a chroma:Target device exists, then agent-management will be installed
-                    from chroma_agent.action_plugins.manage_targets import (
-                        get_target_config,
-                    )
-
-                    uuid = next(
-                        i.get("value")
-                        for i in res.findall("./instance_attributes/nvpair")
-                        if i.get("name") == "target"
-                    )
-                    info = get_target_config(uuid)
-                    mount = info["mntpt"]
-                else:
-                    continue
-                mount_point_map[mount] = res.get("id")
-        except PacemakerConfigurationError:
-            # pacemaker isn't running
-            pass
-        except OSError:
-            # pacemaker isn't installed
-            pass
 
         for device in sorted(target_devices, cmp=LocalTargets.comparator):
             block_device = BlockDevice(device["type"], device["path"])
@@ -120,7 +72,6 @@ class LocalTargets(object):
                         "mounted": mounted,
                         "mount_point": mnt_point,
                         "type": device["type"],
-                        "ha_label": mount_point_map.get(mnt_point),
                     }
                     uuid_name_to_target[(device["uuid"], name)] = target_dict
 

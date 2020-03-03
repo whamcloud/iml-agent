@@ -56,10 +56,10 @@ def get_mounted_path(path, dev_tree):
     mount = get_default("mount", None, dev_tree)
 
     if mount and mount.get("source") == path:
-        return mount.get("target")
+        return mount.get("source")
 
     if mount and path in get_default("paths", [], dev_tree):
-        return mount.get("target")
+        return mount.get("source")
 
     children = cmap(lambda x: x.values().pop(), get_default("children", [], dev_tree))
 
