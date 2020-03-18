@@ -2,49 +2,10 @@ import tempfile
 import os
 import shutil
 import chroma_agent.device_plugins.audit.lustre
-from chroma_agent.device_plugins.audit.lustre import (
-    LnetAudit,
-    MdtAudit,
-    MgsAudit,
-    LustreAudit,
-)
+from chroma_agent.device_plugins.audit.lustre import LustreAudit
+
 from iml_common.test.command_capture_testcase import CommandCaptureTestCase
 from tests.test_utils import PatchedContextTestCase
-
-
-class TestLustreAuditClassMethods(PatchedContextTestCase):
-    def setUp(self):
-        tests = os.path.join(os.path.dirname(__file__), "..")
-        self.test_root = os.path.join(
-            tests, "data/lustre_versions/2.9.58_86_g2383a62/mds_mgs"
-        )
-        super(TestLustreAuditClassMethods, self).setUp()
-
-    def test_kmod_is_loaded(self):
-        """Test that LustreAudit.kmod_is_loaded() works."""
-        assert MgsAudit.kmod_is_loaded()
-
-    def test_device_is_present(self):
-        """Test that LustreAudit.device_is_present() works."""
-        assert MdtAudit.device_is_present()
-
-    def test_is_available(self):
-        """Test that LustreAudit.is_available() works."""
-        assert LnetAudit.is_available()
-
-
-class TestLustreAuditScanner(PatchedContextTestCase):
-    def test_2x_audit_scanner(self):
-        tests = os.path.join(os.path.dirname(__file__), "..")
-        self.test_root = os.path.join(
-            tests, "data/lustre_versions/2.9.58_86_g2383a62/mds_mgs"
-        )
-        super(TestLustreAuditScanner, self).setUp()
-        list = [
-            cls.__name__
-            for cls in chroma_agent.device_plugins.audit.lustre.local_audit_classes()
-        ]
-        self.assertEqual(list, ["LnetAudit", "MdtAudit", "MgsAudit"])
 
 
 class TestLustreAudit(PatchedContextTestCase):

@@ -1,7 +1,7 @@
 from iml_common.lib import util
 import mock
 
-from django.utils import unittest
+import unittest
 
 from iml_common.lib.agent_rpc import agent_error, agent_result_ok
 

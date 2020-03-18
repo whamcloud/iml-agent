@@ -4,10 +4,8 @@ lockfile==0.9.1
 mock==1.0.1
 nose
 requests==2.6.0
-tablib==0.9.11
 toolz
 netaddr
 jinja2==2.7.2
-pyyaml
 scapy
 pkginfo

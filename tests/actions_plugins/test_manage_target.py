@@ -1,5 +1,5 @@
 import mock
-from django.utils import unittest
+import unittest
 
 from iml_common.blockdevices.blockdevice import BlockDevice
 from iml_common.blockdevices.blockdevice_zfs import BlockDeviceZfs

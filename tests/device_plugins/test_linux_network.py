@@ -1,5 +1,5 @@
 from collections import namedtuple
-from django.utils import unittest
+import unittest
 import mock
 from chroma_agent.device_plugins.linux_network import (
     LinuxNetworkDevicePlugin,

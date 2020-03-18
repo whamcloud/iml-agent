@@ -3,7 +3,7 @@ from collections import namedtuple
 import threading
 import mock
 
-from django.utils import unittest
+import unittest
 
 from chroma_agent.lib.shell import AgentShell
 from chroma_agent.device_plugins.action_runner import (
