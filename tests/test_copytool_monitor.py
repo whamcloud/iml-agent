@@ -3,7 +3,7 @@ import tempfile
 import shutil
 from mock import patch, Mock
 
-from django.utils import unittest
+import unittest
 
 from chroma_agent.copytool_monitor import Copytool, CopytoolEventRelay, CopytoolMonitor
 

@@ -1,7 +1,7 @@
 import mock
 import os
 from glob import glob
-from django.utils import unittest
+import unittest
 from chroma_agent.lib.shell import AgentShell
 from chroma_agent.log import daemon_log
 

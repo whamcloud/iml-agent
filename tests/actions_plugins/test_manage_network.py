@@ -1,6 +1,6 @@
 import mock
 
-from django.utils import unittest
+import unittest
 
 from chroma_agent.action_plugins.manage_network import open_firewall, close_firewall
 

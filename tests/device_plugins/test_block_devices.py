@@ -1,7 +1,7 @@
 import json
 import os
 
-from django.utils import unittest
+import unittest
 from mock import patch
 
 from chroma_agent.device_plugins.block_devices import get_local_mounts
