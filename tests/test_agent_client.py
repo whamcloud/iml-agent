@@ -4,7 +4,7 @@ import json
 import datetime
 import mock
 
-from django.utils import unittest
+import unittest
 
 from chroma_agent.agent_client import (
     HttpWriter,

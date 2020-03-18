@@ -41,7 +41,6 @@ Requires:       python-argparse
 Requires:       python-daemon
 Requires:       python-setuptools
 Requires:       python-requests >= 2.6.0
-Requires:       python2-tablib
 Requires:       yum-utils
 Requires:       iml_sos_plugin >= 2.3.0
 Requires:       python2-iml-common1.4 >= 1.4.5
