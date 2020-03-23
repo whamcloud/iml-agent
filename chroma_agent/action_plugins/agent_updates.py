@@ -26,6 +26,9 @@ def configure_repo(filename, file_contents):
     full_filename = os.path.join(REPO_PATH, filename)
     temp_full_filename = full_filename + ".tmp"
 
+    if file_contents.strip() == "":
+        return unconfigure_repo(filename)
+
     # this format needs to match create_repo() in manager agent-bootstrap-script
     file_contents = file_contents.format(
         crypto.AUTHORITY_FILE, crypto.PRIVATE_KEY_FILE, crypto.CERTIFICATE_FILE
@@ -62,35 +65,6 @@ def update_profile(profile):
     :param profile_name:
     :return: error or result OK
     """
-    old_profile = config.get("settings", "profile")
-    """
-    This is an incomplete solution but the incompleteness is at the bottom of the stack and we need this as a fix up
-    for 2.2 release.
-
-    What really needs to happen here is that the profile contains the name of the packages to install and then this
-    code would diff the old list and the new list and remove and add appropriately. For now we are just going to do that
-    in a hard coded way using the managed property.
-
-    To do this properly the profile needs to contain the packages and the endpoint needs to return them. We are going to
-    need it and when we do this function and profiles will need to be extended.
-
-    This code might want to use the update_pacakges as well but it's not clear and we are in a pickle here. This code is
-    not bad and doesn't have bad knock on effects.
-    """
-
-    if old_profile["managed"] != profile["managed"]:
-        if profile["managed"]:
-            action = "install"
-        else:
-            action = "remove"
-
-        try:
-            yum_util(action, packages=["python2-iml-agent-management"])
-        except AgentShell.CommandExecutionError as cee:
-            return agent_error(
-                "Unable to set profile because yum returned %s" % cee.result.stdout
-            )
-
     config.update("settings", "profile", profile)
 
     return agent_result_ok
