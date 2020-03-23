@@ -27,9 +27,7 @@ def configure_repo(filename, file_contents):
     temp_full_filename = full_filename + ".tmp"
 
     if file_contents.strip() == "":
-        # Touch and truncate the file
-        open(full_filename, "w")
-        return agent_result_ok
+        return unconfigure_repo(filename)
 
     # this format needs to match create_repo() in manager agent-bootstrap-script
     file_contents = file_contents.format(
