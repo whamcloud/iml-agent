@@ -4,7 +4,7 @@ BuildRequires: systemd
 %define unit_name chroma-agent.service
 
 %global pypi_name iml-agent
-%{?!version: %global version 4.2.0}
+%{?!version: %global version 4.2.1}
 %{?!python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; import sys; sys.stdout.write(get_python_lib())")}
 
 %{?dist_version: %global source https://github.com/whamcloud/%{pypi_name}/archive/%{dist_version}.tar.gz}
@@ -42,13 +42,13 @@ Requires:       python-daemon
 Requires:       python-setuptools
 Requires:       python-requests >= 2.6.0
 Requires:       yum-utils
-Requires:       iml_sos_plugin >= 2.3.0
+Requires:       iml_sos_plugin >= 2.3.1
 Requires:       python2-iml-common1.4 >= 1.4.5
 Requires:       systemd-python
 Requires:       python-tzlocal
 Requires:       python2-toolz
-Requires:       iml-device-scanner-proxy >= 3.0.0
-Requires:       iml-update-check >= 1.0.3
+Requires:       iml-device-scanner-proxy >= 3.0.1
+Requires:       iml-update-check >= 1.0.4
 Requires:       util-linux-ng
 Requires(post): selinux-policy
 Requires:       python-urllib3
