@@ -47,7 +47,7 @@ Requires:       python2-iml-common1.4 >= 1.4.5
 Requires:       systemd-python
 Requires:       python-tzlocal
 Requires:       python2-toolz
-Requires:       iml-device-scanner-proxy >= 3.0.1
+Requires:       iml-device-scanner >= 4.0.0
 Requires:       iml-update-check >= 1.0.4
 Requires:       util-linux-ng
 Requires(post): selinux-policy
