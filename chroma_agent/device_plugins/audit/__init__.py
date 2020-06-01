@@ -5,11 +5,9 @@
 
 def local_audit_classes():
     import lustre
-    import node
 
     classes = []
     classes.extend(lustre.local_audit_classes())
-    classes.append(getattr(node, "NodeAudit"))
     return classes
 
 

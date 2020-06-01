@@ -128,10 +128,5 @@ class PatchedContextTestCase(unittest.TestCase):
         for subclass in self._find_subclasses(BaseAudit):
             mock.patch.object(subclass, "fscontext", self._test_root).start()
 
-        # These classes aren't reliably detected for patching.
-        from chroma_agent.device_plugins.audit.node import NodeAudit
-
-        mock.patch.object(NodeAudit, "fscontext", self._test_root).start()
-
         self.addCleanup(mock.patch.stopall)
         self.addCleanup(os.chdir, self._orig_root)
