@@ -1,8 +1,11 @@
 import os
 from StringIO import StringIO
-from mock import patch, mock_open
+from mock import patch, mock_open, MagicMock
 
-from iml_common.test.command_capture_testcase import CommandCaptureTestCase
+from iml_common.test.command_capture_testcase import (
+    CommandCaptureTestCase,
+    CommandCaptureCommand,
+)
 
 
 class TestClientMountManagement(CommandCaptureTestCase):
@@ -17,6 +20,10 @@ class TestClientMountManagement(CommandCaptureTestCase):
 
     @patch("chroma_agent.action_plugins.manage_client_mounts.delete_fstab_entry")
     @patch("chroma_agent.action_plugins.manage_client_mounts.create_fstab_entry")
+    @patch(
+        "chroma_agent.action_plugins.manage_client_mounts.get_local_mounts",
+        MagicMock(return_value=[]),
+    )
     def test_mount_lustre_filesystem(self, create, delete):
         self.add_command(("/bin/mount", "/mnt/lustre_clients/foobar"))
 
