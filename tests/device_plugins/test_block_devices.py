@@ -4,8 +4,6 @@ import os
 import unittest
 from mock import patch
 
-from chroma_agent.device_plugins.block_devices import get_local_mounts
-
 
 class TestBase(unittest.TestCase):
     test_host_fqdn = "vm5.foo.com"
