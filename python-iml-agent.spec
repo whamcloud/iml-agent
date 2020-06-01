@@ -4,7 +4,7 @@ BuildRequires: systemd
 %define unit_name chroma-agent.service
 
 %global pypi_name iml-agent
-%{?!version: %global version 4.2.1}
+%{?!version: %global version 5.0.0}
 %{?!python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; import sys; sys.stdout.write(get_python_lib())")}
 
 %{?dist_version: %global source https://github.com/whamcloud/%{pypi_name}/archive/%{dist_version}.tar.gz}
