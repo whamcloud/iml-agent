@@ -97,7 +97,7 @@ class LocalTargets(object):
 
             targets = block_device.targets(uuid_name_to_target, device, daemon_log)
 
-            dev_tree = scanner_cmd("Stream").get("Root")
+            dev_tree = scanner_cmd("Stream")[0].get("Root")
             mnt_point = get_mounted_path(device["path"], dev_tree)
             mounted = mnt_point is not None
 

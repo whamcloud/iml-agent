@@ -16,7 +16,7 @@ class PatchedContextTestCase(unittest.TestCase):
             if cmd == "GetMounts":
                 return []
             else:
-                return {"blockDevices": {}, "zed": {}, "localMounts": []}
+                return [{}, {}]
 
         mock.patch(
             "chroma_agent.device_plugins.block_devices.scanner_cmd", mock_scanner_cmd
