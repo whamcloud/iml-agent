@@ -199,34 +199,3 @@ class LustreAudit(BaseAudit, FileSystemMixin, LustreGetParamMixin):
         """Returns a hash of metric values."""
         self._gather_raw_metrics()
         return {"raw": self.raw_metrics}
-
-
-class ClientAudit(LustreAudit):
-    """
-    Audit Lustre client information. Included in audit payload when
-    a mounted Lustre client is detected.
-    """
-
-    @classmethod
-    def is_available(cls):
-        return len(cls._client_mounts())
-
-    @classmethod
-    def _client_mounts(cls):
-        from chroma_agent.device_plugins.block_devices import get_local_mounts
-
-        spec = re.compile(r"@\w+:/\w+")
-        # get_local_mounts() returns a list of tuples in which the third element
-        # is the filesystem type.
-        return [
-            mount
-            for mount in get_local_mounts()
-            if mount[2] == "lustre" and spec.search(mount[0])
-        ]
-
-    def _gather_raw_metrics(self):
-        client_mounts = []
-        for mount in self.__class__._client_mounts():
-            client_mounts.append(dict(mountspec=mount[0], mountpoint=mount[1]))
-
-        self.raw_metrics["lustre_client_mounts"] = client_mounts

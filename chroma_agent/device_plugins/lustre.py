@@ -42,7 +42,7 @@ class LustrePlugin(DevicePlugin):
         try:
             mounts = {}
 
-            (kind, dev_tree) = scanner_cmd("Stream").items().pop()
+            (kind, dev_tree) = scanner_cmd("Stream")[0].items().pop()
 
             lustre_info = []
             get_lustre_mount_info(kind, dev_tree, lustre_info)
