@@ -28,6 +28,7 @@ MIN_SESSION_BACKOFF = datetime.timedelta(seconds=10)
 MAX_SESSION_BACKOFF = datetime.timedelta(seconds=60)
 
 GET_REQUEST_TIMEOUT = 60.0
+POST_REQUEST_TIMEOUT = 60.0
 
 # FIXME: this file needs a concurrency review pass
 
@@ -45,6 +46,7 @@ class CryptoClient(object):
         return self.request("get", **kwargs)
 
     def post(self, data, **kwargs):
+        kwargs["timeout"] = POST_REQUEST_TIMEOUT
         return self.request("post", data=json.dumps(data), **kwargs)
 
     def request(self, method, **kwargs):
