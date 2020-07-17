@@ -6,6 +6,7 @@
 import logging
 from StringIO import StringIO
 from copy import deepcopy
+import re
 import threading
 
 from iml_common.lib.shell import BaseShell
@@ -13,6 +14,8 @@ from iml_common.lib.shell import set_shell
 
 console_log = logging.getLogger("console")
 
+def filter_log_output(output):
+    return re.sub("name=\"passwd\" value=\".+\"", "name=\"passwd\" value=\"******\"", output)
 
 class ResultStore(threading.local):
     """
@@ -51,7 +54,7 @@ class ResultStore(threading.local):
                 {
                     "args": arg_list,
                     "rc": result.rc,
-                    "stdout": result.stdout,
+                    "stdout": filter_log_output(result.stdout),
                     "stderr": result.stderr,
                 }
             )
