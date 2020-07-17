@@ -14,8 +14,10 @@ from iml_common.lib.shell import set_shell
 
 console_log = logging.getLogger("console")
 
+
 def filter_log_output(output):
-    return re.sub("name=\"passwd\" value=\".+\"", "name=\"passwd\" value=\"******\"", output)
+    return re.sub('name="passwd" value=".+"', 'name="passwd" value="******"', output)
+
 
 class ResultStore(threading.local):
     """
