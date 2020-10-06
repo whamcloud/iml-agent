@@ -26,8 +26,8 @@ class CallbackAfterResponse(Exception):
 
     def __init__(self, result, callback):
         """
-         :param result: Response to send back to the manager
-         :param callback: To be invoked immediately before terminating the agent process
+        :param result: Response to send back to the manager
+        :param callback: To be invoked immediately before terminating the agent process
         """
 
         self.result = result

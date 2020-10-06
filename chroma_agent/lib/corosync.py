@@ -34,7 +34,7 @@ operstate = "/sys/class/net/{}/operstate"
 
 
 def filter_unclean_nodes(nodes):
-    """ Given a list of nodes,
+    """Given a list of nodes,
     returns the clean ones.
     """
     x = groupby(lambda x: x.get("unclean"), nodes)

@@ -302,7 +302,7 @@ class PacemakerConfig(object):
 
     @property
     def configured(self):
-        """ configured returns True if this node has a pacemaker configuration set by IML.
+        """configured returns True if this node has a pacemaker configuration set by IML.
         :return: True if configuration present else False
         """
         return "fence_chroma" in AgentShell.try_run(

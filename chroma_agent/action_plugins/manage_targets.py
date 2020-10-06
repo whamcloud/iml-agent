@@ -144,7 +144,7 @@ def format_target(
     quiet=False,
 ):
     """Perform a mkfs.lustre operation on a target device.
-       Device may be a number of devices, block"""
+    Device may be a number of devices, block"""
 
     # freeze a view of the namespace before we start messing with it
     args = dict(locals())
@@ -306,7 +306,7 @@ def unconfigure_target_ha(primary, ha_label, uuid):
     :param ha_label: String that identifies resource
     :param uuid: UUID that identifies config
     :return: Value using simple return protocol
-     """
+    """
 
     with PreservePacemakerCorosyncState():
         info = get_target_config(uuid)

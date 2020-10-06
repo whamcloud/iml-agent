@@ -26,23 +26,23 @@ except ImportError:
 
 
 class CorosyncPlugin(DevicePlugin):
-    """ Agent Plugin to read corosync node health status information
+    """Agent Plugin to read corosync node health status information
 
-        This plugin will run on all nodes and report about the health of
-        all nodes in it's peer group.
+    This plugin will run on all nodes and report about the health of
+    all nodes in it's peer group.
 
-        See also the chroma_core/services/corosync
+    See also the chroma_core/services/corosync
 
-        Node status is reported as a dictionary of host names containing
-        all of the possible crm_mon data as attributes:
-        { 'node1': {name: attr, name: attr...}
-          'node2': {name: attr, name: attr...} }
+    Node status is reported as a dictionary of host names containing
+    all of the possible crm_mon data as attributes:
+    { 'node1': {name: attr, name: attr...}
+      'node2': {name: attr, name: attr...} }
 
-        datetime is passed in localtime converted to UTC.
+    datetime is passed in localtime converted to UTC.
 
-        Based on xml output from this version of corosync/pacemaker
-        crm --version
-        1.1.7-6.el6 (Build 148fccfd5985c5590cc601123c6c16e966b85d14)
+    Based on xml output from this version of corosync/pacemaker
+    crm --version
+    1.1.7-6.el6 (Build 148fccfd5985c5590cc601123c6c16e966b85d14)
     """
 
     # This is the message that crm_mon will report
@@ -50,7 +50,7 @@ class CorosyncPlugin(DevicePlugin):
     COROSYNC_CONNECTION_FAILURE = "Connection to cluster failed: " "connection failed"
 
     def _parse_crm_as_xml(self, raw):
-        """ Parse the crm_mon response
+        """Parse the crm_mon response
 
         returns dict of nodes status or None if corosync is down
         """

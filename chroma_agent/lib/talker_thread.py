@@ -13,7 +13,7 @@ from chroma_agent.lib import networking
 
 
 class TalkerThread(threading.Thread):
-    """ To reduce races and improve the chances of ring1 detection, we start
+    """To reduce races and improve the chances of ring1 detection, we start
     a multicast "talker" thread which just sprays its multicast port
     at the multicast group. The idea is to fill in the "dead air" until
     one of the peers starts corosync.
