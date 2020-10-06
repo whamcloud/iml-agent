@@ -109,8 +109,8 @@ def get_lustre_mount_info(kind, dev_tree, xs):
 
 
 def parse_local_mounts(xs):
-    """ process block device info returned by device-scanner to produce
-        a legacy version of local mounts
+    """process block device info returned by device-scanner to produce
+    a legacy version of local mounts
     """
     return [(d["source"], d["target"], d["fs_type"]) for d in xs]
 

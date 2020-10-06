@@ -32,7 +32,7 @@ class TestFormatTarget(CommandCaptureTestCase):
         self.addCleanup(mock.patch.stopall)
 
     def _mkfs_path(self, block_device, target_name):
-        """ The mkfs path could be different for different block_device types. Today it isn't but it was when this
+        """The mkfs path could be different for different block_device types. Today it isn't but it was when this
         method was added and so rather than remove the method I've made it return the same value for both cases and
         perhaps in the future it will be called into use again
         """

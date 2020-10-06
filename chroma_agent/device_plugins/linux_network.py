@@ -17,7 +17,7 @@ EXCLUDE_INTERFACES = ["lo"]
 
 
 class NetworkInterface(object):
-    """ Created with an array of lines that are the output from ifconfig, this class will
+    """Created with an array of lines that are the output from ifconfig, this class will
     parse those lines and end up with a set of properties corresponding to the parsed data
 
     It only produces what is there and so some values may be left unset. The idea is that
@@ -222,7 +222,7 @@ class NetworkInterfaces(dict):
 
 
 class LNetNid:
-    """ Created with a single line that is the output of lctl get_param nis, this class will
+    """Created with a single line that is the output of lctl get_param nis, this class will
     parse those lines and end up with a set of properties corresponding to the parsed data
 
     It also requires a list of the network interfaces on the node so that it can name the nids
