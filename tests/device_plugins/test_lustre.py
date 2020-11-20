@@ -26,9 +26,6 @@ class TestLustreAudit(AgentUnitTestCase):
     def mock_get_resource_locations(self):
         return {"resource locations": TestLustreAudit.values["resource_locations"]}
 
-    def mock_scan_mounts(self):
-        return {"scan_mounts": TestLustreAudit.values["scan_mounts"]}
-
     def setUp(self):
         super(TestLustreAudit, self).setUp()
 
@@ -47,17 +44,7 @@ class TestLustreAudit(AgentUnitTestCase):
         ).start()
 
         mock.patch(
-            "chroma_agent.action_plugins.manage_targets.get_resource_locations",
-            self.mock_get_resource_locations,
-        ).start()
-
-        mock.patch(
             "chroma_agent.device_plugins.audit.local.LocalAudit", MockLocalAudit
-        ).start()
-
-        mock.patch(
-            "chroma_agent.device_plugins.lustre.LustrePlugin._scan_mounts",
-            self.mock_scan_mounts,
         ).start()
 
         self.lustre_plugin = LustrePlugin(None)

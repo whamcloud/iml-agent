@@ -109,7 +109,6 @@ touch management.files
 cat <<EndOfList>>management.files
 %{python_sitelib}/chroma_agent/action_plugins/manage_*.py*
 %{python_sitelib}/chroma_agent/templates/
-%{_usr}/lib/ocf/resource.d/chroma/Target
 # ZFS is pulled from resource-agents master (see README.md)
 %{_usr}/lib/ocf/resource.d/chroma/ZFS
 %{_sbindir}/fence_chroma
