@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "097a1c182c591963b44fe537d84c1cc5665c1c989edb8b57673c455ce41b6f84"
+            "sha256": "a0401ea595680ba2b3ce883773ee4c95bf29611fb7714c00b21e5cb5826d5959"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -21,7 +21,7 @@
                 "sha256:01f490098c18b19d2bd5bb5dc445b2054d2fa97f09a4280ba2c5f3c394c8162e",
                 "sha256:3355078a159fbb44ee60ea80abd0d87b80b78c248643b49aa6d94673b413609b"
             ],
-            "markers": "python_version < '3'",
+            "markers": "python_version < '3.4'",
             "version": "==0.6.0.post1"
         },
         "django": {
@@ -49,10 +49,11 @@
         },
         "jinja2": {
             "hashes": [
-                "sha256:310a35fbccac3af13ebf927297f871ac656b9da1d248b1fe6765affa71b53235"
+                "sha256:065c4f02ebe7f7cf559e49ee5a95fb800a9e4528727aec6f24402a5374c65013",
+                "sha256:14dd6caf1527abb21f08f86c784eac40853ba93edb79552aa1e4b8aef1b61c7b"
             ],
             "index": "pypi",
-            "version": "==2.7.2"
+            "version": "==2.10.1"
         },
         "lockfile": {
             "hashes": [

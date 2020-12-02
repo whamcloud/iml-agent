@@ -8,7 +8,7 @@ nose = "*"
 
 [packages]
 Django = "==1.7"
-Jinja2 = "==2.7.2"
+Jinja2 = "==2.10.1"
 iml-common = "<1.5,>=1.4"
 lockfile = "==0.9.1"
 mock = "==1.0.1"
