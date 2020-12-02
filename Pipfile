@@ -14,7 +14,7 @@ lockfile = "==0.9.1"
 mock = "==1.0.1"
 netaddr = "*"
 pkginfo = "*"
-requests = "==2.6.0"
+requests = "==2.20.0"
 scapy = "*"
 toolz = "*"
 
