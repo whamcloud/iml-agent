@@ -3,15 +3,8 @@
 # license that can be found in the LICENSE file.
 import errno
 import json
-import os
-import re
 import socket
-from collections import defaultdict
-from collections import namedtuple
-from toolz.curried import map as cmap, filter as cfilter
-from toolz.functoolz import pipe, curry
 from chroma_agent.lib.shell import AgentShell
-from iml_common.blockdevices.blockdevice import BlockDevice
 
 
 def scanner_cmd(cmd):
@@ -42,70 +35,6 @@ def scanner_cmd(cmd):
             except ValueError:
                 return None
         begin = len(out)
-
-
-def get_default(prop, default_value, x):
-    y = x.get(prop, default_value)
-    return y if y is not None else default_value
-
-
-def get_mounted_path(path, dev_tree):
-    if path is None:
-        return None
-
-    mount = get_default("mount", None, dev_tree)
-
-    if mount and mount.get("source") == path:
-        return mount.get("target")
-
-    if mount and path in get_default("paths", [], dev_tree):
-        return mount.get("target")
-
-    children = cmap(lambda x: x.values().pop(), get_default("children", [], dev_tree))
-
-    for x in children:
-        mnt_path = get_mounted_path(path, x)
-
-        if mnt_path:
-            return mnt_path
-
-
-def get_lustre_mount_info(kind, dev_tree, xs):
-    mount = get_default("mount", None, dev_tree)
-
-    if mount and mount.get("fs_type") == "lustre":
-        if kind == "Dataset":
-            fs_label = next(
-                prop["value"]
-                for prop in dev_tree["props"]
-                if prop["name"] == "lustre:svname"  # used to be fsname
-            )
-
-            fs_uuid = dev_tree["guid"]
-
-        elif kind == "LogicalVolume":
-            fs_uuid = dev_tree["uuid"]
-
-            label_prefix = "/dev/disk/by-label/"
-
-            fs_label = next(
-                p.split(label_prefix, 1)[1]
-                for p in dev_tree["paths"]
-                if p.startswith(label_prefix)
-            )
-        else:
-            fs_uuid = dev_tree["fs_uuid"]
-            fs_label = dev_tree["fs_label"]
-
-        xs.append((mount, fs_uuid, fs_label))
-
-    else:
-        children = cmap(
-            lambda x: x.items().pop(), get_default("children", [], dev_tree)
-        )
-
-        for (kind, c) in children:
-            get_lustre_mount_info(kind, c, xs)
 
 
 def parse_local_mounts(xs):
