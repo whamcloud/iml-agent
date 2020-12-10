@@ -141,7 +141,7 @@ rm -f /var/lib/iml/zfs_store.json
 %systemd_post %{unit_name}
 
 # this will either convert an old (pre-4.1) config or initialize
-chroma-agent convert_agent_config
+chroma-agent convert_agent_config >/dev/null 2>&1 || :
 
 %preun
 %systemd_preun %{unit_name}
