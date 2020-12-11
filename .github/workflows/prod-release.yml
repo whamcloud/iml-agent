@@ -2,7 +2,7 @@ name: prod-release
 on:
     push:
         tags:
-            - v5.1.0-1-r6.3
+            - v5.2.0-1-r6.3
 jobs:
     push_agent:
         name: Push to Copr prod (python-iml-agent)
